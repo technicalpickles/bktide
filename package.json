@@ -1,14 +1,21 @@
 {
-  "name": "alfred-buildkite",
+  "name": "bk-cli",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Buildkite CLI tool",
+  "main": "dist/index.js",
+  "bin": {
+    "bk-cli": "dist/index.js"
+  },
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": ["cli", "buildkite"],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "commander": "^13.1.0",
     "ts-node": "^10.9.2",
@@ -16,8 +23,5 @@
   },
   "devDependencies": {
     "@types/node": "^22.14.1"
-  },
-  "bin": {
-    "bk-cli": "dist/index.js"
   }
 }
