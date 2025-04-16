@@ -14,3 +14,8 @@ Some noteable commands, as defined in [package.json](mdc:package.json):
 
 - `npm run build` 
 - `npm run start` to execute the script, which passes args to the CLI
+
+
+# Making changes
+
+When updating things like [queries.ts](mdc:src/graphql/queries.ts), make sure to update callsites that are using it.

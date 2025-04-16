@@ -6,7 +6,11 @@ export const GET_VIEWER = `
   query {
     viewer {
       id
-      email
+      user {
+        id
+        name
+        email
+      }
     }
   }
 `;
