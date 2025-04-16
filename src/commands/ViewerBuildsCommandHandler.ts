@@ -20,6 +20,7 @@ export interface ViewerBuildsOptions {
   branch?: string;
   state?: string;
   debug?: boolean;
+  json?: boolean;
 }
 
 export class ViewerBuildsCommandHandler extends BaseCommandHandler {
@@ -104,10 +105,30 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
       allBuilds = allBuilds.slice(0, parseInt(perPage, 10));
       
       if (allBuilds.length === 0) {
+        if (options.json) {
+          console.log(JSON.stringify([]));
+          return;
+        }
         console.log(`No builds found for ${userName} (${userEmail || userId}).`);
         if (!options.org) {
           console.log('Try specifying an organization with --org to narrow your search.');
         }
+        return;
+      }
+      
+      if (options.json) {
+        // Format output as JSON with only requested fields
+        const jsonOutput = allBuilds.map((build: any) => ({
+          pipeline: build.pipeline?.slug || 'Unknown pipeline',
+          branch: build.branch || 'Unknown',
+          state: build.state || 'Unknown',
+          message: build.message || 'No message',
+          url: build.web_url || 'No URL',
+          created_at: build.created_at || null,
+          started_at: build.started_at || null,
+          finished_at: build.finished_at || null
+        }));
+        console.log(JSON.stringify(jsonOutput, null, 2));
         return;
       }
       
@@ -121,6 +142,8 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
           console.log(`Branch: ${build.branch || 'Unknown'}`);
           console.log(`Message: ${build.message || 'No message'}`);
           console.log(`Created: ${build.created_at ? new Date(build.created_at).toLocaleString() : 'Unknown'}`);
+          console.log(`Started: ${build.started_at ? new Date(build.started_at).toLocaleString() : 'Not started'}`);
+          console.log(`Finished: ${build.finished_at ? new Date(build.finished_at).toLocaleString() : 'Not finished'}`);
           console.log(`URL: ${build.web_url || 'No URL'}`);
           console.log('------------------');
         } catch (error) {

@@ -110,6 +110,7 @@ program
   .option('-n, --count <count>', 'Number of builds per page', '10')
   .option('--page <page>', 'Page number', '1')
   .option('-d, --debug', 'Show debug information for errors')
+  .option('--json', 'Output results in JSON format')
   .action(async (options) => {
     try {
       const token = BaseCommandHandler.getToken(options);
