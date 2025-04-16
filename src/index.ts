@@ -6,7 +6,8 @@ import {
   HelloCommandHandler,
   ViewerCommandHandler,
   OrganizationCommandHandler,
-  BuildCommandHandler
+  BuildCommandHandler,
+  ViewerBuildsCommandHandler
 } from './commands/index.js';
 
 const program = new Command();
@@ -90,6 +91,24 @@ program
       const token = BaseCommandHandler.getToken(options);
       const handler = new OrganizationCommandHandler(token);
       await handler.listPipelines(options);
+    } catch (error: any) {
+      console.error(`Error: ${error.message}`);
+      process.exit(1);
+    }
+  });
+
+// Add the builds command to view current user's builds
+program
+  .command('builds')
+  .description('List builds started by the current user')
+  .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
+  .option('-n, --count <count>', 'Number of builds to fetch', '10')
+  .option('-d, --debug', 'Show debug information for errors')
+  .action(async (options) => {
+    try {
+      const token = BaseCommandHandler.getToken(options);
+      const handler = new ViewerBuildsCommandHandler(token);
+      await handler.execute(options);
     } catch (error: any) {
       console.error(`Error: ${error.message}`);
       process.exit(1);

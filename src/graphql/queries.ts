@@ -79,4 +79,36 @@ export const GET_BUILDS = `
       }
     }
   }
+`;
+
+export const GET_VIEWER_BUILDS = `
+  query GetViewerBuilds($first: Int!) {
+    viewer {
+      builds(first: $first) {
+        edges {
+          node {
+            id
+            number
+            state
+            url
+            createdAt
+            branch
+            message
+            pipeline {
+              name
+              slug
+            }
+            organization {
+              name
+              slug
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
 `; 
