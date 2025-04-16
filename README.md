@@ -6,7 +6,34 @@ A command-line tool for interacting with Buildkite's GraphQL API.
 
 ```bash
 npm install
+```
+
+## Running the CLI
+
+You can run the CLI in two ways:
+
+### Development Mode (using ts-node)
+
+Run the CLI directly from TypeScript source without compiling:
+
+```bash
+npm run dev -- [command] [options]
+```
+
+For example:
+```bash
+npm run dev -- viewer
+npm run dev -- orgs
+npm run dev -- pipelines --org your-org-slug
+```
+
+### Production Mode (compiled)
+
+First build the project, then run the compiled JavaScript:
+
+```bash
 npm run build
+npm run start -- [command] [options]
 ```
 
 ## Authentication
@@ -15,13 +42,13 @@ You can authenticate with Buildkite in two ways:
 
 1. Using the `--token` option with each command:
    ```bash
-   node dist/index.js viewer --token YOUR_BUILDKITE_API_TOKEN
+   npm run dev -- viewer --token YOUR_BUILDKITE_API_TOKEN
    ```
 
 2. Setting the `BK_TOKEN` environment variable:
    ```bash
    export BK_TOKEN=YOUR_BUILDKITE_API_TOKEN
-   node dist/index.js viewer
+   npm run dev -- viewer
    ```
 
 ## Usage
@@ -29,19 +56,19 @@ You can authenticate with Buildkite in two ways:
 ### View Your Login Information
 
 ```bash
-node dist/index.js viewer
+npm run dev -- viewer
 ```
 
 ### List Your Organizations
 
 ```bash
-node dist/index.js orgs
+npm run dev -- orgs
 ```
 
 ### List Pipelines in an Organization
 
 ```bash
-node dist/index.js pipelines --org your-org-slug
+npm run dev -- pipelines --org your-org-slug
 ```
 
 ## Using the GraphQL Client in Your Code
