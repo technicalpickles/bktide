@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+This is a typescript CLI for interacting with the Buildkite GraphQL API.
+
+# Running commands
+
+Assume you are in the correct directory, ie the root of the repository. Don't try cd'ing to it
+
+Some noteable commands, as defined in [package.json](mdc:package.json):
+
+- `npm run build` 
+- `npm run start` to execute the script, which passes args to the CLI
