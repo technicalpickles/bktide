@@ -19,3 +19,8 @@ Some noteable commands, as defined in [package.json](mdc:package.json):
 # Making changes
 
 When updating things like [queries.ts](mdc:src/graphql/queries.ts), make sure to update callsites that are using it.
+
+
+# GraphQL
+
+Make sure queries stay in [queries.ts](mdc:src/graphql/queries.ts) . Calls to the API should go through [BuildkiteClient.ts](mdc:src/services/BuildkiteClient.ts)

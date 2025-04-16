@@ -71,6 +71,30 @@ npm run dev -- orgs
 npm run dev -- pipelines --org your-org-slug
 ```
 
+### List Your Builds
+
+```bash
+npm run dev -- builds
+```
+
+Additional options:
+```bash
+# Filter by organization
+npm run dev -- builds --org your-org-slug
+
+# Filter by pipeline
+npm run dev -- builds --pipeline pipeline-slug
+
+# Filter by branch
+npm run dev -- builds --branch main
+
+# Filter by state
+npm run dev -- builds --state passed
+
+# Pagination
+npm run dev -- builds --count 20 --page 2
+```
+
 ## Using the GraphQL Client in Your Code
 
 The Buildkite GraphQL client can be used in your own code:
@@ -92,6 +116,26 @@ async function getPipelines(organizationSlug: string) {
 }
 ```
 
+## Using the REST API Client
+
+The Buildkite REST API client can be used in your own code:
+
+```typescript
+import { BuildkiteRestClient } from './services/BuildkiteRestClient';
+
+const restClient = new BuildkiteRestClient('your-api-token');
+
+async function getBuildsForUser(org: string, userId: string) {
+  const builds = await restClient.getBuilds(org, {
+    creator: userId,
+    per_page: '10',
+    page: '1'
+  });
+  
+  return builds;
+}
+```
+
 ## API Token
 
 You'll need a Buildkite API token with GraphQL scopes. Create one at:
@@ -104,4 +148,20 @@ The `src/graphql/queries.ts` file contains several pre-defined GraphQL queries:
 - `GET_VIEWER`: Get information about the authenticated user
 - `GET_ORGANIZATIONS`: List organizations the user belongs to
 - `GET_PIPELINES`: List pipelines in an organization
-- `GET_BUILDS`: List builds for a pipeline 
+- `GET_BUILDS`: List builds for a pipeline
+- `GET_VIEWER_BUILDS`: List builds for the current user
+
+## Available API Endpoints
+
+### GraphQL API
+The `src/graphql/queries.ts` file contains several pre-defined GraphQL queries:
+
+- `GET_VIEWER`: Get information about the authenticated user
+- `GET_ORGANIZATIONS`: List organizations the user belongs to
+- `GET_PIPELINES`: List pipelines in an organization
+- `GET_BUILDS`: List builds for a pipeline
+
+### REST API
+The `src/services/BuildkiteRestClient.ts` file provides access to the Buildkite REST API endpoints:
+
+- `getBuilds`: Get builds from an organization with filtering options including by creator/user 

@@ -8,6 +8,7 @@ export const GET_VIEWER = `
       id
       user {
         id
+        uuid
         name
         email
       }

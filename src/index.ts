@@ -7,7 +7,8 @@ import {
   ViewerCommandHandler,
   OrganizationCommandHandler,
   BuildCommandHandler,
-  ViewerBuildsCommandHandler
+  ViewerBuildsCommandHandler,
+  UserBuildsCommandHandler
 } from './commands/index.js';
 
 const program = new Command();
@@ -97,12 +98,17 @@ program
     }
   });
 
-// Add the builds command to view current user's builds
+// Update the builds command to include REST API filtering options
 program
   .command('builds')
-  .description('List builds started by the current user')
+  .description('List builds for the current user')
   .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
-  .option('-n, --count <count>', 'Number of builds to fetch', '10')
+  .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
+  .option('-p, --pipeline <pipeline>', 'Filter by pipeline slug')
+  .option('-b, --branch <branch>', 'Filter by branch name')
+  .option('-s, --state <state>', 'Filter by build state (running, scheduled, passed, failing, failed, canceled, etc.)')
+  .option('-n, --count <count>', 'Number of builds per page', '10')
+  .option('--page <page>', 'Page number', '1')
   .option('-d, --debug', 'Show debug information for errors')
   .action(async (options) => {
     try {
