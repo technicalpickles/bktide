@@ -1,14 +1,21 @@
-import { BaseCommandHandler } from './BaseCommandHandler.js';
+import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
 import { GET_VIEWER } from '../graphql/queries.js';
 
-export interface ViewerOptions {
+export interface ViewerOptions extends BaseCommandOptions {
   token?: string;
   debug?: boolean;
 }
 
 export class ViewerCommandHandler extends BaseCommandHandler {
+  constructor(token: string, options?: Partial<ViewerOptions>) {
+    super(token, options);
+  }
+  
   async execute(options: ViewerOptions): Promise<void> {
     try {
+      // Ensure initialization is complete
+      await this.ensureInitialized();
+      
       const data = await this.client.query(GET_VIEWER);
       
       // Check if we have the expected data structure

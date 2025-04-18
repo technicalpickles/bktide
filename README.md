@@ -51,6 +51,48 @@ You can authenticate with Buildkite in two ways:
    npm run dev -- viewer
    ```
 
+## Caching
+
+This CLI implements disk-based caching to improve performance, particularly for repeated queries. Cached data is stored in the `~/.alfred-buildkite/cache/` directory.
+
+### Default Cache TTL Values
+
+- Viewer data: 1 hour
+- Organization data: 1 hour
+- Pipeline data: 1 minute
+- Build data: 30 seconds
+- Other queries: 30 seconds
+
+### Cache Control Options
+
+You can control caching behavior with these options:
+
+```bash
+# Disable caching for a command
+npm run dev -- viewer --no-cache
+
+# Clear the cache before executing a command
+npm run dev -- viewer --clear-cache
+
+# Set a custom TTL (time-to-live) in milliseconds
+npm run dev -- viewer --cache-ttl 60000  # 1 minute TTL
+```
+
+### Automatic Cache Invalidation
+
+- The cache is automatically invalidated when your API token changes
+- Mutation operations (like triggering a build) will invalidate the relevant cache types
+- Each cache entry has a TTL after which it will expire and be refreshed
+
+### Cache Implementation
+
+The caching system uses `node-persist` for persistent storage between CLI invocations. This provides:
+
+- Disk-based storage that persists between CLI runs
+- Automatic TTL management
+- Token-aware cache invalidation
+- Type-based cache management (viewer, organizations, etc.)
+
 ## Usage
 
 ### View Your Login Information

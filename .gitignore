@@ -41,3 +41,6 @@ coverage/
 
 # Optional eslint cache
 .eslintcache log
+
+tmp
+log/

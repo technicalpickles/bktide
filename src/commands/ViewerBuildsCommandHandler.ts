@@ -1,4 +1,4 @@
-import { BaseCommandHandler } from './BaseCommandHandler.js';
+import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
 import { GET_VIEWER } from '../graphql/queries.js';
 import { BuildkiteRestClient } from '../services/BuildkiteRestClient.js';
 
@@ -11,7 +11,7 @@ const createDebugLogger = (isDebugEnabled: boolean) => {
   };
 };
 
-export interface ViewerBuildsOptions {
+export interface ViewerBuildsOptions extends BaseCommandOptions {
   token?: string;
   count?: string;
   page?: string;
@@ -27,8 +27,8 @@ export interface ViewerBuildsOptions {
 export class ViewerBuildsCommandHandler extends BaseCommandHandler {
   private restClient: BuildkiteRestClient;
 
-  constructor(token: string) {
-    super(token);
+  constructor(token: string, options?: Partial<ViewerBuildsOptions>) {
+    super(token, options);
     this.restClient = new BuildkiteRestClient(token);
   }
 
@@ -39,6 +39,9 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
     try {
       // Override console.debug to respect the debug flag
       console.debug = createDebugLogger(!!options.debug);
+      
+      // Ensure initialization is complete
+      await this.ensureInitialized();
       
       const executeStartTime = process.hrtime.bigint();
       if (options.debug) {
@@ -245,4 +248,4 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
         return './icons/unknown.png';
     }
   }
-} 
+}

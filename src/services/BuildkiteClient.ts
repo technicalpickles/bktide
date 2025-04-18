@@ -1,4 +1,18 @@
 import { GraphQLClient } from 'graphql-request';
+import { CacheManager } from './CacheManager.js';
+
+export interface BuildkiteClientOptions {
+  debug?: boolean;
+  baseUrl?: string;
+  caching?: boolean;
+  cacheTTLs?: Partial<{
+    viewer: number;
+    organizations: number;
+    pipelines: number;
+    builds: number;
+    default: number;
+  }>;
+}
 
 /**
  * BuildkiteClient provides methods to interact with the Buildkite GraphQL API
@@ -7,14 +21,16 @@ export class BuildkiteClient {
   private client: GraphQLClient;
   private token: string;
   private baseUrl: string = 'https://graphql.buildkite.com/v1';
-
+  private cacheManager: CacheManager | null = null;
+  private debug: boolean = false;
   /**
    * Create a new BuildkiteClient
    * @param token Your Buildkite API token
    * @param options Configuration options
    */
-  constructor(token: string, options?: { baseUrl?: string }) {
+  constructor(token: string, options?: BuildkiteClientOptions, debug?: boolean) {
     this.token = token;
+    this.debug = debug || options?.debug || false;
     if (options?.baseUrl) {
       this.baseUrl = options.baseUrl;
     }
@@ -24,6 +40,23 @@ export class BuildkiteClient {
         Authorization: `Bearer ${this.token}`,
       },
     });
+
+    // Initialize cache if caching is enabled
+    if (options?.caching !== false) {
+      this.cacheManager = new CacheManager(options?.cacheTTLs);
+      // Initialize cache and set token hash (async, but we don't wait)
+      this.initCache();
+    }
+  }
+
+  /**
+   * Initialize cache asynchronously
+   */
+  private async initCache(): Promise<void> {
+    if (this.cacheManager) {
+      await this.cacheManager.init();
+      await this.cacheManager.setTokenHash(this.token);
+    }
   }
 
   /**
@@ -39,13 +72,34 @@ export class BuildkiteClient {
     try {
       const startTime = process.hrtime.bigint();
       const operationName = query.match(/query\s+(\w+)?/)?.[1] || 'UnnamedQuery';
-      console.debug(`🕒 Starting GraphQL query: ${operationName}`);
+      if (this.debug) {
+        console.debug(`🕒 Starting GraphQL query: ${operationName}`);
+      }
+      
+      // Check if result is in cache
+      if (this.cacheManager) {
+        const cachedResult = await this.cacheManager.get<T>(query, variables);
+        
+        if (cachedResult) {
+          if (this.debug) {
+            console.debug(`✅ Served from cache: ${operationName}`);
+          }
+          return cachedResult;
+        }
+      }
       
       const result = await this.client.request<T>(query, variables);
       
+      // Store result in cache if caching is enabled
+      if (this.cacheManager) {
+        await this.cacheManager.set(query, result, variables);
+      }
+      
       const endTime = process.hrtime.bigint();
       const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
-      console.debug(`✅ GraphQL query completed: ${operationName} (${duration.toFixed(2)}ms)`);
+      if (this.debug) {
+        console.debug(`✅ GraphQL query completed: ${operationName} (${duration.toFixed(2)}ms)`);
+      }
       
       return result;
     } catch (error) {
@@ -67,9 +121,21 @@ export class BuildkiteClient {
     try {
       const startTime = process.hrtime.bigint();
       const operationName = mutation.match(/mutation\s+(\w+)?/)?.[1] || 'UnnamedMutation';
-      console.debug(`🕒 Starting GraphQL mutation: ${operationName}`);
+      if (this.debug) {
+        console.debug(`🕒 Starting GraphQL mutation: ${operationName}`);
+      }
       
       const result = await this.client.request<T>(mutation, variables);
+      
+      // Invalidate relevant caches after mutations
+      if (this.cacheManager) {
+        // Determine what cache types to invalidate based on mutation name/content
+        if (mutation.includes('Pipeline')) {
+          await this.cacheManager.invalidateType('pipelines');
+        } else if (mutation.includes('Build')) {
+          await this.cacheManager.invalidateType('builds');
+        }
+      }
       
       const endTime = process.hrtime.bigint();
       const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
@@ -89,7 +155,9 @@ export class BuildkiteClient {
   public async getViewerOrganizationSlugs(): Promise<string[]> {
     try {
       const startTime = process.hrtime.bigint();
-      console.debug(`🕒 Starting GraphQL query: getViewerOrganizationSlugs`);
+      if (this.debug) {
+        console.debug(`🕒 Starting GraphQL query: getViewerOrganizationSlugs`);
+      }
       
       const query = `
         query {
@@ -121,12 +189,32 @@ export class BuildkiteClient {
       
       const endTime = process.hrtime.bigint();
       const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
-      console.debug(`✅ Found ${orgs.length} organizations (${duration.toFixed(2)}ms)`);
+      if (this.debug) {
+        console.debug(`✅ Found ${orgs.length} organizations (${duration.toFixed(2)}ms)`);
+      }
       
       return orgs;
     } catch (error) {
       console.error('Error fetching viewer organizations:', error);
       throw new Error('Failed to determine your organizations');
+    }
+  }
+
+  /**
+   * Clear all cache entries
+   */
+  public async clearCache(): Promise<void> {
+    if (this.cacheManager) {
+      await this.cacheManager.clear();
+    }
+  }
+
+  /**
+   * Invalidate a specific cache type
+   */
+  public async invalidateCache(type: string): Promise<void> {
+    if (this.cacheManager) {
+      await this.cacheManager.invalidateType(type);
     }
   }
 } 

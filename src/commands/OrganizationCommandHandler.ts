@@ -1,7 +1,7 @@
-import { BaseCommandHandler } from './BaseCommandHandler.js';
+import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
 import { GET_ORGANIZATIONS, GET_PIPELINES } from '../graphql/queries.js';
 
-export interface OrganizationOptions {
+export interface OrganizationOptions extends BaseCommandOptions {
   token?: string;
   debug?: boolean;
 }
@@ -12,8 +12,15 @@ export interface PipelineOptions extends OrganizationOptions {
 }
 
 export class OrganizationCommandHandler extends BaseCommandHandler {
+  constructor(token: string, options?: Partial<OrganizationOptions>) {
+    super(token, options);
+  }
+  
   async listOrganizations(options: OrganizationOptions): Promise<void> {
     try {
+      // Ensure initialization is complete
+      await this.ensureInitialized();
+      
       const data = await this.client.query(GET_ORGANIZATIONS);
       
       console.log('Your organizations:');
@@ -29,6 +36,9 @@ export class OrganizationCommandHandler extends BaseCommandHandler {
 
   async listPipelines(options: PipelineOptions): Promise<void> {
     try {
+      // Ensure initialization is complete
+      await this.ensureInitialized();
+      
       const variables = {
         organizationSlug: options.org,
         first: parseInt(options.count, 10)
