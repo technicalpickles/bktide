@@ -103,7 +103,8 @@ export class CacheManager {
    */
   public async get<T>(query: string, variables?: Record<string, any>): Promise<T | null> {
     await this.init();
-    const key = this.generateCacheKey(query, variables);
+    // Check if this is a direct key (used by REST client) or GraphQL query
+    const key = query.startsWith('REST:') ? query : this.generateCacheKey(query, variables);
     
     try {
       const entry = await storage.getItem(key);
@@ -125,11 +126,31 @@ export class CacheManager {
 
   /**
    * Set a value in cache
+   * @param query The GraphQL query or REST cache key
+   * @param value The value to cache
+   * @param variables Variables for GraphQL query or cache type for REST
    */
-  public async set<T>(query: string, value: T, variables?: Record<string, any>): Promise<void> {
+  public async set<T>(
+    query: string, 
+    value: T, 
+    variables?: Record<string, any> | keyof typeof CacheManager.DEFAULT_TTLs
+  ): Promise<void> {
     await this.init();
-    const key = this.generateCacheKey(query, variables);
-    const cacheType = this.getCacheTypeFromQuery(query);
+    
+    let key: string;
+    let cacheType: string;
+    
+    // Handle different usage patterns between GraphQL and REST clients
+    if (query.startsWith('REST:')) {
+      // REST client usage - variables is actually the cache type
+      key = query;
+      cacheType = (variables as string) || 'default';
+    } else {
+      // GraphQL client usage
+      key = this.generateCacheKey(query, variables as Record<string, any>);
+      cacheType = this.getCacheTypeFromQuery(query);
+    }
+    
     const ttl = this.ttls[cacheType as keyof typeof CacheManager.DEFAULT_TTLs] || CacheManager.DEFAULT_TTLs.default;
     
     await storage.setItem(key, {

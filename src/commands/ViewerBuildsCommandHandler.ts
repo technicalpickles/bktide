@@ -1,6 +1,6 @@
 import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
 import { GET_VIEWER } from '../graphql/queries.js';
-import { BuildkiteRestClient } from '../services/BuildkiteRestClient.js';
+import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/BuildkiteRestClient.js';
 
 // Add a custom console.debug that respects the debug flag
 const createDebugLogger = (isDebugEnabled: boolean) => {
@@ -29,7 +29,22 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
 
   constructor(token: string, options?: Partial<ViewerBuildsOptions>) {
     super(token, options);
-    this.restClient = new BuildkiteRestClient(token);
+    
+    // Configure REST client with the same caching options
+    const restClientOptions: BuildkiteRestClientOptions = {
+      debug: options?.debug,
+      caching: !options?.noCache,
+    };
+    
+    // If a specific cache TTL is provided, apply it to REST client
+    if (options?.cacheTTL) {
+      restClientOptions.cacheTTLs = {
+        default: options.cacheTTL,
+        builds: options.cacheTTL,
+      };
+    }
+    
+    this.restClient = new BuildkiteRestClient(token, restClientOptions);
   }
 
   async execute(options: ViewerBuildsOptions): Promise<void> {
