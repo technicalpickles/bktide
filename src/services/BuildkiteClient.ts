@@ -160,9 +160,9 @@ export class BuildkiteClient {
       }
       
       const query = `
-        query {
+        query ViewerOrganizations {
           viewer {
-            organizations {
+            organizations(first: 100) {
               edges {
                 node {
                   id
