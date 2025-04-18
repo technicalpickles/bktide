@@ -40,4 +40,4 @@ coverage/
 .npm
 
 # Optional eslint cache
-.eslintcache 
+.eslintcache log
