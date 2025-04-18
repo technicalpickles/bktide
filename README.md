@@ -78,6 +78,24 @@ npm run dev -- viewer --clear-cache
 npm run dev -- viewer --cache-ttl 60000  # 1 minute TTL
 ```
 
+### API Caching
+
+The caching system works for both GraphQL and REST API calls:
+
+- **GraphQL**: Caches responses for GraphQL queries like `GET_VIEWER` and `GET_ORGANIZATIONS`
+- **REST API**: Caches responses for REST endpoints like `/organizations/:org/builds`
+
+This is particularly useful for the `builds` command, which can be used for filtering without hitting the API repeatedly:
+
+```bash
+# First call fetches from API
+npm run dev -- builds --org your-org --count 50
+
+# Subsequent filtering uses cached data
+npm run dev -- builds --org your-org --count 50 --pipeline specific-pipeline
+npm run dev -- builds --org your-org --count 50 --branch main
+```
+
 ### Automatic Cache Invalidation
 
 - The cache is automatically invalidated when your API token changes

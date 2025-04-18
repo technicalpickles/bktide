@@ -3,12 +3,10 @@
 import { Command } from 'commander';
 import {
   BaseCommandHandler,
-  HelloCommandHandler,
   ViewerCommandHandler,
   OrganizationCommandHandler,
   BuildCommandHandler,
   ViewerBuildsCommandHandler,
-  UserBuildsCommandHandler
 } from './commands/index.js';
 
 const program = new Command();
@@ -25,14 +23,6 @@ program
   .name('bk-cli')
   .description('Buildkite CLI tool')
   .version('1.0.0');
-
-program
-  .command('hello')
-  .description('Say hello')
-  .action(() => {
-    const handler = new HelloCommandHandler();
-    handler.execute();
-  });
 
 // Example of a command with options
 const buildCmd = program
