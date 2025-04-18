@@ -5,7 +5,6 @@ import {
   BaseCommandHandler,
   ViewerCommandHandler,
   OrganizationCommandHandler,
-  BuildCommandHandler,
   ViewerBuildsCommandHandler,
 } from './commands/index.js';
 
@@ -23,30 +22,6 @@ program
   .name('bk-cli')
   .description('Buildkite CLI tool')
   .version('1.0.0');
-
-// Example of a command with options
-const buildCmd = program
-  .command('build')
-  .description('Trigger a new build')
-  .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
-  .option('-p, --pipeline <pipeline>', 'Pipeline slug')
-  .option('-b, --branch <branch>', 'Branch name', 'main')
-  .option('-c, --commit <commit>', 'Commit SHA')
-  .option('-m, --message <message>', 'Build message')
-  .option('-d, --debug', 'Show debug information for errors');
-
-// We don't add cache options to build command as it's not read-heavy
-
-buildCmd.action(async (options) => {
-  try {
-    const token = BaseCommandHandler.getToken(options);
-    const handler = new BuildCommandHandler(token);
-    await handler.triggerBuild(options);
-  } catch (error: any) {
-    console.error(`Error: ${error.message}`);
-    process.exit(1);
-  }
-});
 
 // GraphQL commands
 const viewerCmd = program
