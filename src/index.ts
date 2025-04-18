@@ -111,6 +111,7 @@ program
   .option('--page <page>', 'Page number', '1')
   .option('-d, --debug', 'Show debug information for errors')
   .option('--json', 'Output results in JSON format')
+  .option('--alfred', 'Output results in Alfred-compatible JSON format')
   .action(async (options) => {
     try {
       const token = BaseCommandHandler.getToken(options);

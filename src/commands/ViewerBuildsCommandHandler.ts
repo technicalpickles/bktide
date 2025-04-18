@@ -21,6 +21,7 @@ export interface ViewerBuildsOptions {
   state?: string;
   debug?: boolean;
   json?: boolean;
+  alfred?: boolean;
 }
 
 export class ViewerBuildsCommandHandler extends BaseCommandHandler {
@@ -105,7 +106,11 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
       allBuilds = allBuilds.slice(0, parseInt(perPage, 10));
       
       if (allBuilds.length === 0) {
-        if (options.json) {
+        if (options.alfred) {
+          // Return empty Alfred JSON format
+          console.log(JSON.stringify({ items: [] }));
+          return;
+        } else if (options.json) {
           console.log(JSON.stringify([]));
           return;
         }
@@ -116,7 +121,36 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
         return;
       }
       
-      if (options.json) {
+      if (options.alfred) {
+        // Format output as Alfred-compatible JSON
+        const alfredItems = allBuilds.map((build: any) => ({
+          uid: `${build.pipeline?.slug || 'unknown'}-${build.number}`,
+          title: `${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}`,
+          subtitle: `${build.state || 'Unknown'} • ${build.branch || 'Unknown'} • ${build.message || 'No message'}`,
+          arg: build.web_url || '',
+          autocomplete: `${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}`,
+          icon: {
+            path: this.getStateIcon(build.state)
+          },
+          mods: {
+            alt: {
+              subtitle: `Created: ${build.created_at ? new Date(build.created_at).toLocaleString() : 'Unknown'}`,
+              arg: build.web_url || ''
+            },
+            cmd: {
+              subtitle: `${build.started_at ? `Started: ${new Date(build.started_at).toLocaleString()}` : 'Not started'} • ${build.finished_at ? `Finished: ${new Date(build.finished_at).toLocaleString()}` : 'Not finished'}`,
+              arg: build.web_url || ''
+            }
+          },
+          text: {
+            copy: build.web_url || '',
+            largetype: `${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}\n${build.state || 'Unknown'} • ${build.branch || 'Unknown'}\n${build.message || 'No message'}`
+          }
+        }));
+        
+        console.log(JSON.stringify({ items: alfredItems }));
+        return;
+      } else if (options.json) {
         // Format output as JSON with only requested fields
         const jsonOutput = allBuilds.map((build: any) => ({
           pipeline: build.pipeline?.slug || 'Unknown pipeline',
@@ -181,6 +215,34 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
       }
       
       process.exit(1);
+    }
+  }
+
+  // Helper to get appropriate icon for build state
+  private getStateIcon(state: string | null): string {
+    if (!state) return './icons/unknown.png';
+    
+    switch (state.toLowerCase()) {
+      case 'passed':
+        return './icons/passed.png';
+      case 'failed':
+      case 'canceled':
+      case 'canceling':
+        return './icons/failed.png';
+      case 'running':
+        return './icons/running.png';
+      case 'creating':
+      case 'scheduled':
+        return './icons/scheduled.png';
+      case 'blocked':
+        return './icons/blocked.png';
+      case 'failing':
+        return './icons/failing.png';
+      case 'not_run':
+      case 'skipped':
+        return './icons/skipped.png';
+      default:
+        return './icons/unknown.png';
     }
   }
 } 
