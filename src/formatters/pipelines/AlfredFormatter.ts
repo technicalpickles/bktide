@@ -13,11 +13,13 @@ export class AlfredFormatter extends BaseFormatter {
       const title = pipeline.name || pipeline.slug;
       const subtitle = pipeline.description || '';
       const autocomplete = `${pipeline.organization}/${pipeline.name}`;
+      const match = `${pipeline.organization}/${pipeline.slug}`;
 
       return {
         uid: uid,
         title: title,
         subtitle: subtitle,
+        match: match,
         arg: pipelineUrl,
         autocomplete: autocomplete,
         mods: {

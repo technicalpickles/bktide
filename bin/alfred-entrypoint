@@ -1,0 +1,22 @@
+#!/bin/bash
+
+set -e
+
+cd "$(dirname $0)/.."
+
+BK_TOKEN=$(source .env; echo $BK_TOKEN)
+export BK_TOKEN
+export PATH=$HOME/.local/share/mise/shims:$PATH
+
+command="$1"
+if [[ -z "$command" ]]; then
+  echo "Usage: $0 <command> [filter]"
+  exit 1
+fi
+
+filter="$2"
+args=(--format alfred)
+if [[ -n "$filter" ]]; then
+  args+=(--filter "$filter")
+fi
+node dist/index.js "$command" "${args[@]}" 2>&1 | tee -a log/alfred.log
