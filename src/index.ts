@@ -73,7 +73,8 @@ const viewerCmd = program
   .command('viewer')
   .description('Show logged in user information')
   .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
-  .option('-d, --debug', 'Show debug information for errors');
+  .option('-d, --debug', 'Show debug information for errors')
+  .option('-f, --format <format>', 'Output format (plain, json)');
 
 addCacheOptions(viewerCmd).action(
   createCommandHandler(ViewerCommandHandler, 'execute')

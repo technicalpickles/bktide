@@ -1,9 +1,11 @@
 import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
 import { GET_VIEWER } from '../graphql/queries.js';
+import { getViewerFormatter } from '../formatters/index.js';
 
 export interface ViewerOptions extends BaseCommandOptions {
   token?: string;
   debug?: boolean;
+  format?: string;
 }
 
 export class ViewerCommandHandler extends BaseCommandHandler {
@@ -23,15 +25,13 @@ export class ViewerCommandHandler extends BaseCommandHandler {
         throw new Error('Invalid response format: missing viewer data');
       }
       
-      console.log('Logged in as:');
-      console.log(`- ID: ${data.viewer.id}`);
+      // Get the formatter based on the format option
+      const format = options.format || 'plain';
+      const formatter = getViewerFormatter(format);
+      const output = formatter.formatViewer(data, { debug: options.debug });
       
-      // Safely display user data if available
-      if (data.viewer.user) {
-        console.log(`- User ID: ${data.viewer.user.id || 'N/A'}`);
-        console.log(`- Name: ${data.viewer.user.name || 'N/A'}`);
-        console.log(`- Email: ${data.viewer.user.email || 'N/A'}`);
-      }
+      // Print the output
+      console.log(output);
     } catch (error: any) {
       console.error('Error fetching user information:');
       this.handleError(error, options.debug);
