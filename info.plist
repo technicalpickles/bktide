@@ -163,7 +163,7 @@ node dist/index.js pipelines --format alfred 2&gt;&amp;1 | tee -a log/alfred.log
 				<key>type</key>
 				<integer>0</integer>
 				<key>withspace</key>
-				<false/>
+				<true/>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.input.scriptfilter</string>
