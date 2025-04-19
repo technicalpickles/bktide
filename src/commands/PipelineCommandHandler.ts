@@ -5,6 +5,7 @@ import { getPipelineFormatter } from '../formatters/index.js';
 export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
   count?: string;
+  format?: string;  // Format option: plain, json, or alfred
 }
 
 export class PipelineCommandHandler extends BaseCommandHandler {
@@ -96,6 +97,7 @@ export class PipelineCommandHandler extends BaseCommandHandler {
       
       try {
         // Get the appropriate formatter
+        // Format precedence: command line option > constructor option > default
         const format = options.format || this.options.format || 'plain';
         if (options.debug) {
           console.log(`Debug: Using ${format} formatter`);

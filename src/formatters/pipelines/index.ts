@@ -1,14 +1,16 @@
 export * from './Formatter.js';
 export * from './PlainTextFormatter.js';
 export * from './JsonFormatter.js';
+export * from './AlfredFormatter.js';
 
 import { PipelineFormatter } from './Formatter.js';
 import { PlainTextFormatter } from './PlainTextFormatter.js';
 import { JsonFormatter } from './JsonFormatter.js';
+import { AlfredFormatter } from './AlfredFormatter.js';
 
 /**
  * Get the appropriate pipeline formatter based on the format string
- * @param format The format to use ('plain' or 'json')
+ * @param format The format to use ('plain', 'json', or 'alfred')
  * @returns A PipelineFormatter instance
  */
 export function getPipelineFormatter(format: string = 'plain'): PipelineFormatter {
@@ -18,6 +20,8 @@ export function getPipelineFormatter(format: string = 'plain'): PipelineFormatte
   switch (normalizedFormat) {
     case 'json':
       return new JsonFormatter();
+    case 'alfred':
+      return new AlfredFormatter();
     case 'plain':
     case 'text':
       return new PlainTextFormatter();
