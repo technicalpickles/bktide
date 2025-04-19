@@ -1,5 +1,6 @@
 import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
 import { GET_ORGANIZATIONS } from '../graphql/queries.js';
+import { OrganizationsQueryResponse, Organization, GraphQLEdge } from '../types/index.js';
 
 export interface OrganizationOptions extends BaseCommandOptions {
   token?: string;
@@ -16,10 +17,10 @@ export class OrganizationCommandHandler extends BaseCommandHandler {
       // Ensure initialization is complete
       await this.ensureInitialized();
       
-      const data = await this.client.query(GET_ORGANIZATIONS);
+      const data = await this.client.query<OrganizationsQueryResponse>(GET_ORGANIZATIONS);
       
       console.log('Your organizations:');
-      data.organizations.edges.forEach((edge: any) => {
+      data.organizations.edges.forEach((edge: GraphQLEdge<Organization>) => {
         console.log(`- ${edge.node.name} (${edge.node.slug})`);
       });
     } catch (error: any) {

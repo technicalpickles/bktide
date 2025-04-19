@@ -1,9 +1,10 @@
 import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
-import { GET_VIEWER } from '../graphql/queries.js';
+import { GET_VIEWER, GET_VIEWER_BUILDS } from '../graphql/queries.js';
 import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/BuildkiteRestClient.js';
 import { BuildkiteClient } from '../services/BuildkiteClient.js';
 import { getBuildFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
+import { Build, ViewerBuildsQueryResponse, ViewerData } from '../types/index.js';
 
 // Add a custom console.debug that respects the debug flag
 const createDebugLogger = (isDebugEnabled: boolean) => {
@@ -70,7 +71,7 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
       }
       
       // First, get the current user's information using GraphQL
-      const viewerData = await this.client.query(GET_VIEWER);
+      const viewerData = await this.client.query<ViewerData>(GET_VIEWER);
       
       if (!viewerData?.viewer?.user?.uuid) {
         throw new Error('Failed to get current user UUID information');
@@ -98,8 +99,8 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
         orgs = [options.org];
       }
       
-      // Attempt to find builds across all user organizations or the specified one
-      let allBuilds: any[] = [];
+      // Initialize results array
+      let allBuilds: Build[] = [];
       
       for (const org of orgs) {
         try {

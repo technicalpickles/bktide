@@ -2,10 +2,13 @@
 
 set -e
 
-cd "$(dirname $0)/.."
+cd "$(dirname "$0")/.."
 
-BK_TOKEN=$(source .env; echo $BK_TOKEN)
-export BK_TOKEN
+if [ -f .env ]; then
+  BK_TOKEN=$(source .env; echo $BK_TOKEN)
+  export BK_TOKEN
+fi
+
 export PATH=$HOME/.local/share/mise/shims:$PATH
 
 command="$1"

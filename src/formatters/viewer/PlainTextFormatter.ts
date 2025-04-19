@@ -1,8 +1,9 @@
 import { FormatterOptions } from '../BaseFormatter.js';
 import { BaseFormatter } from './Formatter.js';
+import { ViewerData } from '../../types/index.js';
 
 export class PlainTextFormatter extends BaseFormatter {
-  formatViewer(viewerData: any, options?: FormatterOptions): string {
+  formatViewer(viewerData: ViewerData, options?: FormatterOptions): string {
     if (!viewerData?.viewer) {
       return 'No viewer data found.';
     }

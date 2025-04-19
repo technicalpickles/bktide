@@ -2,6 +2,7 @@ import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js'
 import { GET_PIPELINES } from '../graphql/queries.js';
 import { getPipelineFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
+import { Pipeline, PipelineQueryResponse } from '../types/index.js';
 
 export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
@@ -35,7 +36,7 @@ export class PipelineCommandHandler extends BaseCommandHandler {
       }
       
       // Initialize results array
-      let allPipelines: any[] = [];
+      let allPipelines: Pipeline[] = [];
       
       // Fetch pipelines for each organization
       for (const org of orgs) {
@@ -47,7 +48,11 @@ export class PipelineCommandHandler extends BaseCommandHandler {
           const resultLimit = limitResults ? parseInt(options.count as string, 10) : Infinity;
           
           while (hasNextPage && allPipelines.length < resultLimit) {
-            const variables: any = {
+            const variables: { 
+              organizationSlug: string;
+              first: number;
+              after?: string;
+            } = {
               organizationSlug: org,
               first: batchSize
             };
@@ -56,11 +61,11 @@ export class PipelineCommandHandler extends BaseCommandHandler {
               variables.after = cursor;
             }
             
-            const data = await this.client.query(GET_PIPELINES, variables);
+            const data = await this.client.query<PipelineQueryResponse>(GET_PIPELINES, variables);
             
             if (data?.organization?.pipelines?.edges) {
               // Add org information to each pipeline for display
-              const pipelines = data.organization.pipelines.edges.map((edge: any) => ({
+              const pipelines: Pipeline[] = data.organization.pipelines.edges.map((edge) => ({
                 ...edge.node,
                 organization: org
               }));

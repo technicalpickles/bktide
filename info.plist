@@ -117,7 +117,7 @@
 			<key>config</key>
 			<dict>
 				<key>alfredfiltersresults</key>
-				<true/>
+				<false/>
 				<key>alfredfiltersresultsmatchmode</key>
 				<integer>2</integer>
 				<key>argumenttreatemptyqueryasnil</key>
@@ -141,12 +141,7 @@
 				<key>runningsubtext</key>
 				<string>Fetching...</string>
 				<key>script</key>
-				<string>cd /Users/josh.nichols/workspace/alfred-buildkite
-BK_TOKEN=$(source .env; echo $BK_TOKEN)
-export BK_TOKEN
-export PATH=/Users/josh.nichols/.local/share/mise/shims:$PATH
-
-node dist/index.js pipelines --format alfred 2&gt;&amp;1 | tee -a log/alfred.log</string>
+				<string>bin/alfred-entrypoint pipelines "$@"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>

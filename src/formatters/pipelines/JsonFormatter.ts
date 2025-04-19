@@ -1,8 +1,9 @@
 import { FormatterOptions } from '../BaseFormatter.js';
 import { BaseFormatter } from './Formatter.js';
+import { Pipeline } from '../../types/index.js';
 
 export class JsonFormatter extends BaseFormatter {
-  formatPipelines(pipelines: any[], organizations: string[], options?: FormatterOptions): string {
+  formatPipelines(pipelines: Pipeline[], organizations: string[], options?: FormatterOptions): string {
     const result = {
       count: pipelines.length,
       organizations,

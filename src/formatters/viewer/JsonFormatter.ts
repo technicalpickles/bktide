@@ -1,8 +1,9 @@
 import { FormatterOptions } from '../BaseFormatter.js';
 import { BaseFormatter } from './Formatter.js';
+import { ViewerData } from '../../types/index.js';
 
 export class JsonFormatter extends BaseFormatter {
-  formatViewer(viewerData: any, options?: FormatterOptions): string {
+  formatViewer(viewerData: ViewerData, options?: FormatterOptions): string {
     if (!viewerData?.viewer) {
       return JSON.stringify({ error: 'No viewer data found' }, null, 2);
     }

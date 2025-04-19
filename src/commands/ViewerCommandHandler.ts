@@ -1,6 +1,7 @@
 import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
 import { GET_VIEWER } from '../graphql/queries.js';
 import { getViewerFormatter } from '../formatters/index.js';
+import { ViewerData } from '../types/index.js';
 
 export interface ViewerOptions extends BaseCommandOptions {
   token?: string;
@@ -18,7 +19,7 @@ export class ViewerCommandHandler extends BaseCommandHandler {
       // Ensure initialization is complete
       await this.ensureInitialized();
       
-      const data = await this.client.query(GET_VIEWER);
+      const data = await this.client.query<ViewerData>(GET_VIEWER);
       
       // Check if we have the expected data structure
       if (!data?.viewer) {

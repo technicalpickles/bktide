@@ -1,10 +1,11 @@
 import { FormatterOptions } from '../BaseFormatter.js';
 import { BaseFormatter } from './Formatter.js';
+import { Build } from '../../types/index.js';
 
 export class AlfredFormatter extends BaseFormatter {
-  formatBuilds(builds: any[], options?: FormatterOptions): string {
+  formatBuilds(builds: Build[], options?: FormatterOptions): string {
     // Format builds as Alfred-compatible JSON items
-    const alfredItems = builds.map((build: any) => {
+    const alfredItems = builds.map((build: Build) => {
       // Generate web URL for the build (if not already present)
       const buildUrl = build.web_url || build.url || '';
       
@@ -12,6 +13,15 @@ export class AlfredFormatter extends BaseFormatter {
       const title = `${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}`;
       const subtitle = `${build.state || 'Unknown'} • ${build.branch || 'Unknown'} • ${build.message || 'No message'}`;
       const autocomplete = `${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}`;
+
+      const createdDate = (build.created_at || build.createdAt) ? 
+        new Date(build.created_at || build.createdAt as string).toLocaleString() : 'Unknown';
+      
+      const startedDate = (build.started_at || build.startedAt) ? 
+        `Started: ${new Date(build.started_at || build.startedAt as string).toLocaleString()}` : 'Not started';
+      
+      const finishedDate = (build.finished_at || build.finishedAt) ? 
+        `Finished: ${new Date(build.finished_at || build.finishedAt as string).toLocaleString()}` : 'Not finished';
 
       return {
         uid: uid,
@@ -24,11 +34,11 @@ export class AlfredFormatter extends BaseFormatter {
         },
         mods: {
           alt: {
-            subtitle: `Created: ${build.created_at || build.createdAt ? new Date(build.created_at || build.createdAt).toLocaleString() : 'Unknown'}`,
+            subtitle: `Created: ${createdDate}`,
             arg: buildUrl
           },
           cmd: {
-            subtitle: `${build.started_at || build.startedAt ? `Started: ${new Date(build.started_at || build.startedAt).toLocaleString()}` : 'Not started'} • ${build.finished_at || build.finishedAt ? `Finished: ${new Date(build.finished_at || build.finishedAt).toLocaleString()}` : 'Not finished'}`,
+            subtitle: `${startedDate} • ${finishedDate}`,
             arg: buildUrl
           }
         },

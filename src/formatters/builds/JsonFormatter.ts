@@ -1,11 +1,12 @@
 import { FormatterOptions } from '../BaseFormatter.js';
 import { BaseFormatter } from './Formatter.js';
+import { Build } from '../../types/index.js';
 
 export class JsonFormatter extends BaseFormatter {
-  formatBuilds(builds: any[], options?: FormatterOptions): string {
+  formatBuilds(builds: Build[], options?: FormatterOptions): string {
     const result = {
       count: builds.length,
-      builds: builds.map((build: any) => ({
+      builds: builds.map((build: Build) => ({
         pipeline: build.pipeline?.slug || 'Unknown pipeline',
         number: build.number,
         branch: build.branch || 'Unknown',

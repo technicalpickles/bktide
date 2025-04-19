@@ -1,8 +1,9 @@
 import { FormatterOptions } from '../BaseFormatter.js';
 import { BaseFormatter } from './Formatter.js';
+import { Pipeline } from '../../types/index.js';
 
 export class PlainTextFormatter extends BaseFormatter {
-  formatPipelines(pipelines: any[], organizations: string[], options?: FormatterOptions): string {
+  formatPipelines(pipelines: Pipeline[], organizations: string[], options?: FormatterOptions): string {
     const output: string[] = [];
     
     if (pipelines.length === 0) {
@@ -19,7 +20,7 @@ export class PlainTextFormatter extends BaseFormatter {
       output.push(`Pipelines across your organizations (${pipelines.length} total):`);
     }
     
-    pipelines.forEach((pipeline: any) => {
+    pipelines.forEach((pipeline: Pipeline) => {
       if (organizations.length > 1) {
         output.push(`- [${pipeline.organization}] ${pipeline.name} (${pipeline.slug})`);
       } else {

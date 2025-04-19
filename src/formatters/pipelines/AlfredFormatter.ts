@@ -1,16 +1,17 @@
 import { FormatterOptions } from '../BaseFormatter.js';
 import { BaseFormatter } from './Formatter.js';
+import { Pipeline } from '../../types/index.js';
 
 export class AlfredFormatter extends BaseFormatter {
-  formatPipelines(pipelines: any[], organizations: string[], options?: FormatterOptions): string {
+  formatPipelines(pipelines: Pipeline[], organizations: string[], options?: FormatterOptions): string {
     // Format pipelines as Alfred-compatible JSON items
-    const alfredItems = pipelines.map((pipeline: any) => {
+    const alfredItems = pipelines.map((pipeline: Pipeline) => {
       // Generate web URL for the pipeline (if not already present)
       const pipelineUrl = pipeline.url || 
         `https://buildkite.com/${pipeline.organization}/${pipeline.slug}`;
       
       const uid = pipeline.uuid;
-      const title = pipeline.name || pipeline.slug;
+      const title = pipeline.slug;
       const subtitle = pipeline.description || '';
       const autocomplete = `${pipeline.organization}/${pipeline.name}`;
       const match = `${pipeline.organization}/${pipeline.slug}`;
@@ -28,7 +29,7 @@ export class AlfredFormatter extends BaseFormatter {
             arg: pipelineUrl
           },
           cmd: {
-            subtitle: `Slug: ${pipeline.slug}`,
+            subtitle: `Name: ${pipeline.name}`,
             arg: pipelineUrl
           }
         },

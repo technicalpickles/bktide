@@ -1,5 +1,6 @@
 import { GraphQLClient } from 'graphql-request';
 import { CacheManager } from './CacheManager.js';
+import { ViewerOrganizationsData, GraphQLEdge, Organization } from '../types/index.js';
 
 export interface BuildkiteClientOptions {
   debug?: boolean;
@@ -65,7 +66,7 @@ export class BuildkiteClient {
    * @param variables Variables for the query
    * @returns The query response
    */
-  public async query<T = any, V extends Record<string, any> = Record<string, any>>(
+  public async query<T = unknown, V extends Record<string, any> = Record<string, any>>(
     query: string,
     variables?: V
   ): Promise<T> {
@@ -114,7 +115,7 @@ export class BuildkiteClient {
    * @param variables Variables for the mutation
    * @returns The mutation response
    */
-  public async mutate<T = any, V extends Record<string, any> = Record<string, any>>(
+  public async mutate<T = unknown, V extends Record<string, any> = Record<string, any>>(
     mutation: string,
     variables?: V
   ): Promise<T> {
@@ -175,13 +176,13 @@ export class BuildkiteClient {
         }
       `;
 
-      const data = await this.query(query);
+      const data = await this.query<ViewerOrganizationsData>(query);
       
       if (!data?.viewer?.organizations?.edges) {
         throw new Error('Failed to fetch organizations from the API');
       }
       
-      const orgs = data.viewer.organizations.edges.map((edge: any) => edge.node.slug);
+      const orgs = data.viewer.organizations.edges.map((edge: GraphQLEdge<Organization>) => edge.node.slug);
       
       if (orgs.length === 0) {
         throw new Error('No organizations found for the current user');
