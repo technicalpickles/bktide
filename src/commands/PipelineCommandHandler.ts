@@ -6,6 +6,7 @@ export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
   count?: string;
   format?: string;  // Format option: plain, json, or alfred
+  filter?: string;  // Filter option for pipeline names
 }
 
 export class PipelineCommandHandler extends BaseCommandHandler {
@@ -93,6 +94,18 @@ export class PipelineCommandHandler extends BaseCommandHandler {
       // Limit to the requested number of pipelines if specified
       if (options.count !== undefined) {
         allPipelines = allPipelines.slice(0, parseInt(options.count as string, 10));
+      }
+      
+      // Filter pipelines by name if filter is specified
+      if (options.filter) {
+        const filterLowerCase = options.filter.toLowerCase();
+        allPipelines = allPipelines.filter(pipeline => 
+          pipeline.name.toLowerCase().includes(filterLowerCase)
+        );
+        
+        if (options.debug) {
+          console.log(`Debug: Filtered to ${allPipelines.length} pipelines matching '${options.filter}'`);
+        }
       }
       
       try {

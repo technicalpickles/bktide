@@ -96,7 +96,8 @@ const pipelinesCmd = program
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-n, --count <count>', 'Limit to specified number of pipelines per organization')
   .option('-d, --debug', 'Show debug information for errors')
-  .option('-f, --format <format>', 'Output format (plain, json, alfred)', 'plain');
+  .option('-f, --format <format>', 'Output format (plain, json, alfred)', 'plain')
+  .option('--filter <name>', 'Filter pipelines by name (case insensitive)');
 
 addCacheOptions(pipelinesCmd).action(
   createCommandHandler(PipelineCommandHandler, 'listPipelines')
