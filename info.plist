@@ -10,7 +10,7 @@
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>ED936629-A9E6-4D32-8FEE-AE49A8CD802C</string>
+				<string>23FFFF40-EAC3-4E31-884E-643D969B7AB7</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -121,27 +121,6 @@ node dist/index.js builds --alfred 2&gt;&amp;1 | tee -a log/alfred.log</string>
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>browser</key>
-				<string></string>
-				<key>skipqueryencode</key>
-				<true/>
-				<key>skipvarencode</key>
-				<true/>
-				<key>spaces</key>
-				<string></string>
-				<key>url</key>
-				<string>{query}</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.openurl</string>
-			<key>uid</key>
-			<string>ED936629-A9E6-4D32-8FEE-AE49A8CD802C</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
 				<key>alfredfiltersresults</key>
 				<true/>
 				<key>alfredfiltersresultsmatchmode</key>
@@ -208,9 +187,9 @@ node dist/index.js pipelines --format alfred 2&gt;&amp;1 | tee -a log/alfred.log
 		<key>23FFFF40-EAC3-4E31-884E-643D969B7AB7</key>
 		<dict>
 			<key>xpos</key>
-			<real>350</real>
+			<real>370</real>
 			<key>ypos</key>
-			<real>275</real>
+			<real>350</real>
 		</dict>
 		<key>6CEA3061-E41E-4D9C-99CF-435E7A85AED6</key>
 		<dict>
@@ -218,13 +197,6 @@ node dist/index.js pipelines --format alfred 2&gt;&amp;1 | tee -a log/alfred.log
 			<real>65</real>
 			<key>ypos</key>
 			<real>275</real>
-		</dict>
-		<key>ED936629-A9E6-4D32-8FEE-AE49A8CD802C</key>
-		<dict>
-			<key>xpos</key>
-			<real>370</real>
-			<key>ypos</key>
-			<real>415</real>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
