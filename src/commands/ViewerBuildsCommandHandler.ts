@@ -2,6 +2,7 @@ import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js'
 import { GET_VIEWER } from '../graphql/queries.js';
 import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/BuildkiteRestClient.js';
 import { BuildkiteClient } from '../services/BuildkiteClient.js';
+import { getBuildFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
 
 // Add a custom console.debug that respects the debug flag
@@ -22,12 +23,11 @@ export interface ViewerBuildsOptions extends BaseCommandOptions {
   branch?: string;
   state?: string;
   debug?: boolean;
-  json?: boolean;
-  alfred?: boolean;
   noCache?: boolean;
   cacheTTL?: number;
   clearCache?: boolean;
   filter?: string;
+  format?: string;
 }
 
 export class ViewerBuildsCommandHandler extends BaseCommandHandler {
@@ -114,7 +114,6 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
           
           if (options.debug) {
             console.log(`Debug: Received ${builds.length} builds from org ${org}`);
-            // console.log(`Debug: First build sample:`, builds.length > 0 ? JSON.stringify(builds[0], null, 2) : 'No builds');
           }
           
           allBuilds = allBuilds.concat(builds);
@@ -153,11 +152,14 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
       }
       
       if (allBuilds.length === 0) {
-        if (options.alfred) {
+        // Determine the format type based on options
+        const format = options.format || 'plain';
+        
+        if (format === 'alfred') {
           // Return empty Alfred JSON format
           console.log(JSON.stringify({ items: [] }));
           return;
-        } else if (options.json) {
+        } else if (format === 'json') {
           console.log(JSON.stringify([]));
           return;
         }
@@ -168,78 +170,20 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
         return;
       }
       
-      if (options.alfred) {
-        // Format output as Alfred-compatible JSON
-        const alfredItems = allBuilds.map((build: any) => ({
-          uid: `${build.pipeline?.slug || 'unknown'}-${build.number}`,
-          title: `${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}`,
-          subtitle: `${build.state || 'Unknown'} • ${build.branch || 'Unknown'} • ${build.message || 'No message'}`,
-          arg: build.web_url || '',
-          autocomplete: `${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}`,
-          icon: {
-            path: this.getStateIcon(build.state)
-          },
-          mods: {
-            alt: {
-              subtitle: `Created: ${build.created_at ? new Date(build.created_at).toLocaleString() : 'Unknown'}`,
-              arg: build.web_url || ''
-            },
-            cmd: {
-              subtitle: `${build.started_at ? `Started: ${new Date(build.started_at).toLocaleString()}` : 'Not started'} • ${build.finished_at ? `Finished: ${new Date(build.finished_at).toLocaleString()}` : 'Not finished'}`,
-              arg: build.web_url || ''
-            }
-          },
-          text: {
-            copy: build.web_url || '',
-            largetype: `${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}\n${build.state || 'Unknown'} • ${build.branch || 'Unknown'}\n${build.message || 'No message'}`
-          }
-        }));
+      // Get the appropriate formatter based on format option
+      const format = options.format || 'plain';
+      const formatter = getBuildFormatter(format);
+      const output = formatter.formatBuilds(allBuilds, { debug: options.debug });
+      
+      // Print the output
+      console.log(output);
+      
+      if (format === 'plain') {
+        console.log(`Showing ${allBuilds.length} builds. Use --count and --page options to see more.`);
         
-        console.log(JSON.stringify({ items: alfredItems }));
-        return;
-      } else if (options.json) {
-        // Format output as JSON with only requested fields
-        const jsonOutput = allBuilds.map((build: any) => ({
-          pipeline: build.pipeline?.slug || 'Unknown pipeline',
-          branch: build.branch || 'Unknown',
-          state: build.state || 'Unknown',
-          message: build.message || 'No message',
-          url: build.web_url || 'No URL',
-          created_at: build.created_at || null,
-          started_at: build.started_at || null,
-          finished_at: build.finished_at || null
-        }));
-        console.log(JSON.stringify(jsonOutput, null, 2));
-        return;
-      }
-      
-      console.log(`Recent builds for ${userName} (${userEmail || userId}):`);
-      console.log('==============================================');
-      
-      allBuilds.forEach((build: any) => {
-        try {
-          console.log(`${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}`);
-          console.log(`State: ${build.state || 'Unknown'}`);
-          console.log(`Branch: ${build.branch || 'Unknown'}`);
-          console.log(`Message: ${build.message || 'No message'}`);
-          console.log(`Created: ${build.created_at ? new Date(build.created_at).toLocaleString() : 'Unknown'}`);
-          console.log(`Started: ${build.started_at ? new Date(build.started_at).toLocaleString() : 'Not started'}`);
-          console.log(`Finished: ${build.finished_at ? new Date(build.finished_at).toLocaleString() : 'Not finished'}`);
-          console.log(`URL: ${build.web_url || 'No URL'}`);
-          console.log('------------------');
-        } catch (error) {
-          console.error('Error displaying build:', error);
-          if (options.debug) {
-            console.error('Build data:', JSON.stringify(build, null, 2));
-          }
-          console.log('------------------');
+        if (!options.org && orgs.length > 1) {
+          console.log(`Searched across ${orgs.length} organizations. Use --org to filter to a specific organization.`);
         }
-      });
-      
-      console.log(`Showing ${allBuilds.length} builds. Use --count and --page options to see more.`);
-      
-      if (!options.org && orgs.length > 1) {
-        console.log(`Searched across ${orgs.length} organizations. Use --org to filter to a specific organization.`);
       }
       
       if (options.debug) {
@@ -262,34 +206,6 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
       }
       
       process.exit(1);
-    }
-  }
-
-  // Helper to get appropriate icon for build state
-  private getStateIcon(state: string | null): string {
-    if (!state) return './icons/unknown.png';
-    
-    switch (state.toLowerCase()) {
-      case 'passed':
-        return './icons/passed.png';
-      case 'failed':
-      case 'canceled':
-      case 'canceling':
-        return './icons/failed.png';
-      case 'running':
-        return './icons/running.png';
-      case 'creating':
-      case 'scheduled':
-        return './icons/scheduled.png';
-      case 'blocked':
-        return './icons/blocked.png';
-      case 'failing':
-        return './icons/failing.png';
-      case 'not_run':
-      case 'skipped':
-        return './icons/skipped.png';
-      default:
-        return './icons/unknown.png';
     }
   }
 }

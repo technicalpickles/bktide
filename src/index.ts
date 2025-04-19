@@ -116,8 +116,7 @@ const buildsCmd = program
   .option('--page <page>', 'Page number', '1')
   .option('--filter <filter>', 'Fuzzy filter builds by name or other properties')
   .option('-d, --debug', 'Show debug information for errors')
-  .option('--json', 'Output results in JSON format')
-  .option('--alfred', 'Output results in Alfred-compatible JSON format');
+  .option('-f, --format <format>', 'Output format (plain, json, alfred)');
 
 addCacheOptions(buildsCmd).action(
   createCommandHandler(ViewerBuildsCommandHandler, 'execute')

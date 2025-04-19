@@ -76,7 +76,7 @@ BK_TOKEN=$(source .env; echo $BK_TOKEN)
 export BK_TOKEN
 export PATH=/Users/josh.nichols/.local/share/mise/shims:$PATH
 
-node dist/index.js builds --alfred 2&gt;&amp;1 | tee -a log/alfred.log</string>
+node dist/index.js builds --format alfred 2&gt;&amp;1 | tee -a log/alfred.log</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
