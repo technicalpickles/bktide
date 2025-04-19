@@ -1,6 +1,7 @@
 import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
 import { GET_PIPELINES } from '../graphql/queries.js';
 import { getPipelineFormatter } from '../formatters/index.js';
+import Fuse from 'fuse.js';
 
 export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
@@ -98,10 +99,21 @@ export class PipelineCommandHandler extends BaseCommandHandler {
       
       // Filter pipelines by name if filter is specified
       if (options.filter) {
-        const filterLowerCase = options.filter.toLowerCase();
-        allPipelines = allPipelines.filter(pipeline => 
-          pipeline.name.toLowerCase().includes(filterLowerCase)
-        );
+        if (options.debug) {
+          console.log(`Debug: Applying fuzzy filter '${options.filter}' to ${allPipelines.length} pipelines`);
+        }
+        
+        // Configure Fuse for fuzzy searching
+        const fuse = new Fuse(allPipelines, {
+          keys: ['name', 'slug'],
+          threshold: 0.4, // Lower threshold = more strict matching
+          includeScore: true,
+          shouldSort: true
+        });
+        
+        // Perform the fuzzy search
+        const searchResults = fuse.search(options.filter);
+        allPipelines = searchResults.map(result => result.item);
         
         if (options.debug) {
           console.log(`Debug: Filtered to ${allPipelines.length} pipelines matching '${options.filter}'`);

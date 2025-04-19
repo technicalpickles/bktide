@@ -1,6 +1,8 @@
 import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
 import { GET_VIEWER } from '../graphql/queries.js';
 import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/BuildkiteRestClient.js';
+import { BuildkiteClient } from '../services/BuildkiteClient.js';
+import Fuse from 'fuse.js';
 
 // Add a custom console.debug that respects the debug flag
 const createDebugLogger = (isDebugEnabled: boolean) => {
@@ -25,6 +27,7 @@ export interface ViewerBuildsOptions extends BaseCommandOptions {
   noCache?: boolean;
   cacheTTL?: number;
   clearCache?: boolean;
+  filter?: string;
 }
 
 export class ViewerBuildsCommandHandler extends BaseCommandHandler {
@@ -125,6 +128,29 @@ export class ViewerBuildsCommandHandler extends BaseCommandHandler {
       
       // Limit to the requested number of builds
       allBuilds = allBuilds.slice(0, parseInt(perPage, 10));
+      
+      // Apply fuzzy filter if specified
+      if (options.filter) {
+        if (options.debug) {
+          console.log(`Debug: Applying fuzzy filter '${options.filter}' to ${allBuilds.length} builds`);
+        }
+        
+        // Configure Fuse for fuzzy searching
+        const fuse = new Fuse(allBuilds, {
+          keys: ['pipeline.name', 'branch', 'message', 'creator.name', 'state'],
+          threshold: 0.4,
+          includeScore: true,
+          shouldSort: true
+        });
+        
+        // Perform the fuzzy search
+        const searchResults = fuse.search(options.filter);
+        allBuilds = searchResults.map(result => result.item);
+        
+        if (options.debug) {
+          console.log(`Debug: Filtered to ${allBuilds.length} builds matching '${options.filter}'`);
+        }
+      }
       
       if (allBuilds.length === 0) {
         if (options.alfred) {

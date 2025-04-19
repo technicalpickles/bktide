@@ -114,6 +114,7 @@ const buildsCmd = program
   .option('-s, --state <state>', 'Filter by build state (running, scheduled, passed, failing, failed, canceled, etc.)')
   .option('-n, --count <count>', 'Number of builds per page', '10')
   .option('--page <page>', 'Page number', '1')
+  .option('--filter <filter>', 'Fuzzy filter builds by name or other properties')
   .option('-d, --debug', 'Show debug information for errors')
   .option('--json', 'Output results in JSON format')
   .option('--alfred', 'Output results in Alfred-compatible JSON format');
