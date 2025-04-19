@@ -128,7 +128,16 @@ npm run dev -- orgs
 ### List Pipelines in an Organization
 
 ```bash
+npm run dev -- pipelines
+```
+
+Additional options:
+```bash
+# Filter by organization
 npm run dev -- pipelines --org your-org-slug
+
+# Limit the number of results
+npm run dev -- pipelines --count 20
 ```
 
 ### List Your Builds

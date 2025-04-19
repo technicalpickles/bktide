@@ -72,7 +72,7 @@ const pipelinesCmd = program
   .command('pipelines')
   .description('List pipelines for an organization')
   .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
-  .requiredOption('-o, --org <org>', 'Organization slug')
+  .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-n, --count <count>', 'Number of pipelines to fetch', '10')
   .option('-d, --debug', 'Show debug information for errors');
 
