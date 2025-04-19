@@ -4,9 +4,6 @@ import { getViewerFormatter } from '../formatters/index.js';
 import { ViewerData } from '../types/index.js';
 
 export interface ViewerOptions extends BaseCommandOptions {
-  token?: string;
-  debug?: boolean;
-  format?: string;
 }
 
 export class ViewerCommandHandler extends BaseCommandHandler {

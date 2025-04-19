@@ -9,14 +9,14 @@ export class PlainTextFormatter extends BaseFormatter {
     }
 
     let output = 'Logged in as:\n';
-    output += `- ID: ${viewerData.viewer.id}\n`;
-    
-    // Safely display user data if available
     if (viewerData.viewer.user) {
-      output += `- User ID: ${viewerData.viewer.user.id || 'N/A'}\n`;
-      output += `- Name: ${viewerData.viewer.user.name || 'N/A'}\n`;
-      output += `- Email: ${viewerData.viewer.user.email || 'N/A'}\n`;
+      output += `- ID: ${viewerData.viewer.user?.id}\n`;
+      output += `- Name: ${viewerData.viewer.user?.name}\n`;
+      output += `- Email: ${viewerData.viewer.user?.email}\n`;
+    } else {
+      output += `- No user data found.\n`;
     }
+ 
     
     return output;
   }

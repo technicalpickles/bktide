@@ -7,8 +7,6 @@ import { Pipeline, PipelineQueryResponse } from '../types/index.js';
 export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
   count?: string;
-  format?: string;  // Format option: plain, json, or alfred
-  filter?: string;  // Filter option for pipeline names
 }
 
 export class PipelineCommandHandler extends BaseCommandHandler {

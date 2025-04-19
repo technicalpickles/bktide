@@ -1,11 +1,13 @@
 import { BuildkiteClient } from '../services/BuildkiteClient.js';
 
 export interface BaseCommandOptions {
-  debug?: boolean;
-  format?: string;
-  noCache?: boolean;
   cacheTTL?: number;
   clearCache?: boolean;
+  debug?: boolean;
+  filter?: string;
+  format?: string;
+  noCache?: boolean;
+  token?: string;
 }
 
 // Extended Error interface for API and GraphQL errors

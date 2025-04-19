@@ -16,19 +16,12 @@ const createDebugLogger = (isDebugEnabled: boolean) => {
 };
 
 export interface ViewerBuildsOptions extends BaseCommandOptions {
-  token?: string;
   count?: string;
   page?: string;
   org?: string;
   pipeline?: string;
   branch?: string;
   state?: string;
-  debug?: boolean;
-  noCache?: boolean;
-  cacheTTL?: number;
-  clearCache?: boolean;
-  filter?: string;
-  format?: string;
 }
 
 export class ViewerBuildsCommandHandler extends BaseCommandHandler {
