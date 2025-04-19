@@ -1,5 +1,6 @@
 import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
 import { GET_PIPELINES } from '../graphql/queries.js';
+import { getPipelineFormatter } from '../formatters/index.js';
 
 export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
@@ -36,7 +37,6 @@ export class PipelineCommandHandler extends BaseCommandHandler {
       // Fetch pipelines for each organization
       for (const org of orgs) {
         try {
-          // Set batch size - default to fetching in batches of 100
           const batchSize = 500;
           let hasNextPage = true;
           let cursor: string | null = null;
@@ -94,30 +94,22 @@ export class PipelineCommandHandler extends BaseCommandHandler {
         allPipelines = allPipelines.slice(0, parseInt(options.count as string, 10));
       }
       
-      if (allPipelines.length === 0) {
-        console.log('No pipelines found.');
-        if (!options.org) {
-          console.log('Try specifying an organization with --org to narrow your search.');
-        }
-        return;
-      }
-      
-      if (orgs.length === 1) {
-        console.log(`Pipelines for ${orgs[0]} (${allPipelines.length} total):`);
-      } else {
-        console.log(`Pipelines across your organizations (${allPipelines.length} total):`);
-      }
-      
-      allPipelines.forEach((pipeline: any) => {
-        if (orgs.length > 1) {
-          console.log(`- [${pipeline.organization}] ${pipeline.name} (${pipeline.slug})`);
+      try {
+        // Get the appropriate formatter
+        const format = options.format || 'plain';
+        const formatter = getPipelineFormatter(format);
+        
+        // Format and output the results
+        const output = formatter.formatPipelines(allPipelines, orgs, { debug: options.debug });
+        console.log(output);
+      } catch (formatterError) {
+        console.error('Error formatting output:', formatterError);
+        // Fallback to simple output if formatter fails
+        if (allPipelines.length === 0) {
+          console.log('No pipelines found.');
         } else {
-          console.log(`- ${pipeline.name} (${pipeline.slug})`);
+          console.log(`Found ${allPipelines.length} pipelines.`);
         }
-      });
-      
-      if (!options.org && orgs.length > 1) {
-        console.log(`\nSearched across ${orgs.length} organizations. Use --org to filter to a specific organization.`);
       }
     } catch (error: any) {
       console.error('Error fetching pipelines:');
