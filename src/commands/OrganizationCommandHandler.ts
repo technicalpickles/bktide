@@ -8,8 +8,7 @@ export interface OrganizationOptions extends BaseCommandOptions {
 
 export interface PipelineOptions extends OrganizationOptions {
   org?: string;
-  count: string;
-  all?: boolean;
+  count?: string;
 }
 
 export class OrganizationCommandHandler extends BaseCommandHandler {
@@ -60,12 +59,14 @@ export class OrganizationCommandHandler extends BaseCommandHandler {
       // Fetch pipelines for each organization
       for (const org of orgs) {
         try {
-          // Set batch size - if --all is specified, use 100 as the batch size
-          const batchSize = options.all ? 100 : parseInt(options.count, 10);
+          // Set batch size - default to fetching in batches of 100
+          const batchSize = 500;
           let hasNextPage = true;
           let cursor: string | null = null;
+          const limitResults = options.count !== undefined;
+          const resultLimit = limitResults ? parseInt(options.count as string, 10) : Infinity;
           
-          while (hasNextPage && (options.all || allPipelines.length < parseInt(options.count, 10))) {
+          while (hasNextPage && allPipelines.length < resultLimit) {
             const variables: any = {
               organizationSlug: org,
               first: batchSize
@@ -98,8 +99,8 @@ export class OrganizationCommandHandler extends BaseCommandHandler {
               }
             }
             
-            // If we're not fetching all, stop after getting enough
-            if (!options.all && allPipelines.length >= parseInt(options.count, 10)) {
+            // If we're limiting results, stop after getting enough
+            if (limitResults && allPipelines.length >= resultLimit) {
               break;
             }
           }
@@ -111,9 +112,9 @@ export class OrganizationCommandHandler extends BaseCommandHandler {
         }
       }
       
-      // Limit to the requested number of pipelines if not fetching all
-      if (!options.all) {
-        allPipelines = allPipelines.slice(0, parseInt(options.count, 10));
+      // Limit to the requested number of pipelines if specified
+      if (options.count !== undefined) {
+        allPipelines = allPipelines.slice(0, parseInt(options.count as string, 10));
       }
       
       if (allPipelines.length === 0) {

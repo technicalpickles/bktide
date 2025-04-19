@@ -73,8 +73,7 @@ const pipelinesCmd = program
   .description('List pipelines for an organization')
   .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
-  .option('-n, --count <count>', 'Number of pipelines to fetch', '500')
-  .option('-a, --all', 'Fetch all pipelines (overrides count)')
+  .option('-n, --count <count>', 'Limit to specified number of pipelines per organization')
   .option('-d, --debug', 'Show debug information for errors');
 
 addCacheOptions(pipelinesCmd).action(async (options) => {
