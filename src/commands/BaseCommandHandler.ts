@@ -3,6 +3,9 @@ import { BuildkiteClient } from '../services/BuildkiteClient.js';
 export interface BaseCommandOptions {
   debug?: boolean;
   format?: string;
+  noCache?: boolean;
+  cacheTTL?: number;
+  clearCache?: boolean;
 }
 
 // Extended Error interface for API and GraphQL errors
@@ -29,6 +32,9 @@ export abstract class BaseCommandHandler {
   constructor(token: string, options?: Partial<BaseCommandOptions>) {
     this.token = token;
     this.options = options || {};
+    if (options?.debug) {
+      console.log('Debug: BaseCommandHandler options:', JSON.stringify(options));
+    }
     this.client = new BuildkiteClient(token);
     this.initialized = true; // Client is initialized in constructor
   }

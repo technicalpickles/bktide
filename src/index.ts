@@ -54,7 +54,8 @@ function createCommandHandler<T extends BaseCommandHandler>(
           noCache: options.cache === false,
           cacheTTL: options.cacheTtl,
           clearCache: options.clearCache,
-          debug: isDebug
+          debug: isDebug,
+          format: options.format
         });
         
         // Call the specified method on the handler instance
@@ -94,7 +95,8 @@ const pipelinesCmd = program
   .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-n, --count <count>', 'Limit to specified number of pipelines per organization')
-  .option('-d, --debug', 'Show debug information for errors');
+  .option('-d, --debug', 'Show debug information for errors')
+  .option('-f, --format <format>', 'Output format (plain, json)', 'plain');
 
 addCacheOptions(pipelinesCmd).action(
   createCommandHandler(PipelineCommandHandler, 'listPipelines')

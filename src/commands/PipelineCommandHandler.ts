@@ -96,7 +96,10 @@ export class PipelineCommandHandler extends BaseCommandHandler {
       
       try {
         // Get the appropriate formatter
-        const format = options.format || 'plain';
+        const format = options.format || this.options.format || 'plain';
+        if (options.debug) {
+          console.log(`Debug: Using ${format} formatter`);
+        }
         const formatter = getPipelineFormatter(format);
         
         // Format and output the results
@@ -104,6 +107,9 @@ export class PipelineCommandHandler extends BaseCommandHandler {
         console.log(output);
       } catch (formatterError) {
         console.error('Error formatting output:', formatterError);
+        if (options.debug) {
+          console.error('Error details:', formatterError);
+        }
         // Fallback to simple output if formatter fails
         if (allPipelines.length === 0) {
           console.log('No pipelines found.');
