@@ -26,12 +26,16 @@ process.on('unhandledRejection', (reason) => {
 
 const program = new Command();
 
-// Helper to add cache options to commands
 const addCacheOptions = (command: Command): Command => {
   return command
     .option('--no-cache', 'Disable caching of API responses')
     .option('--cache-ttl <milliseconds>', 'Set cache time-to-live in milliseconds', parseInt)
     .option('--clear-cache', 'Clear all cached data before executing command');
+};
+
+const addTokenOption = (command: Command): Command => {
+  return command
+    .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)');
 };
 
 program
@@ -72,35 +76,38 @@ function createCommandHandler<T extends BaseCommandHandler>(
 const viewerCmd = program
   .command('viewer')
   .description('Show logged in user information')
-  .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
   .option('-d, --debug', 'Show debug information for errors')
   .option('-f, --format <format>', 'Output format (plain, json)');
 
-addCacheOptions(viewerCmd).action(
+addCacheOptions(viewerCmd)
+addTokenOption(viewerCmd)
+viewerCmd.action(
   createCommandHandler(ViewerCommandHandler, 'execute')
 );
 
 const orgsCmd = program
   .command('orgs')
   .description('List organizations')
-  .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
   .option('-d, --debug', 'Show debug information for errors');
 
-addCacheOptions(orgsCmd).action(
+addCacheOptions(orgsCmd)
+addTokenOption(orgsCmd)
+orgsCmd.action(
   createCommandHandler(OrganizationCommandHandler, 'listOrganizations')
 );
 
 const pipelinesCmd = program
   .command('pipelines')
   .description('List pipelines for an organization')
-  .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-n, --count <count>', 'Limit to specified number of pipelines per organization')
   .option('-d, --debug', 'Show debug information for errors')
   .option('-f, --format <format>', 'Output format (plain, json, alfred)', 'plain')
   .option('--filter <name>', 'Filter pipelines by name (case insensitive)');
 
-addCacheOptions(pipelinesCmd).action(
+addCacheOptions(pipelinesCmd)
+addTokenOption(pipelinesCmd)
+pipelinesCmd.action(
   createCommandHandler(PipelineCommandHandler, 'listPipelines')
 );
 
@@ -108,7 +115,6 @@ addCacheOptions(pipelinesCmd).action(
 const buildsCmd = program
   .command('builds')
   .description('List builds for the current user')
-  .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-p, --pipeline <pipeline>', 'Filter by pipeline slug')
   .option('-b, --branch <branch>', 'Filter by branch name')
@@ -119,7 +125,9 @@ const buildsCmd = program
   .option('-d, --debug', 'Show debug information for errors')
   .option('-f, --format <format>', 'Output format (plain, json, alfred)');
 
-addCacheOptions(buildsCmd).action(
+addCacheOptions(buildsCmd)
+addTokenOption(buildsCmd)
+buildsCmd.action(
   createCommandHandler(ViewerBuildsCommandHandler, 'execute')
 );
 
