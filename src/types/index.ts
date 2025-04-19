@@ -102,5 +102,7 @@ export interface ViewerBuildsQueryResponse {
 }
 
 export interface OrganizationsQueryResponse {
-  organizations: GraphQLConnection<Organization>;
+  viewer: {
+    organizations: GraphQLConnection<Organization>;
+  };
 } 

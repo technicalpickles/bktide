@@ -11,7 +11,6 @@ import {
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError } from './utils/cli-error-handler.js';
 
-// Initialize enhanced error handling
 initializeErrorHandling();
 
 // Set a global error handler for uncaught exceptions

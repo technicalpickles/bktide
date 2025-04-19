@@ -18,12 +18,14 @@ export const GET_VIEWER = `
 
 export const GET_ORGANIZATIONS = `
   query {
-    organizations {
-      edges {
-        node {
-          id
-          name
-          slug
+    viewer {
+      organizations {
+        edges {
+          node {
+            id
+            name
+            slug
+          }
         }
       }
     }

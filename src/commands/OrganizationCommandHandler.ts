@@ -20,7 +20,7 @@ export class OrganizationCommandHandler extends BaseCommandHandler {
       const data = await this.client.query<OrganizationsQueryResponse>(GET_ORGANIZATIONS);
       
       console.log('Your organizations:');
-      data.organizations.edges.forEach((edge: GraphQLEdge<Organization>) => {
+      data.viewer.organizations.edges.forEach((edge: GraphQLEdge<Organization>) => {
         console.log(`- ${edge.node.name} (${edge.node.slug})`);
       });
     } catch (error: any) {
