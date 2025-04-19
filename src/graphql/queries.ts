@@ -31,9 +31,9 @@ export const GET_ORGANIZATIONS = `
 `;
 
 export const GET_PIPELINES = `
-  query GetPipelines($organizationSlug: ID!, $first: Int) {
+  query GetPipelines($organizationSlug: ID!, $first: Int, $after: String) {
     organization(slug: $organizationSlug) {
-      pipelines(first: $first) {
+      pipelines(first: $first, after: $after) {
         edges {
           node {
             id

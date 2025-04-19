@@ -9,6 +9,7 @@ export interface OrganizationOptions extends BaseCommandOptions {
 export interface PipelineOptions extends OrganizationOptions {
   org?: string;
   count: string;
+  all?: boolean;
 }
 
 export class OrganizationCommandHandler extends BaseCommandHandler {
@@ -59,25 +60,48 @@ export class OrganizationCommandHandler extends BaseCommandHandler {
       // Fetch pipelines for each organization
       for (const org of orgs) {
         try {
-          const variables = {
-            organizationSlug: org,
-            first: parseInt(options.count, 10)
-          };
+          // Set batch size - if --all is specified, use 100 as the batch size
+          const batchSize = options.all ? 100 : parseInt(options.count, 10);
+          let hasNextPage = true;
+          let cursor: string | null = null;
           
-          const data = await this.client.query(GET_PIPELINES, variables);
-          
-          if (data?.organization?.pipelines?.edges) {
-            // Add org information to each pipeline for display
-            const pipelines = data.organization.pipelines.edges.map((edge: any) => ({
-              ...edge.node,
-              organization: org
-            }));
+          while (hasNextPage && (options.all || allPipelines.length < parseInt(options.count, 10))) {
+            const variables: any = {
+              organizationSlug: org,
+              first: batchSize
+            };
             
-            allPipelines = allPipelines.concat(pipelines);
-          }
-          
-          if (options.debug) {
-            console.log(`Debug: Fetched ${data?.organization?.pipelines?.edges?.length || 0} pipelines from org ${org}`);
+            if (cursor) {
+              variables.after = cursor;
+            }
+            
+            const data = await this.client.query(GET_PIPELINES, variables);
+            
+            if (data?.organization?.pipelines?.edges) {
+              // Add org information to each pipeline for display
+              const pipelines = data.organization.pipelines.edges.map((edge: any) => ({
+                ...edge.node,
+                organization: org
+              }));
+              
+              allPipelines = allPipelines.concat(pipelines);
+            }
+            
+            // Check if we need to fetch more pages
+            hasNextPage = data?.organization?.pipelines?.pageInfo?.hasNextPage || false;
+            cursor = data?.organization?.pipelines?.pageInfo?.endCursor || null;
+            
+            if (options.debug) {
+              console.log(`Debug: Fetched batch of ${data?.organization?.pipelines?.edges?.length || 0} pipelines from org ${org}`);
+              if (hasNextPage) {
+                console.log(`Debug: More pages available, cursor: ${cursor}`);
+              }
+            }
+            
+            // If we're not fetching all, stop after getting enough
+            if (!options.all && allPipelines.length >= parseInt(options.count, 10)) {
+              break;
+            }
           }
         } catch (error) {
           if (options.debug) {
@@ -87,8 +111,10 @@ export class OrganizationCommandHandler extends BaseCommandHandler {
         }
       }
       
-      // Limit to the requested number of pipelines
-      allPipelines = allPipelines.slice(0, parseInt(options.count, 10));
+      // Limit to the requested number of pipelines if not fetching all
+      if (!options.all) {
+        allPipelines = allPipelines.slice(0, parseInt(options.count, 10));
+      }
       
       if (allPipelines.length === 0) {
         console.log('No pipelines found.');
@@ -99,9 +125,9 @@ export class OrganizationCommandHandler extends BaseCommandHandler {
       }
       
       if (orgs.length === 1) {
-        console.log(`Pipelines for ${orgs[0]}:`);
+        console.log(`Pipelines for ${orgs[0]} (${allPipelines.length} total):`);
       } else {
-        console.log('Pipelines across your organizations:');
+        console.log(`Pipelines across your organizations (${allPipelines.length} total):`);
       }
       
       allPipelines.forEach((pipeline: any) => {
