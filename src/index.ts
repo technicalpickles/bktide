@@ -38,6 +38,11 @@ const addTokenOption = (command: Command): Command => {
     .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)');
 };
 
+const addFormatOption = (command: Command): Command => {
+  return command
+    .option('-f, --format <format>', 'Output format (plain, json, alfred)', 'plain');
+};
+
 program
   .name('bk-cli')
   .description('Buildkite CLI tool')
@@ -77,10 +82,10 @@ const viewerCmd = program
   .command('viewer')
   .description('Show logged in user information')
   .option('-d, --debug', 'Show debug information for errors')
-  .option('-f, --format <format>', 'Output format (plain, json)');
 
 addCacheOptions(viewerCmd)
 addTokenOption(viewerCmd)
+addFormatOption(viewerCmd)
 viewerCmd.action(
   createCommandHandler(ViewerCommandHandler, 'execute')
 );
@@ -92,6 +97,7 @@ const orgsCmd = program
 
 addCacheOptions(orgsCmd)
 addTokenOption(orgsCmd)
+addFormatOption(orgsCmd)
 orgsCmd.action(
   createCommandHandler(OrganizationCommandHandler, 'listOrganizations')
 );
@@ -102,11 +108,11 @@ const pipelinesCmd = program
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-n, --count <count>', 'Limit to specified number of pipelines per organization')
   .option('-d, --debug', 'Show debug information for errors')
-  .option('-f, --format <format>', 'Output format (plain, json, alfred)', 'plain')
   .option('--filter <name>', 'Filter pipelines by name (case insensitive)');
 
 addCacheOptions(pipelinesCmd)
 addTokenOption(pipelinesCmd)
+addFormatOption(pipelinesCmd)
 pipelinesCmd.action(
   createCommandHandler(PipelineCommandHandler, 'listPipelines')
 );
@@ -123,10 +129,10 @@ const buildsCmd = program
   .option('--page <page>', 'Page number', '1')
   .option('--filter <filter>', 'Fuzzy filter builds by name or other properties')
   .option('-d, --debug', 'Show debug information for errors')
-  .option('-f, --format <format>', 'Output format (plain, json, alfred)');
 
 addCacheOptions(buildsCmd)
 addTokenOption(buildsCmd)
+addFormatOption(buildsCmd)
 buildsCmd.action(
   createCommandHandler(ViewerBuildsCommandHandler, 'execute')
 );
