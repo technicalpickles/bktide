@@ -8,33 +8,65 @@ A command-line tool for interacting with Buildkite's GraphQL API.
 npm install
 ```
 
-## Running the CLI
+## Development
 
-You can run the CLI in two ways:
+### Running the CLI
 
-### Development Mode (using ts-node)
-
-Run the CLI directly from TypeScript source without compiling:
+The CLI can be run in several ways:
 
 ```bash
-npm run dev -- [command] [options]
+# Regular development mode
+npm run dev -- <command> [options]
+
+# With source maps and improved error handling
+npm run dev:sourcemap -- <command> [options]
+
+# Compiled mode with source maps (recommended for debugging)
+npm run dev:compiled -- <command> [options]
 ```
 
-For example:
+### Error Handling Improvements
+
+For better error handling and stack traces:
+
+1. Configure TypeScript with source maps in `tsconfig.json`:
+   ```json
+   {
+     "compilerOptions": {
+       "sourceMap": true,
+       "inlineSources": true,
+       "sourceRoot": "/"
+     }
+   }
+   ```
+
+2. Use the `dev:compiled` script, which:
+   - Compiles TypeScript with source maps
+   - Runs Node.js with source maps enabled
+   - Provides proper stack traces back to the original TypeScript files
+
+3. For direct debugging with Chrome DevTools, use:
+   ```bash
+   npm run debug:inspect -- <command> [options]
+   ```
+
+### Common Commands
+
 ```bash
+# Show current user information
 npm run dev -- viewer
+
+# List organizations
 npm run dev -- orgs
-npm run dev -- pipelines --org your-org-slug
+
+# List pipelines for an organization
+npm run dev -- pipelines [--org <org>] [--count <count>]
+
+# List builds
+npm run dev -- builds [--org <org>] [--pipeline <pipeline>] [--branch <branch>]
 ```
 
-### Production Mode (compiled)
-
-First build the project, then run the compiled JavaScript:
-
-```bash
-npm run build
-npm run start -- [command] [options]
-```
+Add the `--debug` flag to any command for detailed error information.
 
 ## Authentication
 

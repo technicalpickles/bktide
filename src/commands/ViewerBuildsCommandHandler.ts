@@ -22,6 +22,9 @@ export interface ViewerBuildsOptions extends BaseCommandOptions {
   debug?: boolean;
   json?: boolean;
   alfred?: boolean;
+  noCache?: boolean;
+  cacheTTL?: number;
+  clearCache?: boolean;
 }
 
 export class ViewerBuildsCommandHandler extends BaseCommandHandler {

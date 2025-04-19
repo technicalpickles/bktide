@@ -8,6 +8,21 @@ import {
   ViewerBuildsCommandHandler,
   PipelineCommandHandler
 } from './commands/index.js';
+import { initializeErrorHandling } from './utils/errorUtils.js';
+import { displayCLIError } from './utils/cli-error-handler.js';
+
+// Initialize enhanced error handling
+initializeErrorHandling();
+
+// Set a global error handler for uncaught exceptions
+process.on('uncaughtException', (err) => {
+  displayCLIError(err, process.argv.includes('--debug'));
+});
+
+// Set a global error handler for unhandled promise rejections
+process.on('unhandledRejection', (reason) => {
+  displayCLIError(reason, process.argv.includes('--debug'));
+});
 
 const program = new Command();
 
@@ -24,6 +39,34 @@ program
   .description('Buildkite CLI tool')
   .version('1.0.0');
 
+// Create a handler for command execution with error handling
+function createCommandHandler<T extends BaseCommandHandler>(
+  HandlerClass: new (token: string, options?: any) => T,
+  methodName: keyof T
+): (options: any) => void {
+  return function(options: any): void {
+    const isDebug = !!options.debug;
+    
+    (async () => {
+      try {
+        const token = BaseCommandHandler.getToken(options);
+        const handler = new HandlerClass(token, {
+          noCache: options.cache === false,
+          cacheTTL: options.cacheTtl,
+          clearCache: options.clearCache,
+          debug: isDebug
+        });
+        
+        // Call the specified method on the handler instance
+        const method = handler[methodName] as unknown as (options: any) => Promise<void>;
+        await method.call(handler, options);
+      } catch (error) {
+        displayCLIError(error, isDebug);
+      }
+    })();
+  };
+}
+
 // GraphQL commands
 const viewerCmd = program
   .command('viewer')
@@ -31,21 +74,9 @@ const viewerCmd = program
   .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
   .option('-d, --debug', 'Show debug information for errors');
 
-addCacheOptions(viewerCmd).action(async (options) => {
-  try {
-    const token = BaseCommandHandler.getToken(options);
-    const handler = new ViewerCommandHandler(token, {
-      noCache: options.cache === false,
-      cacheTTL: options.cacheTtl,
-      clearCache: options.clearCache,
-      debug: options.debug
-    });
-    await handler.execute(options);
-  } catch (error: any) {
-    console.error(`Error: ${error.message}`);
-    process.exit(1);
-  }
-});
+addCacheOptions(viewerCmd).action(
+  createCommandHandler(ViewerCommandHandler, 'execute')
+);
 
 const orgsCmd = program
   .command('orgs')
@@ -53,21 +84,9 @@ const orgsCmd = program
   .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
   .option('-d, --debug', 'Show debug information for errors');
 
-addCacheOptions(orgsCmd).action(async (options) => {
-  try {
-    const token = BaseCommandHandler.getToken(options);
-    const handler = new OrganizationCommandHandler(token, {
-      noCache: options.cache === false,
-      cacheTTL: options.cacheTtl,
-      clearCache: options.clearCache,
-      debug: options.debug
-    });
-    await handler.listOrganizations(options);
-  } catch (error: any) {
-    console.error(`Error: ${error.message}`);
-    process.exit(1);
-  }
-});
+addCacheOptions(orgsCmd).action(
+  createCommandHandler(OrganizationCommandHandler, 'listOrganizations')
+);
 
 const pipelinesCmd = program
   .command('pipelines')
@@ -77,21 +96,9 @@ const pipelinesCmd = program
   .option('-n, --count <count>', 'Limit to specified number of pipelines per organization')
   .option('-d, --debug', 'Show debug information for errors');
 
-addCacheOptions(pipelinesCmd).action(async (options) => {
-  try {
-    const token = BaseCommandHandler.getToken(options);
-    const handler = new PipelineCommandHandler(token, {
-      noCache: options.cache === false,
-      cacheTTL: options.cacheTtl,
-      clearCache: options.clearCache,
-      debug: options.debug
-    });
-    await handler.listPipelines(options);
-  } catch (error: any) {
-    console.error(`Error: ${error.message}`);
-    process.exit(1);
-  }
-});
+addCacheOptions(pipelinesCmd).action(
+  createCommandHandler(PipelineCommandHandler, 'listPipelines')
+);
 
 // Update the builds command to include REST API filtering options
 const buildsCmd = program
@@ -108,20 +115,9 @@ const buildsCmd = program
   .option('--json', 'Output results in JSON format')
   .option('--alfred', 'Output results in Alfred-compatible JSON format');
 
-addCacheOptions(buildsCmd).action(async (options) => {
-  try {
-    const token = BaseCommandHandler.getToken(options);
-    const handler = new ViewerBuildsCommandHandler(token, {
-      noCache: options.cache === false,
-      cacheTTL: options.cacheTtl,
-      clearCache: options.clearCache,
-      debug: options.debug
-    });
-    await handler.execute(options);
-  } catch (error: any) {
-    console.error(`Error: ${error.message}`);
-    process.exit(1);
-  }
-});
+addCacheOptions(buildsCmd).action(
+  createCommandHandler(ViewerBuildsCommandHandler, 'execute')
+);
 
+// Parse command line arguments
 program.parse(); 
