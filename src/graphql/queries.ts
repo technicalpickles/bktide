@@ -36,6 +36,7 @@ export const GET_PIPELINES = `
       pipelines(first: $first, after: $after) {
         edges {
           node {
+            uuid
             id
             name
             slug

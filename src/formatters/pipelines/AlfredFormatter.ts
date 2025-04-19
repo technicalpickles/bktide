@@ -9,16 +9,17 @@ export class AlfredFormatter extends BaseFormatter {
       const pipelineUrl = pipeline.url || 
         `https://buildkite.com/${pipeline.organization}/${pipeline.slug}`;
       
-      const title = pipeline.name;
+      const uid = pipeline.uuid;
+      const title = pipeline.name || pipeline.slug;
       const subtitle = pipeline.description || '';
-      const uid = `${pipeline.organization}-${pipeline.slug}`;
+      const autocomplete = `${pipeline.organization}/${pipeline.name}`;
 
       return {
         uid: uid,
         title: title,
         subtitle: subtitle,
         arg: pipelineUrl,
-        autocomplete: `${pipeline.organization}/${pipeline.name}`,
+        autocomplete: autocomplete,
         mods: {
           alt: {
             subtitle: `Organization: ${pipeline.organization}`,
