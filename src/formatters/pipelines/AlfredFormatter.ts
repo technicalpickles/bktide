@@ -9,10 +9,11 @@ export class AlfredFormatter extends BaseFormatter {
       const pipelineUrl = pipeline.url || 
         `https://buildkite.com/${pipeline.organization}/${pipeline.slug}`;
       
+      const subtitle = pipeline.description || '';
       return {
         uid: `${pipeline.organization}-${pipeline.slug}`,
         title: `${pipeline.name}`,
-        subtitle: `${pipeline.organization} • ${pipeline.description || ''}`,
+        subtitle: subtitle,
         arg: pipelineUrl,
         autocomplete: `${pipeline.organization}/${pipeline.name}`,
         mods: {

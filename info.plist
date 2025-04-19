@@ -143,9 +143,9 @@ node dist/index.js builds --alfred 2&gt;&amp;1 | tee -a log/alfred.log</string>
 			<key>config</key>
 			<dict>
 				<key>alfredfiltersresults</key>
-				<false/>
+				<true/>
 				<key>alfredfiltersresultsmatchmode</key>
-				<integer>0</integer>
+				<integer>2</integer>
 				<key>argumenttreatemptyqueryasnil</key>
 				<true/>
 				<key>argumenttrimmode</key>
@@ -182,9 +182,9 @@ node dist/index.js pipelines --format alfred 2&gt;&amp;1 | tee -a log/alfred.log
 				<key>title</key>
 				<string>Buildkite PIpelines</string>
 				<key>type</key>
-				<integer>11</integer>
+				<integer>0</integer>
 				<key>withspace</key>
-				<true/>
+				<false/>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.input.scriptfilter</string>
