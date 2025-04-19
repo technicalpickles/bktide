@@ -1,14 +1,9 @@
 import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
-import { GET_ORGANIZATIONS, GET_PIPELINES } from '../graphql/queries.js';
+import { GET_ORGANIZATIONS } from '../graphql/queries.js';
 
 export interface OrganizationOptions extends BaseCommandOptions {
   token?: string;
   debug?: boolean;
-}
-
-export interface PipelineOptions extends OrganizationOptions {
-  org?: string;
-  count?: string;
 }
 
 export class OrganizationCommandHandler extends BaseCommandHandler {
@@ -29,121 +24,6 @@ export class OrganizationCommandHandler extends BaseCommandHandler {
       });
     } catch (error: any) {
       console.error('Error fetching organizations:');
-      this.handleError(error, options.debug);
-      process.exit(1);
-    }
-  }
-
-  async listPipelines(options: PipelineOptions): Promise<void> {
-    try {
-      // Ensure initialization is complete
-      await this.ensureInitialized();
-      
-      // If organization is not specified, we need to fetch organizations first
-      let orgs: string[] = [];
-      if (!options.org) {
-        // Try to fetch the user's organizations
-        try {
-          orgs = await this.client.getViewerOrganizationSlugs();
-        } catch (error) {
-          console.error('Error fetching organizations:', error);
-          throw new Error('Failed to determine your organizations. Please specify an organization with --org');
-        }
-      } else {
-        orgs = [options.org];
-      }
-      
-      // Initialize results array
-      let allPipelines: any[] = [];
-      
-      // Fetch pipelines for each organization
-      for (const org of orgs) {
-        try {
-          // Set batch size - default to fetching in batches of 100
-          const batchSize = 500;
-          let hasNextPage = true;
-          let cursor: string | null = null;
-          const limitResults = options.count !== undefined;
-          const resultLimit = limitResults ? parseInt(options.count as string, 10) : Infinity;
-          
-          while (hasNextPage && allPipelines.length < resultLimit) {
-            const variables: any = {
-              organizationSlug: org,
-              first: batchSize
-            };
-            
-            if (cursor) {
-              variables.after = cursor;
-            }
-            
-            const data = await this.client.query(GET_PIPELINES, variables);
-            
-            if (data?.organization?.pipelines?.edges) {
-              // Add org information to each pipeline for display
-              const pipelines = data.organization.pipelines.edges.map((edge: any) => ({
-                ...edge.node,
-                organization: org
-              }));
-              
-              allPipelines = allPipelines.concat(pipelines);
-            }
-            
-            // Check if we need to fetch more pages
-            hasNextPage = data?.organization?.pipelines?.pageInfo?.hasNextPage || false;
-            cursor = data?.organization?.pipelines?.pageInfo?.endCursor || null;
-            
-            if (options.debug) {
-              console.log(`Debug: Fetched batch of ${data?.organization?.pipelines?.edges?.length || 0} pipelines from org ${org}`);
-              if (hasNextPage) {
-                console.log(`Debug: More pages available, cursor: ${cursor}`);
-              }
-            }
-            
-            // If we're limiting results, stop after getting enough
-            if (limitResults && allPipelines.length >= resultLimit) {
-              break;
-            }
-          }
-        } catch (error) {
-          if (options.debug) {
-            console.error(`Error fetching pipelines for org ${org}:`, error);
-          }
-          // Continue to the next organization
-        }
-      }
-      
-      // Limit to the requested number of pipelines if specified
-      if (options.count !== undefined) {
-        allPipelines = allPipelines.slice(0, parseInt(options.count as string, 10));
-      }
-      
-      if (allPipelines.length === 0) {
-        console.log('No pipelines found.');
-        if (!options.org) {
-          console.log('Try specifying an organization with --org to narrow your search.');
-        }
-        return;
-      }
-      
-      if (orgs.length === 1) {
-        console.log(`Pipelines for ${orgs[0]} (${allPipelines.length} total):`);
-      } else {
-        console.log(`Pipelines across your organizations (${allPipelines.length} total):`);
-      }
-      
-      allPipelines.forEach((pipeline: any) => {
-        if (orgs.length > 1) {
-          console.log(`- [${pipeline.organization}] ${pipeline.name} (${pipeline.slug})`);
-        } else {
-          console.log(`- ${pipeline.name} (${pipeline.slug})`);
-        }
-      });
-      
-      if (!options.org && orgs.length > 1) {
-        console.log(`\nSearched across ${orgs.length} organizations. Use --org to filter to a specific organization.`);
-      }
-    } catch (error: any) {
-      console.error('Error fetching pipelines:');
       this.handleError(error, options.debug);
       process.exit(1);
     }

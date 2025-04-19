@@ -6,6 +6,7 @@ import {
   ViewerCommandHandler,
   OrganizationCommandHandler,
   ViewerBuildsCommandHandler,
+  PipelineCommandHandler
 } from './commands/index.js';
 
 const program = new Command();
@@ -79,7 +80,7 @@ const pipelinesCmd = program
 addCacheOptions(pipelinesCmd).action(async (options) => {
   try {
     const token = BaseCommandHandler.getToken(options);
-    const handler = new OrganizationCommandHandler(token, {
+    const handler = new PipelineCommandHandler(token, {
       noCache: options.cache === false,
       cacheTTL: options.cacheTtl,
       clearCache: options.clearCache,
