@@ -19,7 +19,6 @@ import {
   GetBuildsQueryVariables,
   GetViewerBuildsQuery,
   GetViewerBuildsQueryVariables,
-  BuildStates
 } from '../graphql/generated/sdk.js';
 
 // Note: We're now using the automatically generated types from GraphQL Codegen

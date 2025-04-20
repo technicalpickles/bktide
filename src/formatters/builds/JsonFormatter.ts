@@ -5,7 +5,7 @@ import { Build } from '../../types/index.js';
 export class JsonFormatter extends BaseFormatter {
   name = 'json';
   
-  formatBuilds(builds: Build[], options?: FormatterOptions): string {
+  formatBuilds(builds: Build[], _options?: FormatterOptions): string {
     const result = {
       count: builds.length,
       builds: builds.map((build: Build) => ({

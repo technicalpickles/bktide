@@ -1,7 +1,7 @@
 import { BaseFormatter } from './BaseFormatter.js';
-import { PipelineFormatter, getPipelineFormatter } from './pipelines/index.js';
-import { BuildFormatter, getBuildFormatter } from './builds/index.js';
-import { ViewerFormatter, getViewerFormatter } from './viewer/index.js';
+import { getPipelineFormatter } from './pipelines/index.js';
+import { getBuildFormatter } from './builds/index.js';
+import { getViewerFormatter } from './viewer/index.js';
 
 export enum FormatterType {
   PIPELINE = 'pipeline',

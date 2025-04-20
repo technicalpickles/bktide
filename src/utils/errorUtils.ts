@@ -25,7 +25,7 @@ export function initializeErrorHandling(): void {
   });
 
   // Handle unhandled promise rejections
-  process.on('unhandledRejection', (reason, promise) => {
+  process.on('unhandledRejection', (reason, _promise) => {
     console.error('\n\x1b[31m%s\x1b[0m', '🚨 UNHANDLED PROMISE REJECTION 🚨');
     console.error('\x1b[31m%s\x1b[0m', reason instanceof Error ? reason.stack : reason);
     process.exit(1);

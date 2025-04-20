@@ -1,10 +1,9 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
-import { GET_VIEWER, GET_VIEWER_BUILDS } from '../graphql/queries.js';
+import { GET_VIEWER } from '../graphql/queries.js';
 import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/BuildkiteRestClient.js';
-import { BuildkiteClient } from '../services/BuildkiteClient.js';
 import { getBuildFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
-import { Build, ViewerBuildsQueryResponse, ViewerData } from '../types/index.js';
+import { Build, ViewerData } from '../types/index.js';
 
 // Add a custom console.debug that respects the debug flag
 const createDebugLogger = (isDebugEnabled: boolean) => {

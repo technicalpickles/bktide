@@ -5,7 +5,7 @@ import { Build } from '../../types/index.js';
 export class AlfredFormatter extends BaseFormatter {
   name = 'alfred';
   
-  formatBuilds(builds: Build[], options?: FormatterOptions): string {
+  formatBuilds(builds: Build[], _options?: FormatterOptions): string {
     // Format builds as Alfred-compatible JSON items
     const alfredItems = builds.map((build: Build) => {
       // Generate web URL for the build (if not already present)

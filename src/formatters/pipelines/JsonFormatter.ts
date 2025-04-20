@@ -5,7 +5,7 @@ import { Pipeline } from '../../types/index.js';
 export class JsonFormatter extends BaseFormatter {
   name = 'json';
   
-  formatPipelines(pipelines: Pipeline[], organizations: string[], options?: FormatterOptions): string {
+  formatPipelines(pipelines: Pipeline[], organizations: string[], _options?: FormatterOptions): string {
     const result = {
       count: pipelines.length,
       organizations,

@@ -5,7 +5,7 @@ import { ViewerData } from '../../types/index.js';
 export class JsonFormatter extends BaseFormatter {
   name = 'json';
   
-  formatViewer(viewerData: ViewerData, options?: FormatterOptions): string {
+  formatViewer(viewerData: ViewerData, _options?: FormatterOptions): string {
     if (!viewerData?.viewer) {
       return JSON.stringify({ error: 'No viewer data found' }, null, 2);
     }

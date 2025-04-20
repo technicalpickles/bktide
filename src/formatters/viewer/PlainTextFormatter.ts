@@ -5,7 +5,7 @@ import { ViewerData } from '../../types/index.js';
 export class PlainTextFormatter extends BaseFormatter {
   name = 'plain-text';
   
-  formatViewer(viewerData: ViewerData, options?: FormatterOptions): string {
+  formatViewer(viewerData: ViewerData, _options?: FormatterOptions): string {
     if (!viewerData?.viewer) {
       return 'No viewer data found.';
     }
