@@ -29,7 +29,13 @@ export default {
         dedupeFragments: true,
         exportFragmentSpreadSubTypes: true,
         preResolveTypes: true,
-        addESModuleExports: true
+        addESModuleExports: true,
+        documentMode: 'documentNode',
+        importDocumentNodeExternallyFrom: 'graphql-tag',
+        scalars: {
+          DateTime: 'string',
+          ID: 'string'
+        }
       }
     }
   },
