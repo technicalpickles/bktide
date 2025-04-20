@@ -10,40 +10,34 @@ export class ListOrganizations extends BaseCommand {
     super(token, options);
   }
   
-  async listOrganizations(options: OrganizationOptions): Promise<void> {
-    try {
-      // Ensure initialization is complete
-      await this.ensureInitialized();
+  async execute(options: OrganizationOptions): Promise<void> {
+    // Ensure initialization is complete
+    await this.ensureInitialized();
+    
+    const data = await this.client.query<OrganizationsQueryResponse>(GET_ORGANIZATIONS);
+    
+    // Debug output if debug option is enabled
+    if (options.debug) {
+      console.debug('API Response:', JSON.stringify(data, null, 2));
+    }
+    
+    console.log('Your organizations:');
+    
+    // Safely check if data and required properties exist
+    if (data?.viewer?.organizations?.edges && Array.isArray(data.viewer.organizations.edges)) {
+      if (data.viewer.organizations.edges.length === 0) {
+        console.log('No organizations found.');
+        return;
+      }
       
-      const data = await this.client.query<OrganizationsQueryResponse>(GET_ORGANIZATIONS);
-      
-      // Debug output if debug option is enabled
+      data.viewer.organizations.edges.forEach((edge: GraphQLEdge<Organization>) => {
+        console.log(`- ${edge.node.name} (${edge.node.slug})`);
+      });
+    } else {
+      console.log('No organizations data returned from API.');
       if (options.debug) {
-        console.debug('API Response:', JSON.stringify(data, null, 2));
+        console.debug('Received data structure:', Object.keys(data || {}).join(', '));
       }
-      
-      console.log('Your organizations:');
-      
-      // Safely check if data and required properties exist
-      if (data?.viewer?.organizations?.edges && Array.isArray(data.viewer.organizations.edges)) {
-        if (data.viewer.organizations.edges.length === 0) {
-          console.log('No organizations found.');
-          return;
-        }
-        
-        data.viewer.organizations.edges.forEach((edge: GraphQLEdge<Organization>) => {
-          console.log(`- ${edge.node.name} (${edge.node.slug})`);
-        });
-      } else {
-        console.log('No organizations data returned from API.');
-        if (options.debug) {
-          console.debug('Received data structure:', Object.keys(data || {}).join(', '));
-        }
-      }
-    } catch (error: any) {
-      console.error('Error fetching organizations:');
-      this.handleError(error, options.debug);
-      process.exit(1);
     }
   }
 } 

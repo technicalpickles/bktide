@@ -98,7 +98,7 @@ addCacheOptions(orgsCmd)
 addTokenOption(orgsCmd)
 addFormatOption(orgsCmd)
 orgsCmd.action(
-  createCommandHandler(ListOrganizations, 'listOrganizations')
+  createCommandHandler(ListOrganizations, 'execute')
 );
 
 const pipelinesCmd = program
@@ -113,7 +113,7 @@ addCacheOptions(pipelinesCmd)
 addTokenOption(pipelinesCmd)
 addFormatOption(pipelinesCmd)
 pipelinesCmd.action(
-  createCommandHandler(ListPipelines, 'listPipelines')
+  createCommandHandler(ListPipelines, 'execute')
 );
 
 // Update the builds command to include REST API filtering options

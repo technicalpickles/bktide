@@ -14,7 +14,7 @@ export class ListPipelines extends BaseCommand {
     super(token, options);
   }
 
-  async listPipelines(options: PipelineOptions): Promise<void> {
+  async execute(options: PipelineOptions): Promise<void> {
     // Ensure initialization is complete
     await this.ensureInitialized();
     
