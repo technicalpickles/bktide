@@ -36,7 +36,7 @@ export const GET_ORGANIZATIONS = gql`
 export const GET_PIPELINES = gql`
   query GetPipelines($organizationSlug: ID!, $first: Int, $after: String) {
     organization(slug: $organizationSlug) {
-      pipelines(first: $first, after: $after) {
+      pipelines(first: $first, after: $after, archived: false) {
         edges {
           node {
             uuid
