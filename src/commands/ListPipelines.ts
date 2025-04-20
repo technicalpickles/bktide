@@ -1,8 +1,7 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
-import { GET_PIPELINES } from '../graphql/queries.js';
-import { FormatterType, PipelineFormatter } from '../formatters/index.js';
+import { FormatterType, getPipelineFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
-import { Pipeline, PipelineQueryResponse } from '../types/index.js';
+import { Pipeline } from '../types/index.js';
 
 export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
@@ -13,30 +12,34 @@ export class ListPipelines extends BaseCommand {
   constructor(token: string, options?: Partial<PipelineOptions>) {
     super(token, options);
   }
-
+  
   async execute(options: PipelineOptions): Promise<void> {
     // Ensure initialization is complete
     await this.ensureInitialized();
     
-    // If organization is not specified, we need to fetch organizations first
-    let orgs: string[] = [];
-    if (!options.org) {
-      // Try to fetch the user's organizations
+    // Need to get organization info if not provided
+    const org = options.org;
+    if (!org) {
       try {
-        orgs = await this.client.getViewerOrganizationSlugs();
+        const orgs = await this.client.getViewerOrganizationSlugs();
+        if (orgs.length === 0) {
+          console.log('No organizations found.');
+          return;
+        }
+        await this.listPipelines(orgs, options);
       } catch (error) {
         console.error('Error fetching organizations:', error);
         throw new Error('Failed to determine your organizations. Please specify an organization with --org');
       }
     } else {
-      orgs = [options.org];
+      await this.listPipelines([org], options);
     }
-    
-    // Initialize results array
+  }
+  
+  private async listPipelines(organizations: string[], options: PipelineOptions): Promise<void> {
     let allPipelines: Pipeline[] = [];
     
-    // Fetch pipelines for each organization
-    for (const org of orgs) {
+    for (const org of organizations) {
       try {
         const batchSize = 500;
         let hasNextPage = true;
@@ -45,27 +48,29 @@ export class ListPipelines extends BaseCommand {
         const resultLimit = limitResults ? parseInt(options.count as string, 10) : Infinity;
         
         while (hasNextPage && allPipelines.length < resultLimit) {
-          const variables: { 
-            organizationSlug: string;
-            first: number;
-            after?: string;
-          } = {
-            organizationSlug: org,
-            first: batchSize
-          };
-          
-          if (cursor) {
-            variables.after = cursor;
+          if (options.debug) {
+            console.log(`Debug: Fetching batch of pipelines from org ${org}, cursor: ${cursor || 'initial'}`);
           }
           
-          const data = await this.client.query<PipelineQueryResponse>(GET_PIPELINES, variables);
+          const data = await this.client.getPipelines(org, batchSize, cursor || undefined);
           
           if (data?.organization?.pipelines?.edges) {
             // Add org information to each pipeline for display
-            const pipelines: Pipeline[] = data.organization.pipelines.edges.map((edge) => ({
-              ...edge.node,
-              organization: org
-            }));
+            const pipelines = data.organization.pipelines.edges
+              .filter(edge => edge !== null && edge.node !== null)
+              .map(edge => {
+                const node = edge!.node!;
+                return {
+                  uuid: node.uuid || '',
+                  id: node.id || '',
+                  name: node.name || '',
+                  slug: node.slug || '',
+                  description: node.description,
+                  url: node.url || '',
+                  repository: node.repository,
+                  organization: org
+                } as Pipeline;
+              });
             
             allPipelines = allPipelines.concat(pipelines);
           }
@@ -87,28 +92,26 @@ export class ListPipelines extends BaseCommand {
           }
         }
       } catch (error) {
-        if (options.debug) {
-          console.error(`Error fetching pipelines for org ${org}:`, error);
-        }
-        // Continue to the next organization
+        console.error(`Error fetching pipelines for organization ${org}:`, error);
       }
     }
     
-    // Limit to the requested number of pipelines if specified
-    if (options.count !== undefined) {
-      allPipelines = allPipelines.slice(0, parseInt(options.count as string, 10));
+    // Apply limit if specified
+    if (options.count) {
+      const limit = parseInt(options.count, 10);
+      allPipelines = allPipelines.slice(0, limit);
     }
     
-    // Filter pipelines by name if filter is specified
-    if (options.filter) {
+    // Apply fuzzy filter if specified
+    if (options.filter && allPipelines.length > 0) {
       if (options.debug) {
         console.log(`Debug: Applying fuzzy filter '${options.filter}' to ${allPipelines.length} pipelines`);
       }
       
       // Configure Fuse for fuzzy searching
       const fuse = new Fuse(allPipelines, {
-        keys: ['name', 'slug'],
-        threshold: 0.4, // Lower threshold = more strict matching
+        keys: ['name', 'slug', 'description'],
+        threshold: 0.4,
         includeScore: true,
         shouldSort: true
       });
@@ -122,23 +125,40 @@ export class ListPipelines extends BaseCommand {
       }
     }
     
-    try {
-      // Get the appropriate formatter
-      const formatter = this.getFormatter(FormatterType.PIPELINE, options) as PipelineFormatter;
+    if (allPipelines.length === 0) {
+      // Determine the format type based on options
+      const format = options.format || 'plain';
       
-      // Format and output the results
-      const output = formatter.formatPipelines(allPipelines, orgs, { debug: options.debug });
-      console.log(output);
-    } catch (formatterError) {
-      console.error('Error formatting output:', formatterError);
-      if (options.debug) {
-        console.error('Error details:', formatterError);
+      if (format === 'alfred') {
+        // Return empty Alfred JSON format
+        console.log(JSON.stringify({ items: [] }));
+        return;
+      } else if (format === 'json') {
+        console.log(JSON.stringify([]));
+        return;
       }
-      // Fallback to simple output if formatter fails
-      if (allPipelines.length === 0) {
-        console.log('No pipelines found.');
+      console.log('No pipelines found.');
+      if (organizations.length === 1) {
+        console.log(`No pipelines found in organization ${organizations[0]}.`);
       } else {
-        console.log(`Found ${allPipelines.length} pipelines.`);
+        console.log(`No pipelines found across ${organizations.length} organizations.`);
+      }
+      return;
+    }
+    
+    // Get the appropriate formatter based on format option
+    const format = options.format || 'plain';
+    const formatter = getPipelineFormatter(format as FormatterType);
+    const output = formatter.formatPipelines(allPipelines, organizations);
+    
+    // Print the output
+    console.log(output);
+    
+    if (format === 'plain') {
+      console.log(`Showing ${allPipelines.length} pipelines.`);
+      
+      if (organizations.length > 1) {
+        console.log(`Searched across ${organizations.length} organizations. Use --org to filter to a specific organization.`);
       }
     }
   }

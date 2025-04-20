@@ -1,6 +1,4 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
-import { GET_ORGANIZATIONS } from '../graphql/queries.js';
-import { OrganizationsQueryResponse, Organization, GraphQLEdge } from '../types/index.js';
 
 export interface OrganizationOptions extends BaseCommandOptions {
 }
@@ -14,7 +12,7 @@ export class ListOrganizations extends BaseCommand {
     // Ensure initialization is complete
     await this.ensureInitialized();
     
-    const data = await this.client.query<OrganizationsQueryResponse>(GET_ORGANIZATIONS);
+    const data = await this.client.getOrganizations();
     
     // Debug output if debug option is enabled
     if (options.debug) {
@@ -30,8 +28,10 @@ export class ListOrganizations extends BaseCommand {
         return;
       }
       
-      data.viewer.organizations.edges.forEach((edge: GraphQLEdge<Organization>) => {
-        console.log(`- ${edge.node.name} (${edge.node.slug})`);
+      data.viewer.organizations.edges.forEach((edge) => {
+        if (edge?.node) {
+          console.log(`- ${edge.node.name} (${edge.node.slug})`);
+        }
       });
     } else {
       console.log('No organizations data returned from API.');

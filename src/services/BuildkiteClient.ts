@@ -229,7 +229,7 @@ export class BuildkiteClient {
    * Get the current viewer information with type safety
    * @returns The viewer data
    */
-  public async getViewerTyped(): Promise<GetViewerQuery> {
+  public async getViewer(): Promise<GetViewerQuery> {
     if (this.debug) {
       console.debug(`🕒 Starting GraphQL query: GetViewer`);
     }
@@ -266,7 +266,7 @@ export class BuildkiteClient {
    * Get organizations for the current viewer with type safety
    * @returns The organizations data
    */
-  public async getOrganizationsTyped(): Promise<GetOrganizationsQuery> {
+  public async getOrganizations(): Promise<GetOrganizationsQuery> {
     if (this.debug) {
       console.debug(`🕒 Starting GraphQL query: GetOrganizations`);
     }
@@ -306,7 +306,7 @@ export class BuildkiteClient {
    * @param after Cursor for pagination
    * @returns The pipelines data
    */
-  public async getPipelinesTyped(
+  public async getPipelines(
     organizationSlug: string, 
     first?: number, 
     after?: string
@@ -356,7 +356,7 @@ export class BuildkiteClient {
    * @param first Number of builds to retrieve
    * @returns The builds data
    */
-  public async getBuildsTyped(
+  public async getBuilds(
     pipelineSlug: string,
     organizationSlug: string,
     first?: number
@@ -404,7 +404,7 @@ export class BuildkiteClient {
    * @param first Number of builds to retrieve
    * @returns The viewer builds data
    */
-  public async getViewerBuildsTyped(first: number): Promise<GetViewerBuildsQuery> {
+  public async getViewerBuilds(first: number): Promise<GetViewerBuildsQuery> {
     const variables: GetViewerBuildsQueryVariables = {
       first,
     };

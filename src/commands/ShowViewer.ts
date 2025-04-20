@@ -1,5 +1,4 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
-import { GET_VIEWER } from '../graphql/queries.js';
 import { getViewerFormatter } from '../formatters/index.js';
 import { ViewerData } from '../types/index.js';
 
@@ -16,7 +15,7 @@ export class ShowViewer extends BaseCommand {
       // Ensure initialization is complete
       await this.ensureInitialized();
       
-      const data = await this.client.query<ViewerData>(GET_VIEWER);
+      const data = await this.client.getViewer();
       
       // Check if we have the expected data structure
       if (!data?.viewer) {
@@ -26,7 +25,7 @@ export class ShowViewer extends BaseCommand {
       // Get the formatter based on the format option
       const format = options.format || 'plain';
       const formatter = getViewerFormatter(format);
-      const output = formatter.formatViewer(data, { debug: options.debug });
+      const output = formatter.formatViewer(data as unknown as ViewerData, { debug: options.debug });
       
       // Print the output
       console.log(output);
@@ -36,7 +35,7 @@ export class ShowViewer extends BaseCommand {
       
       // Show additional debug info specific to this command
       if (options.debug) {
-        console.error('Query:', GET_VIEWER);
+        console.error('Error details:', error);
       }
       
       process.exit(1);

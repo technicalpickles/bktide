@@ -1,9 +1,8 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
-import { GET_VIEWER } from '../graphql/queries.js';
 import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/BuildkiteRestClient.js';
 import { getBuildFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
-import { Build, ViewerData } from '../types/index.js';
+import { Build } from '../types/index.js';
 
 // Add a custom console.debug that respects the debug flag
 const createDebugLogger = (isDebugEnabled: boolean) => {
@@ -63,7 +62,7 @@ export class ListBuilds extends BaseCommand {
       }
       
       // First, get the current user's information using GraphQL
-      const viewerData = await this.client.query<ViewerData>(GET_VIEWER);
+      const viewerData = await this.client.getViewer();
       
       if (!viewerData?.viewer?.user?.uuid) {
         throw new Error('Failed to get current user UUID information');
