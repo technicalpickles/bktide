@@ -48,7 +48,7 @@ program
   .version('1.0.0');
 
 // Create a handler for command execution with error handling
-function createCommandHandler<T extends BaseCommand>(
+function handleCommand<T extends BaseCommand>(
   HandlerClass: new (token: string, options?: any) => T,
   methodName: keyof T
 ): (options: any) => void {
@@ -86,7 +86,7 @@ addCacheOptions(viewerCmd)
 addTokenOption(viewerCmd)
 addFormatOption(viewerCmd)
 viewerCmd.action(
-  createCommandHandler(ShowViewer, 'execute')
+  handleCommand(ShowViewer, 'execute')
 );
 
 const orgsCmd = program
@@ -98,7 +98,7 @@ addCacheOptions(orgsCmd)
 addTokenOption(orgsCmd)
 addFormatOption(orgsCmd)
 orgsCmd.action(
-  createCommandHandler(ListOrganizations, 'execute')
+  handleCommand(ListOrganizations, 'execute')
 );
 
 const pipelinesCmd = program
@@ -113,7 +113,7 @@ addCacheOptions(pipelinesCmd)
 addTokenOption(pipelinesCmd)
 addFormatOption(pipelinesCmd)
 pipelinesCmd.action(
-  createCommandHandler(ListPipelines, 'execute')
+  handleCommand(ListPipelines, 'execute')
 );
 
 // Update the builds command to include REST API filtering options
@@ -133,7 +133,7 @@ addCacheOptions(buildsCmd)
 addTokenOption(buildsCmd)
 addFormatOption(buildsCmd)
 buildsCmd.action(
-  createCommandHandler(ListBuilds, 'execute')
+  handleCommand(ListBuilds, 'execute')
 );
 
 // Parse command line arguments
