@@ -1,11 +1,11 @@
-import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
+import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { GET_ORGANIZATIONS } from '../graphql/queries.js';
 import { OrganizationsQueryResponse, Organization, GraphQLEdge } from '../types/index.js';
 
 export interface OrganizationOptions extends BaseCommandOptions {
 }
 
-export class ListOrganizations extends BaseCommandHandler {
+export class ListOrganizations extends BaseCommand {
   constructor(token: string, options?: Partial<OrganizationOptions>) {
     super(token, options);
   }

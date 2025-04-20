@@ -2,10 +2,10 @@
 
 import { Command } from 'commander';
 import {
-  BaseCommandHandler,
-  ViewerCommandHandler,
+  BaseCommand,
+  ShowViewer,
   ListOrganizations,
-  ViewerBuildsCommandHandler,
+  ListBuilds,
   ListPipelines
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
@@ -48,7 +48,7 @@ program
   .version('1.0.0');
 
 // Create a handler for command execution with error handling
-function createCommandHandler<T extends BaseCommandHandler>(
+function createCommandHandler<T extends BaseCommand>(
   HandlerClass: new (token: string, options?: any) => T,
   methodName: keyof T
 ): (options: any) => void {
@@ -57,7 +57,7 @@ function createCommandHandler<T extends BaseCommandHandler>(
     
     (async () => {
       try {
-        const token = BaseCommandHandler.getToken(options);
+        const token = BaseCommand.getToken(options);
         const handler = new HandlerClass(token, {
           noCache: options.cache === false,
           cacheTTL: options.cacheTtl,
@@ -86,7 +86,7 @@ addCacheOptions(viewerCmd)
 addTokenOption(viewerCmd)
 addFormatOption(viewerCmd)
 viewerCmd.action(
-  createCommandHandler(ViewerCommandHandler, 'execute')
+  createCommandHandler(ShowViewer, 'execute')
 );
 
 const orgsCmd = program
@@ -133,7 +133,7 @@ addCacheOptions(buildsCmd)
 addTokenOption(buildsCmd)
 addFormatOption(buildsCmd)
 buildsCmd.action(
-  createCommandHandler(ViewerBuildsCommandHandler, 'execute')
+  createCommandHandler(ListBuilds, 'execute')
 );
 
 // Parse command line arguments

@@ -1,4 +1,4 @@
-import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
+import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { GET_PIPELINES } from '../graphql/queries.js';
 import { getPipelineFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
@@ -9,7 +9,7 @@ export interface PipelineOptions extends BaseCommandOptions {
   count?: string;
 }
 
-export class ListPipelines extends BaseCommandHandler {
+export class ListPipelines extends BaseCommand {
   constructor(token: string, options?: Partial<PipelineOptions>) {
     super(token, options);
   }

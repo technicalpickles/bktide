@@ -1,4 +1,4 @@
-import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
+import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { GET_VIEWER, GET_VIEWER_BUILDS } from '../graphql/queries.js';
 import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/BuildkiteRestClient.js';
 import { BuildkiteClient } from '../services/BuildkiteClient.js';
@@ -24,7 +24,7 @@ export interface ViewerBuildsOptions extends BaseCommandOptions {
   state?: string;
 }
 
-export class ViewerBuildsCommandHandler extends BaseCommandHandler {
+export class ListBuilds extends BaseCommand {
   private restClient: BuildkiteRestClient;
 
   constructor(token: string, options?: Partial<ViewerBuildsOptions>) {

@@ -1,4 +1,4 @@
-import { BaseCommandHandler, BaseCommandOptions } from './BaseCommandHandler.js';
+import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { GET_VIEWER } from '../graphql/queries.js';
 import { getViewerFormatter } from '../formatters/index.js';
 import { ViewerData } from '../types/index.js';
@@ -6,7 +6,7 @@ import { ViewerData } from '../types/index.js';
 export interface ViewerOptions extends BaseCommandOptions {
 }
 
-export class ViewerCommandHandler extends BaseCommandHandler {
+export class ShowViewer extends BaseCommand {
   constructor(token: string, options?: Partial<ViewerOptions>) {
     super(token, options);
   }
