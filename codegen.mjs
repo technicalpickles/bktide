@@ -1,0 +1,17 @@
+// ESM-compatible GraphQL codegen configuration
+export default {
+  schema: {
+    'https://graphql.buildkite.com/v1': {
+      headers: {
+        Authorization: `Bearer bkua_8c191fcdd7ccf1186c8df4ae77109085b300376d`,
+      },
+    },
+  },
+  documents: ['src/graphql/queries.ts'],
+  generates: {
+    './src/graphql/generated/': {
+      preset: 'client',
+    },
+  },
+  ignoreNoDocuments: true,
+}; 

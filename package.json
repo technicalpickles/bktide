@@ -21,7 +21,8 @@
     "debug": "node --inspect --import=./register-ts-node.js src/index.ts",
     "debug:inspect": "node --inspect --enable-source-maps --import=./register-ts-node.js src/index.ts",
     "dev:trace": "node run-with-stack-traces.js src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "codegen": "./node_modules/.bin/graphql-code-generator --config codegen.mjs"
   },
   "keywords": [
     "cli",
@@ -33,13 +34,19 @@
     "commander": "^13.1.0",
     "fuse.js": "^7.1.0",
     "graphql": "^16.10.0",
-    "graphql-request": "^7.1.2",
+    "graphql-request": "^6.1.0",
     "node-fetch": "^3.3.2",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   },
   "devDependencies": {
+    "@graphql-codegen/cli": "^5.0.0",
+    "@graphql-codegen/client-preset": "^4.1.0",
+    "@graphql-codegen/typescript": "^4.0.1",
+    "@graphql-codegen/typescript-graphql-request": "^6.0.0",
+    "@graphql-codegen/typescript-operations": "^4.0.1",
+    "@parcel/watcher": "^2.4.1",
     "@types/node": "^22.14.1",
     "@types/node-fetch": "^2.6.12",
     "@types/node-persist": "^3.1.8",

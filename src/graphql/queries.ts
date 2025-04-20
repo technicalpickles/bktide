@@ -1,9 +1,10 @@
 /**
  * Common GraphQL queries for the Buildkite API
  */
+import { gql } from 'graphql-request';
 
-export const GET_VIEWER = `
-  query {
+export const GET_VIEWER = gql`
+  query GetViewer {
     viewer {
       id
       user {
@@ -16,8 +17,8 @@ export const GET_VIEWER = `
   }
 `;
 
-export const GET_ORGANIZATIONS = `
-  query {
+export const GET_ORGANIZATIONS = gql`
+  query GetOrganizations {
     viewer {
       organizations {
         edges {
@@ -32,7 +33,7 @@ export const GET_ORGANIZATIONS = `
   }
 `;
 
-export const GET_PIPELINES = `
+export const GET_PIPELINES = gql`
   query GetPipelines($organizationSlug: ID!, $first: Int, $after: String) {
     organization(slug: $organizationSlug) {
       pipelines(first: $first, after: $after) {
@@ -58,34 +59,40 @@ export const GET_PIPELINES = `
   }
 `;
 
-export const GET_BUILDS = `
-  query GetBuilds($pipelineSlug: ID!, $organizationSlug: ID!, $first: Int) {
-    pipeline(slug: $pipelineSlug, organization: $organizationSlug) {
-      builds(first: $first) {
+export const GET_BUILDS = gql`
+  query GetBuilds($pipelineSlug: String!, $organizationSlug: ID!, $first: Int) {
+    organization(slug: $organizationSlug) {
+      pipelines(first: 1, search: $pipelineSlug) {
         edges {
           node {
-            id
-            number
-            url
-            state
-            message
-            commit
-            branch
-            createdAt
-            startedAt
-            finishedAt
+            builds(first: $first) {
+              edges {
+                node {
+                  id
+                  number
+                  url
+                  state
+                  message
+                  commit
+                  branch
+                  createdAt
+                  startedAt
+                  finishedAt
+                }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
           }
-        }
-        pageInfo {
-          hasNextPage
-          endCursor
         }
       }
     }
   }
 `;
 
-export const GET_VIEWER_BUILDS = `
+export const GET_VIEWER_BUILDS = gql`
   query GetViewerBuilds($first: Int!) {
     viewer {
       builds(first: $first) {
