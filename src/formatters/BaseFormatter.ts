@@ -2,6 +2,26 @@ export interface FormatterOptions {
   debug?: boolean;
 }
 
+export interface FormatFunction<T> {
+  (data: T[], options?: FormatterOptions): string;
+}
+
 export interface BaseFormatter {
-  // Base formatter interface that specific command formatters will extend
+  name: string;
+  format<T>(data: T[], formatFn: FormatFunction<T>, options?: FormatterOptions): string;
+}
+
+export abstract class AbstractFormatter implements BaseFormatter {
+  name: string;
+
+  constructor(name: string) {
+    this.name = name;
+  }
+
+  format<T>(data: T[], formatFn: FormatFunction<T>, options?: FormatterOptions): string {
+    if (options?.debug) {
+      console.log(`Debug: Formatting with ${this.name} formatter`);
+    }
+    return formatFn(data, options);
+  }
 } 

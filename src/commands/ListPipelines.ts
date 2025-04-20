@@ -1,6 +1,6 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { GET_PIPELINES } from '../graphql/queries.js';
-import { getPipelineFormatter } from '../formatters/index.js';
+import { FormatterType, PipelineFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
 import { Pipeline, PipelineQueryResponse } from '../types/index.js';
 
@@ -124,12 +124,7 @@ export class ListPipelines extends BaseCommand {
     
     try {
       // Get the appropriate formatter
-      // Format precedence: command line option > constructor option > default
-      const format = options.format || this.options.format || 'plain';
-      if (options.debug) {
-        console.log(`Debug: Using ${format} formatter`);
-      }
-      const formatter = getPipelineFormatter(format);
+      const formatter = this.getFormatter(FormatterType.PIPELINE, options) as PipelineFormatter;
       
       // Format and output the results
       const output = formatter.formatPipelines(allPipelines, orgs, { debug: options.debug });

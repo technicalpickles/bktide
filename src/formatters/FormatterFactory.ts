@@ -1,0 +1,34 @@
+import { BaseFormatter } from './BaseFormatter.js';
+import { PipelineFormatter, getPipelineFormatter } from './pipelines/index.js';
+import { BuildFormatter, getBuildFormatter } from './builds/index.js';
+import { ViewerFormatter, getViewerFormatter } from './viewer/index.js';
+
+export enum FormatterType {
+  PIPELINE = 'pipeline',
+  BUILD = 'build', 
+  VIEWER = 'viewer'
+}
+
+export class FormatterFactory {
+  /**
+   * Get the appropriate formatter based on the type and format
+   * @param type The formatter type ('pipeline', 'build', 'viewer')
+   * @param format The format to use ('plain', 'json', 'alfred')
+   * @returns The appropriate formatter instance
+   */
+  static getFormatter(type: FormatterType, format: string = 'plain'): BaseFormatter {
+    // Normalize the format string
+    const normalizedFormat = format.toLowerCase().trim();
+    
+    switch (type) {
+      case FormatterType.PIPELINE:
+        return getPipelineFormatter(normalizedFormat);
+      case FormatterType.BUILD:
+        return getBuildFormatter(normalizedFormat);
+      case FormatterType.VIEWER:
+        return getViewerFormatter(normalizedFormat);
+      default:
+        throw new Error(`Unknown formatter type: ${type}`);
+    }
+  }
+} 

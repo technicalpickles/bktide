@@ -1,4 +1,5 @@
 import { BuildkiteClient } from '../services/BuildkiteClient.js';
+import { FormatterFactory, FormatterType } from '../formatters/index.js';
 
 export interface BaseCommandOptions {
   cacheTTL?: number;
@@ -97,5 +98,20 @@ export abstract class BaseCommand {
       throw new Error('API token required. Set via --token or BK_TOKEN environment variable.');
     }
     return token;
+  }
+
+  /**
+   * Get the appropriate formatter based on command-specific type and format option
+   * @param type The formatter type ('pipeline', 'build', 'viewer')
+   * @param options Command options that may include a format
+   * @returns The appropriate formatter
+   */
+  protected getFormatter(type: FormatterType, options: BaseCommandOptions) {
+    // Format precedence: command line option > constructor option > default
+    const format = options.format || this.options.format || 'plain';
+    if (options.debug) {
+      console.log(`Debug: Using ${format} formatter for ${type}`);
+    }
+    return FormatterFactory.getFormatter(type, format);
   }
 } 

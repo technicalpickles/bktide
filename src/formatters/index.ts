@@ -2,6 +2,7 @@ import { FormatterOptions } from './BaseFormatter.js';
 import { PipelineFormatter, getPipelineFormatter } from './pipelines/index.js';
 import { BuildFormatter, getBuildFormatter } from './builds/index.js';
 import { ViewerFormatter, getViewerFormatter } from './viewer/index.js';
+import { FormatterFactory, FormatterType } from './FormatterFactory.js';
 
 export { 
   FormatterOptions,
@@ -10,5 +11,7 @@ export {
   BuildFormatter,
   getBuildFormatter,
   ViewerFormatter,
-  getViewerFormatter
+  getViewerFormatter,
+  FormatterFactory,
+  FormatterType
 }; 

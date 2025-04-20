@@ -3,6 +3,8 @@ import { BaseFormatter } from './Formatter.js';
 import { ViewerData } from '../../types/index.js';
 
 export class PlainTextFormatter extends BaseFormatter {
+  name = 'plain-text';
+  
   formatViewer(viewerData: ViewerData, options?: FormatterOptions): string {
     if (!viewerData?.viewer) {
       return 'No viewer data found.';

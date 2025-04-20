@@ -3,6 +3,8 @@ import { BaseFormatter } from './Formatter.js';
 import { Build } from '../../types/index.js';
 
 export class JsonFormatter extends BaseFormatter {
+  name = 'json';
+  
   formatBuilds(builds: Build[], options?: FormatterOptions): string {
     const result = {
       count: builds.length,

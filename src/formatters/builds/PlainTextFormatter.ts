@@ -3,6 +3,8 @@ import { BaseFormatter } from './Formatter.js';
 import { Build } from '../../types/index.js';
 
 export class PlainTextFormatter extends BaseFormatter {
+  name = 'plain-text';
+  
   formatBuilds(builds: Build[], options?: FormatterOptions): string {
     if (builds.length === 0) {
       return 'No builds found.';

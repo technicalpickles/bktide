@@ -3,6 +3,8 @@ import { BaseFormatter } from './Formatter.js';
 import { Build } from '../../types/index.js';
 
 export class AlfredFormatter extends BaseFormatter {
+  name = 'alfred';
+  
   formatBuilds(builds: Build[], options?: FormatterOptions): string {
     // Format builds as Alfred-compatible JSON items
     const alfredItems = builds.map((build: Build) => {

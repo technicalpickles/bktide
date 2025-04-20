@@ -1,9 +1,17 @@
-import { FormatterOptions } from '../BaseFormatter.js';
-import { BaseFormatter } from './Formatter.js';
+import { FormatterOptions, AbstractFormatter, FormatFunction } from '../BaseFormatter.js';
+import { PipelineFormatter } from './Formatter.js';
 import { Pipeline } from '../../types/index.js';
 
-export class PlainTextFormatter extends BaseFormatter {
+export class PlainTextFormatter extends AbstractFormatter implements PipelineFormatter {
+  constructor() {
+    super('plain-text');
+  }
+
   formatPipelines(pipelines: Pipeline[], organizations: string[], options?: FormatterOptions): string {
+    return this.format(pipelines, this.formatPipelinesImpl.bind(this, organizations), options);
+  }
+
+  private formatPipelinesImpl(organizations: string[], pipelines: Pipeline[], options?: FormatterOptions): string {
     const output: string[] = [];
     
     if (pipelines.length === 0) {

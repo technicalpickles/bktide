@@ -6,5 +6,14 @@ export interface BuildFormatter extends BaseFormatterInterface {
 }
 
 export abstract class BaseFormatter implements BuildFormatter {
+  abstract name: string;
+  
   abstract formatBuilds(builds: Build[], options?: FormatterOptions): string;
+  
+  format<T>(data: T[], formatFn: (data: T[], options?: FormatterOptions) => string, options?: FormatterOptions): string {
+    if (options?.debug) {
+      console.log(`Debug: Formatting with ${this.name} formatter`);
+    }
+    return formatFn(data, options);
+  }
 } 
