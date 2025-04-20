@@ -1,9 +1,14 @@
 // ESM-compatible GraphQL codegen configuration
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
+
 export default {
   schema: {
     'https://graphql.buildkite.com/v1': {
       headers: {
-        Authorization: `Bearer bkua_8c191fcdd7ccf1186c8df4ae77109085b300376d`,
+        Authorization: `Bearer ${process.env.BK_TOKEN}`,
       },
     },
   },
