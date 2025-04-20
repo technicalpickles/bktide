@@ -83,7 +83,7 @@
 				<key>type</key>
 				<integer>0</integer>
 				<key>withspace</key>
-				<false/>
+				<true/>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.input.scriptfilter</string>
@@ -170,23 +170,23 @@
 		<key>0D03084F-A535-4B27-9590-958ACE71058D</key>
 		<dict>
 			<key>xpos</key>
-			<real>70</real>
+			<real>355</real>
 			<key>ypos</key>
-			<real>435</real>
+			<real>250</real>
 		</dict>
 		<key>23FFFF40-EAC3-4E31-884E-643D969B7AB7</key>
 		<dict>
 			<key>xpos</key>
-			<real>370</real>
+			<real>575</real>
 			<key>ypos</key>
-			<real>350</real>
+			<real>155</real>
 		</dict>
 		<key>6CEA3061-E41E-4D9C-99CF-435E7A85AED6</key>
 		<dict>
 			<key>xpos</key>
-			<real>65</real>
+			<real>370</real>
 			<key>ypos</key>
-			<real>275</real>
+			<real>20</real>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>
