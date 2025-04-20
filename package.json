@@ -22,7 +22,7 @@
     "debug:inspect": "node --inspect --enable-source-maps --import=./register-ts-node.js src/index.ts",
     "dev:trace": "node run-with-stack-traces.js src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "codegen": "./node_modules/.bin/graphql-code-generator --config codegen.mjs"
+    "codegen": "./node_modules/.bin/graphql-code-generator --config codegen.mjs && node fix-imports.js"
   },
   "keywords": [
     "cli",

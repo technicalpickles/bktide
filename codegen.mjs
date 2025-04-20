@@ -9,9 +9,24 @@ export default {
   },
   documents: ['src/graphql/queries.ts'],
   generates: {
-    './src/graphql/generated/': {
-      preset: 'client',
-    },
+    './src/graphql/generated/sdk.ts': {
+      plugins: [
+        'typescript',
+        'typescript-operations',
+        'typescript-graphql-request'
+      ],
+      config: {
+        avoidOptionals: false,
+        skipTypename: true,
+        withHooks: false,
+        withComponent: false,
+        withHOC: false,
+        dedupeFragments: true,
+        exportFragmentSpreadSubTypes: true,
+        preResolveTypes: true,
+        addESModuleExports: true
+      }
+    }
   },
   ignoreNoDocuments: true,
 }; 
