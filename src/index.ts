@@ -6,7 +6,7 @@ import {
   ViewerCommandHandler,
   ListOrganizations,
   ViewerBuildsCommandHandler,
-  PipelineCommandHandler
+  ListPipelines
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError } from './utils/cli-error-handler.js';
@@ -113,7 +113,7 @@ addCacheOptions(pipelinesCmd)
 addTokenOption(pipelinesCmd)
 addFormatOption(pipelinesCmd)
 pipelinesCmd.action(
-  createCommandHandler(PipelineCommandHandler, 'listPipelines')
+  createCommandHandler(ListPipelines, 'listPipelines')
 );
 
 // Update the builds command to include REST API filtering options

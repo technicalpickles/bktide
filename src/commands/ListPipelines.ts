@@ -9,7 +9,7 @@ export interface PipelineOptions extends BaseCommandOptions {
   count?: string;
 }
 
-export class PipelineCommandHandler extends BaseCommandHandler {
+export class ListPipelines extends BaseCommandHandler {
   constructor(token: string, options?: Partial<PipelineOptions>) {
     super(token, options);
   }
