@@ -5,7 +5,7 @@ import { OrganizationsQueryResponse, Organization, GraphQLEdge } from '../types/
 export interface OrganizationOptions extends BaseCommandOptions {
 }
 
-export class OrganizationCommandHandler extends BaseCommandHandler {
+export class ListOrganizations extends BaseCommandHandler {
   constructor(token: string, options?: Partial<OrganizationOptions>) {
     super(token, options);
   }

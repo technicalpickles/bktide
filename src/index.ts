@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import {
   BaseCommandHandler,
   ViewerCommandHandler,
-  OrganizationCommandHandler,
+  ListOrganizations,
   ViewerBuildsCommandHandler,
   PipelineCommandHandler
 } from './commands/index.js';
@@ -98,7 +98,7 @@ addCacheOptions(orgsCmd)
 addTokenOption(orgsCmd)
 addFormatOption(orgsCmd)
 orgsCmd.action(
-  createCommandHandler(OrganizationCommandHandler, 'listOrganizations')
+  createCommandHandler(ListOrganizations, 'listOrganizations')
 );
 
 const pipelinesCmd = program
