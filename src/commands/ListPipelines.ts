@@ -1,5 +1,5 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
-import { FormatterType, getPipelineFormatter } from '../formatters/index.js';
+import { getPipelineFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
 import { Pipeline } from '../types/index.js';
 
@@ -14,7 +14,6 @@ export class ListPipelines extends BaseCommand {
   }
   
   async execute(options: PipelineOptions): Promise<void> {
-    // Ensure initialization is complete
     await this.ensureInitialized();
     
     // Need to get organization info if not provided
@@ -92,7 +91,7 @@ export class ListPipelines extends BaseCommand {
           }
         }
       } catch (error) {
-        console.error(`Error fetching pipelines for organization ${org}:`, error);
+        throw new Error(`Error fetching pipelines for organization ${org}: ${error}`);
       }
     }
     
@@ -102,13 +101,11 @@ export class ListPipelines extends BaseCommand {
       allPipelines = allPipelines.slice(0, limit);
     }
     
-    // Apply fuzzy filter if specified
     if (options.filter && allPipelines.length > 0) {
       if (options.debug) {
         console.log(`Debug: Applying fuzzy filter '${options.filter}' to ${allPipelines.length} pipelines`);
       }
       
-      // Configure Fuse for fuzzy searching
       const fuse = new Fuse(allPipelines, {
         keys: ['name', 'slug', 'description'],
         threshold: 0.4,
@@ -116,7 +113,6 @@ export class ListPipelines extends BaseCommand {
         shouldSort: true
       });
       
-      // Perform the fuzzy search
       const searchResults = fuse.search(options.filter);
       allPipelines = searchResults.map(result => result.item);
       
@@ -126,11 +122,9 @@ export class ListPipelines extends BaseCommand {
     }
     
     if (allPipelines.length === 0) {
-      // Determine the format type based on options
       const format = options.format || 'plain';
       
       if (format === 'alfred') {
-        // Return empty Alfred JSON format
         console.log(JSON.stringify({ items: [] }));
         return;
       } else if (format === 'json') {
@@ -146,12 +140,10 @@ export class ListPipelines extends BaseCommand {
       return;
     }
     
-    // Get the appropriate formatter based on format option
     const format = options.format || 'plain';
-    const formatter = getPipelineFormatter(format as FormatterType);
+    const formatter = getPipelineFormatter(format);
     const output = formatter.formatPipelines(allPipelines, organizations);
     
-    // Print the output
     console.log(output);
     
     if (format === 'plain') {

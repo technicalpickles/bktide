@@ -9,12 +9,10 @@ export class ListOrganizations extends BaseCommand {
   }
   
   async execute(options: OrganizationOptions): Promise<void> {
-    // Ensure initialization is complete
     await this.ensureInitialized();
     
     const data = await this.client.getOrganizations();
     
-    // Debug output if debug option is enabled
     if (options.debug) {
       console.debug('API Response:', JSON.stringify(data, null, 2));
     }
