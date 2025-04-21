@@ -50,18 +50,22 @@ function handleCommand<T extends BaseCommand>(
     
     (async () => {
       try {
-        const token = BaseCommand.getToken(options);
+        // Merge global options with command-specific options
+        const globalOpts = program.opts();
+        const mergedOptions = { ...globalOpts, ...options };
+        
+        const token = BaseCommand.getToken(mergedOptions);
         const handler = new HandlerClass(token, {
-          noCache: options.cache === false,
-          cacheTTL: options.cacheTtl,
-          clearCache: options.clearCache,
+          noCache: mergedOptions.cache === false,
+          cacheTTL: mergedOptions.cacheTtl,
+          clearCache: mergedOptions.clearCache,
           debug: isDebug,
-          format: options.format
+          format: mergedOptions.format
         });
         
         // Call the specified method on the handler instance
         const method = handler[methodName] as unknown as (options: any) => Promise<void>;
-        await method.call(handler, options);
+        await method.call(handler, mergedOptions);
       } catch (error) {
         displayCLIError(error, isDebug);
       }

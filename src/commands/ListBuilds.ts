@@ -139,15 +139,15 @@ export class ListBuilds extends BaseCommand {
     
     // Special case handling for empty results with Alfred and JSON formatters
     if (allBuilds.length === 0 && format === 'alfred') {
-      console.log(JSON.stringify({ items: [] }));
+      logger.console(JSON.stringify({ items: [] }));
       return;
     } else if (allBuilds.length === 0 && format === 'json') {
-      console.log(JSON.stringify([]));
+      logger.console(JSON.stringify([]));
       return;
     }
     
     const output = formatter.formatBuilds(allBuilds, formatterOptions);
-    console.log(output);
+    logger.console(output);
     
     if (options.debug) {
       const executeDuration = Number(process.hrtime.bigint() - executeStartTime) / 1000000;

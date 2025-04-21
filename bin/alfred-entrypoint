@@ -22,4 +22,5 @@ args=(--format alfred)
 if [[ -n "$filter" ]]; then
   args+=(--filter "$filter")
 fi
+echo "Running command: node dist/index.js $command" "${args[@]}" >> log/alfred.log
 node dist/index.js "$command" "${args[@]}" 2>&1 | tee -a log/alfred.log
