@@ -60,15 +60,13 @@ interface ExtendedCommand extends Command {
 const createCommandHandler = (CommandClass: new (token: string, options?: any) => BaseCommand & CommandWithExecute) => {
   return async function(this: ExtendedCommand) {
     try {
-      // Access custom properties added in preAction hook
       const options = this.mergedOptions || this.opts();
       const cacheOptions = this.cacheOptions || { enabled: options.cache !== false, ttl: options.cacheTtl, clear: options.clearCache };
       const token = BaseCommand.getToken(options);
       
       const handler = new CommandClass(token, {
-        noCache: !cacheOptions.enabled,
-        cacheTTL: cacheOptions.ttl,
-        clearCache: cacheOptions.clear,
+        ...cacheOptions,
+        token: token,
         debug: options.debug,
         format: options.format
       });
@@ -116,17 +114,17 @@ program
     
     // Validate cache options
     if (mergedOptions.cacheTtl && (isNaN(mergedOptions.cacheTtl) || mergedOptions.cacheTtl <= 0)) {
-      logger.error('Error: cache-ttl must be a positive number');
+      logger.error('cache-ttl must be a positive number');
       process.exit(1);
     }
     
     if (mergedOptions.cache === false && mergedOptions.cacheTtl) {
-      logger.warn('⚠️ WARNING: --no-cache and --cache-ttl used together. Cache will be disabled regardless of TTL setting.');
+      logger.warn('--no-cache and --cache-ttl used together. Cache will be disabled regardless of TTL setting.');
     }
     
     // Validate count options
     if (mergedOptions.count && (isNaN(parseInt(mergedOptions.count)) || parseInt(mergedOptions.count) <= 0)) {
-      logger.error('Error: count must be a positive number');
+      logger.error('count must be a positive number');
       process.exit(1);
     }
     
