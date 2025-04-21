@@ -1,6 +1,5 @@
 import { GraphQLClient } from 'graphql-request';
 import { CacheManager } from './CacheManager.js';
-import { ViewerOrganizationsData, GraphQLEdge, Organization } from '../types/index.js';
 // Import the queries - we'll use them for both string queries and typed SDK
 import { 
   GET_VIEWER, 
@@ -192,25 +191,26 @@ export class BuildkiteClient {
         logger.debug(`🕒 Starting GraphQL query: getViewerOrganizationSlugs`);
       }
       
-      const data = await this.query<ViewerOrganizationsData>(GET_ORGANIZATIONS.toString());
+      // Get the organizations using our query
+      const data = await this.query<GetOrganizationsQuery>(GET_ORGANIZATIONS.toString());
       
-      if (!data?.viewer?.organizations?.edges) {
-        throw new Error('Failed to fetch organizations from the API');
-      }
+      // Use our helper method to process the response
+      const organizations = this.processOrganizationsResponse(data);
       
-      const orgs = data.viewer.organizations.edges.map((edge: GraphQLEdge<Organization>) => edge.node.slug);
-      
-      if (orgs.length === 0) {
+      if (organizations.length === 0) {
         throw new Error('No organizations found for the current user');
       }
+      
+      // Map to just the slugs
+      const slugs = organizations.map(org => org.slug);
       
       const endTime = process.hrtime.bigint();
       const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
       if (this.debug) {
-        logger.debug(`✅ Found ${orgs.length} organizations (${duration.toFixed(2)}ms)`);
+        logger.debug(`✅ Found ${slugs.length} organizations (${duration.toFixed(2)}ms)`);
       }
       
-      return orgs;
+      return slugs;
     } catch (error) {
       logger.error('Error fetching viewer organizations:', error);
       throw new Error('Failed to determine your organizations');
@@ -273,10 +273,10 @@ export class BuildkiteClient {
   }
 
   /**
-   * Get organizations for the current viewer with type safety
-   * @returns The organizations data
+   * Get organizations for the current viewer
+   * @returns An array of organization objects with id, name, and slug
    */
-  public async getOrganizations(): Promise<GetOrganizationsQuery> {
+  public async getOrganizations(): Promise<Array<{ id: string; name: string; slug: string; }>> {
     if (this.debug) {
       logger.debug(`🕒 Starting GraphQL query: GetOrganizations`);
     }
@@ -288,7 +288,7 @@ export class BuildkiteClient {
         if (this.debug) {
           logger.debug(`✅ Served from cache: GetOrganizations`);
         }
-        return cachedResult;
+        return this.processOrganizationsResponse(cachedResult);
       }
     }
 
@@ -306,16 +306,16 @@ export class BuildkiteClient {
       logger.debug(`✅ GraphQL query completed: GetOrganizations (${duration.toFixed(2)}ms)`);
     }
 
-    return result;
+    return this.processOrganizationsResponse(result);
   }
 
   /**
-   * Get a processed array of organizations for the current viewer with null values filtered out
-   * @returns An array of non-null Organization objects
+   * Process the raw GraphQL organizations response into a clean array
+   * @param data The raw GraphQL response
+   * @returns A processed array of organization objects
+   * @private
    */
-  public async getOrganizationsArray(): Promise<Array<{ id: string; name: string; slug: string; }>> {
-    const data = await this.getOrganizations();
-    
+  private processOrganizationsResponse(data: GetOrganizationsQuery): Array<{ id: string; name: string; slug: string; }> {
     if (!data?.viewer?.organizations?.edges) {
       return [];
     }

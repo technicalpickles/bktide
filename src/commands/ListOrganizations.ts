@@ -16,8 +16,8 @@ export class ListOrganizations extends BaseCommand {
         logger.debug('Fetching organizations...');
       }
       
-      // Use the new method that handles filtering null values
-      const organizations = await this.client.getOrganizationsArray();
+      // Use the refactored getOrganizations method which now returns the processed array
+      const organizations = await this.client.getOrganizations();
       
       if (options.debug) {
         logger.debug(`Fetched ${organizations.length} organizations`);
