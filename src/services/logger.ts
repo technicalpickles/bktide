@@ -17,9 +17,23 @@ const logFile = path.join(LOG_DIR, 'cli.log');
 export const logger = pino(
   {
     level: process.env.LOG_LEVEL || 'info',
+    customLevels: {
+      console: 80
+    },
     transport: {
       targets: [
-        // Console pretty output for humans
+        // Regular console output
+        {
+          target: 'pino-pretty',
+          level: 'console',
+          options: {
+            colorize: false,
+            useOnlyCustomProps: true,
+            sync: true,
+            minimumLevel: 'console',
+            ignore: 'level,time,pid,hostname'
+          }
+        },
         {
           target: 'pino-pretty',
           level: 'trace',
@@ -28,7 +42,6 @@ export const logger = pino(
             sync: true,
             translateTime: 'HH:MM:ss.l',
             ignore: 'pid,hostname',
-            levelFirst: true,
           }
         },
         // JSON file output
@@ -41,8 +54,9 @@ export const logger = pino(
             sync: false 
           }
         }
-      ]
-    }
+      ],
+      dedupe: true
+    },
   }
 );
 

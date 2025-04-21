@@ -40,7 +40,7 @@ export class ListOrganizations extends BaseCommand {
       
       // Format and output the organizations
       const output = formatter.formatOrganizations(organizations, { debug: options.debug });
-      console.log(output);
+      logger.console(output);
       
     } catch (error) {
       throw error;
