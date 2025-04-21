@@ -35,7 +35,7 @@ export const logger = pino(
             colorize: true,
             sync: true,
             translateTime: 'HH:MM:ss.l',
-            ignore: 'pid,hostname',
+            ignore: 'time,pid,hostname',
           }
         },
         // JSON file output

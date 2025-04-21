@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import prompts from 'prompts';
 
 import {
   BaseCommand,
@@ -245,11 +246,23 @@ program
   .addCommand(
     new Command('store')
       .description('Store a token in the system keychain')
-      .argument('<token>', 'Buildkite API token to store')
-      .action(async (token: string) => {
+      .action(async () => {
         try {
+          const response = await prompts({
+            type: 'password',
+            name: 'token',
+            message: 'Enter your Buildkite API token:',
+            validate: value => value.length > 0 ? true : 'Please enter a valid token'
+          });
+          
+          // Check if user cancelled the prompt (Ctrl+C)
+          if (!response.token) {
+            logger.info('Token storage cancelled');
+            return;
+          }
+          
           const credentialManager = new CredentialManager();
-          const success = await credentialManager.saveToken(token);
+          const success = await credentialManager.saveToken(response.token);
           if (success) {
             logger.info('Token successfully stored in system keychain');
           } else {

@@ -86,7 +86,8 @@ You can authenticate with Buildkite in several ways:
 3. Using the system keychain (recommended):
    ```bash
    # Store your token securely in the system keychain
-   npm run dev -- token store YOUR_BUILDKITE_API_TOKEN
+   npm run dev -- token store
+   # You'll be prompted to enter your token securely
    
    # Now you can run commands without providing the token
    npm run dev -- viewer
@@ -97,8 +98,8 @@ You can authenticate with Buildkite in several ways:
 The CLI now includes secure credential management using the system's native keychain:
 
 ```bash
-# Store a token in the system keychain
-npm run dev -- token store YOUR_BUILDKITE_API_TOKEN
+# Store a token in the system keychain (will prompt for token)
+npm run dev -- token store
 
 # Check if a token is stored
 npm run dev -- token check
