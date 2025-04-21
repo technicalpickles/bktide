@@ -1,26 +1,6 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-// Configure logger level based on command line arguments before anything else runs
-const logLevelArg = process.argv.find(arg => arg.startsWith('--log-level='));
-// Set default level from LOG_LEVEL env var or 'info'
-let logLevel = process.env.LOG_LEVEL || 'info';
-
-// Check for --debug flag to set log level if not explicitly specified
-if (process.argv.includes('--debug') || process.argv.includes('-d')) {
-  // Only apply debug level if not already set to a more verbose level
-  if (logLevel === 'info' || logLevel === 'warn' || logLevel === 'error' || logLevel === 'fatal') {
-    logLevel = 'debug';
-  }
-}
-
-// Apply explicit log level setting if provided (overrides --debug)
-if (logLevelArg) {
-  logLevel = logLevelArg.split('=')[1];
-}
-
-// Set the log level for the logger
-process.env.LOG_LEVEL = logLevel;
 
 import {
   BaseCommand,
@@ -31,7 +11,7 @@ import {
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError } from './utils/cli-error-handler.js';
-import { logger } from './services/logger.js';
+import { logger, setLogLevel } from './services/logger.js';
 
 initializeErrorHandling();
 
@@ -134,11 +114,20 @@ buildsCmd.action(
 );
 
 // Parse command line arguments
-program.parse(); 
+program.parse();
+
+// Apply log level from command line options
+const options = program.opts();
+if (options.debug) {
+  // Debug mode takes precedence over log-level
+  setLogLevel('debug');
+  logger.debug('Debug mode enabled via --debug flag');
+} else if (options.logLevel) {
+  setLogLevel(options.logLevel);
+  logger.debug(`Log level set to ${options.logLevel} via --log-level option`);
+}
 
 // Log startup information
 logger.debug({ 
   pid: process.pid, 
-  logLevel: process.env.LOG_LEVEL, 
-  debug: process.argv.includes('--debug') || process.argv.includes('-d')
 }, 'Buildkite CLI started'); 

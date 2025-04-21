@@ -39,6 +39,7 @@ export abstract class BaseCommand {
     this.options = options || {};
     if (options?.debug) {
       // Include token length (not the actual token) for debugging auth issues
+      // Debug mode is already handled here by logger.debug use
       logger.debug('BaseCommandHandler options:', {
         ...options,
         token: token ? `${token.substring(0, 4)}...${token.substring(token.length - 4)} (${token.length} chars)` : 'Not provided'

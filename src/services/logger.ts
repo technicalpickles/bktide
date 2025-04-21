@@ -13,6 +13,7 @@ const logFile = path.join(LOG_DIR, 'cli.log');
 // Unused with transport config approach
 // const fileStream = createWriteStream(logFile, { flags: 'a' });
 
+console.log(`[DEBUG] LOG_LEVEL at time of logger init=${process.env.LOG_LEVEL}`);
 // Create the logger
 export const logger = pino(
   {
@@ -62,6 +63,15 @@ export const logger = pino(
 
 // Convenience re-exports for existing codebases
 export const { info, warn, error, debug, trace, fatal } = logger;
+
+/**
+ * Changes the logging level of the current logger instance
+ * @param level The new log level to set
+ */
+export function setLogLevel(level: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal' | 'console'): void {
+  logger.level = level;
+  debug(`Log level changed to ${level}`);
+}
 
 /**
  * Helper function to measure and log execution time of async functions
