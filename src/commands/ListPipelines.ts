@@ -123,20 +123,9 @@ export class ListPipelines extends BaseCommand {
     
     if (allPipelines.length === 0) {
       const format = options.format || 'plain';
-      
-      if (format === 'alfred') {
-        console.log(JSON.stringify({ items: [] }));
-        return;
-      } else if (format === 'json') {
-        console.log(JSON.stringify([]));
-        return;
-      }
-      console.log('No pipelines found.');
-      if (organizations.length === 1) {
-        console.log(`No pipelines found in organization ${organizations[0]}.`);
-      } else {
-        console.log(`No pipelines found across ${organizations.length} organizations.`);
-      }
+      const formatter = getPipelineFormatter(format);
+      const output = formatter.formatPipelines(allPipelines, organizations);
+      console.log(output);
       return;
     }
     

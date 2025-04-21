@@ -16,8 +16,10 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
     
     if (pipelines.length === 0) {
       output.push('No pipelines found.');
-      if (organizations.length > 1) {
-        output.push('Try specifying an organization with --org to narrow your search.');
+      if (organizations.length === 1) {
+        output.push(`No pipelines found in organization ${organizations[0]}.`);
+      } else {
+        output.push(`No pipelines found across ${organizations.length} organizations.`);
       }
       return output.join('\n');
     }
