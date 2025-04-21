@@ -1,7 +1,7 @@
 import { Entry } from '@napi-rs/keyring';
 import { logger } from './logger.js';
 
-const SERVICE_NAME = 'buildkite-cli';
+const SERVICE_NAME = 'bktide';
 const ACCOUNT_KEY = 'default';
 
 /**

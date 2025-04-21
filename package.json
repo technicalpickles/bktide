@@ -10,17 +10,8 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "node --import=./register-ts-node.js src/index.ts",
-    "dev:alt": "node --no-warnings --loader ts-node/esm src/index.ts",
-    "dev:sourcemap": "node --enable-source-maps --import=./register-ts-node.js src/index.ts",
-    "dev:enhanced": "NODE_OPTIONS=\"--enable-source-maps --trace-uncaught\" node --import=./register-ts-node.js src/index.ts",
-    "dev:debug": "NODE_DEBUG=module,esm,loader node --enable-source-maps --trace-uncaught --import=./register-ts-node.js src/index.ts",
-    "dev:runner": "node run-with-sourcemaps.js src/index.ts",
-    "dev:compiled": "node build-and-run.js src/index.ts",
+    "dev": "NODE_OPTIONS=\"--enable-source-maps --trace-uncaught --inspect\" node build-and-run.js src/index.ts",
     "watch": "tsc --watch",
-    "debug": "node --inspect --import=./register-ts-node.js src/index.ts",
-    "debug:inspect": "node --inspect --enable-source-maps --import=./register-ts-node.js src/index.ts",
-    "dev:trace": "node run-with-stack-traces.js src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "codegen": "./node_modules/.bin/graphql-code-generator --config codegen.mjs"
   },
