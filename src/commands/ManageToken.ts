@@ -28,8 +28,7 @@ export class ManageToken extends BaseCommand {
     } else if (options.check) {
       await this.checkToken();
     } else {
-      // Default action if no specific flag is provided
-      await this.storeToken();
+      await this.checkOrStoreToken();
     }
   }
 
@@ -75,6 +74,20 @@ export class ManageToken extends BaseCommand {
       logger.error('Error resetting token', error);
     }
   }
+
+  private async checkOrStoreToken(): Promise<void> {
+    try {
+      const hasToken = await BaseCommand.credentialManager.hasToken();
+      if (hasToken) {
+        logger.console('Token found in system keychain');
+      } else {
+        await this.storeToken();
+      }
+    } catch (error) {
+      logger.error('Error checking or storing token', error);
+    }
+  }
+  
 
   private async checkToken(): Promise<void> {
     try {
