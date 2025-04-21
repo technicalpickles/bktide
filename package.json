@@ -31,6 +31,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@napi-rs/keyring": "^1.1.6",
     "commander": "^13.1.0",
     "dotenv": "^16.5.0",
     "fuse.js": "^7.1.0",

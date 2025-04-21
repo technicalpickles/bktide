@@ -12,6 +12,7 @@ import {
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
 import { logger, setLogLevel } from './services/logger.js';
+import { CredentialManager } from './services/CredentialManager.js';
 
 // Set a global error handler for uncaught exceptions
 const uncaughtExceptionHandler = (err: Error) => {
@@ -82,13 +83,16 @@ const createCommandHandler = (CommandClass: new (token: string, options?: any) =
     try {
       const options = this.mergedOptions || this.opts();
       const cacheOptions = { enabled: options.cache !== false, ttl: options.cacheTtl, clear: options.clearCache };
-      const token = BaseCommand.getToken(options);
+      
+      // This now returns a Promise
+      const token = await BaseCommand.getToken(options);
       
       const handler = new CommandClass(token, {
         ...cacheOptions,
         token: token,
         debug: options.debug,
-        format: options.format
+        format: options.format,
+        saveToken: options.saveToken
       });
       
       // Pass command-specific options if available
@@ -120,6 +124,7 @@ program
   .option('--cache-ttl <milliseconds>', 'Set cache time-to-live in milliseconds', parseInt)
   .option('--clear-cache', 'Clear all cached data before executing command')
   .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)', process.env.BK_TOKEN)
+  .option('--save-token', 'Save the token to system keychain for future use')
   .option('-f, --format <format>', 'Output format for results and errors (plain, json, alfred)', 'plain');
 
 // Add hooks for handling options
@@ -232,6 +237,68 @@ program
   .option('--page <page>', 'Page number', '1')
   .option('--filter <filter>', 'Fuzzy filter builds by name or other properties')
   .action(createCommandHandler(ListBuilds));
+
+// Add token management commands
+program
+  .command('token')
+  .description('Manage API tokens')
+  .addCommand(
+    new Command('store')
+      .description('Store a token in the system keychain')
+      .argument('<token>', 'Buildkite API token to store')
+      .action(async (token: string) => {
+        try {
+          const credentialManager = new CredentialManager();
+          const success = await credentialManager.saveToken(token);
+          if (success) {
+            logger.info('Token successfully stored in system keychain');
+          } else {
+            logger.error('Failed to store token');
+          }
+        } catch (error) {
+          displayCLIError(error, program.opts().debug);
+        }
+      })
+  )
+  .addCommand(
+    new Command('delete')
+      .description('Delete the stored token from system keychain')
+      .action(async () => {
+        try {
+          const credentialManager = new CredentialManager();
+          
+          if (await credentialManager.hasToken()) {
+            const success = await credentialManager.deleteToken();
+            if (success) {
+              logger.info('Token successfully deleted from system keychain');
+            } else {
+              logger.error('Failed to delete token');
+            }
+          } else {
+            logger.info('No token found in system keychain');
+          }
+        } catch (error) {
+          displayCLIError(error, program.opts().debug);
+        }
+      })
+  )
+  .addCommand(
+    new Command('check')
+      .description('Check if a token is stored in the system keychain')
+      .action(async () => {
+        try {
+          const credentialManager = new CredentialManager();
+          const hasToken = await credentialManager.hasToken();
+          if (hasToken) {
+            logger.info('Token found in system keychain');
+          } else {
+            logger.info('No token found in system keychain');
+          }
+        } catch (error) {
+          displayCLIError(error, program.opts().debug);
+        }
+      })
+  );
 
 program
   .command('boom')

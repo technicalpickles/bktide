@@ -2,6 +2,7 @@ import { BuildkiteClient } from '../services/BuildkiteClient.js';
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { timeIt } from '../services/logger.js';
 import { logger } from '../services/logger.js';
+import { CredentialManager } from '../services/CredentialManager.js';
 
 export interface BaseCommandOptions {
   cacheTTL?: number;
@@ -11,6 +12,7 @@ export interface BaseCommandOptions {
   format?: string;
   noCache?: boolean;
   token?: string;
+  saveToken?: boolean;
 }
 
 // Extended Error interface for API and GraphQL errors
@@ -33,6 +35,7 @@ export abstract class BaseCommand {
   protected client: BuildkiteClient;
   protected options: Partial<BaseCommandOptions>;
   protected initialized: boolean = false;
+  protected static credentialManager = new CredentialManager();
 
   constructor(token: string, options?: Partial<BaseCommandOptions>) {
     this.token = token;
@@ -45,8 +48,21 @@ export abstract class BaseCommand {
         token: token ? `${token.substring(0, 4)}...${token.substring(token.length - 4)} (${token.length} chars)` : 'Not provided'
       });
     }
+    
+    // If saveToken option is specified, save the token to the keyring
+    if (options?.saveToken && token) {
+      this.saveToken(token).catch(err => {
+        logger.error('Failed to save token to keyring', err);
+      });
+    }
+    
     this.client = new BuildkiteClient(token, options);
     this.initialized = true; // Client is initialized in constructor
+  }
+
+  // Save the token to the keyring
+  protected async saveToken(token: string): Promise<boolean> {
+    return BaseCommand.credentialManager.saveToken(token);
   }
 
   protected async ensureInitialized(): Promise<void> {
@@ -97,13 +113,39 @@ export abstract class BaseCommand {
     }
   }
 
-  // Static helper to get token from options or environment
-  static getToken(options: any): string {
-    const token = options.token || process.env.BK_TOKEN;
-    if (!token) {
-      throw new Error('API token required. Set via --token or BK_TOKEN environment variable.');
+  // Static helper to get token from options, keyring, or environment
+  static async getToken(options: any): Promise<string> {
+    // First check if token is provided directly in options
+    if (options.token) {
+      if (options.saveToken) {
+        await this.credentialManager.saveToken(options.token);
+        logger.info('Token saved to system keychain');
+      }
+      return options.token;
     }
-    return token;
+    
+    // Next try to get token from keyring
+    try {
+      const storedToken = await this.credentialManager.getToken();
+      if (storedToken) {
+        logger.debug('Using token from system keychain');
+        return storedToken;
+      }
+    } catch (error) {
+      logger.debug('Error retrieving token from keychain', error);
+    }
+    
+    // Finally fall back to environment variable
+    const envToken = process.env.BK_TOKEN;
+    if (envToken) {
+      if (options.saveToken) {
+        await this.credentialManager.saveToken(envToken);
+        logger.info('Environment token saved to system keychain');
+      }
+      return envToken;
+    }
+    
+    throw new Error('API token required. Set via --token, BK_TOKEN environment variable, or store it using --save-token.');
   }
 
   /**
