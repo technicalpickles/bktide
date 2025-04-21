@@ -1,8 +1,7 @@
 import nodePersist from 'node-persist';
-import path from 'path';
-import os from 'os';
 import { createHash } from 'crypto';
 import { logger } from './logger.js';
+import { XDGPaths } from '../utils/xdgPaths.js';
 
 /**
  * CacheManager for handling persistent caching with node-persist
@@ -31,7 +30,7 @@ export class CacheManager {
   public async init(): Promise<void> {
     if (this.initialized) return;
     
-    const storageDir = path.join(os.homedir(), '.bktide', 'cache');
+    const storageDir = XDGPaths.getAppCacheDir('bktide');
     
     await nodePersist.init({
       dir: storageDir,
