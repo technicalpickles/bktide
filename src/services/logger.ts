@@ -1,20 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pino } from 'pino';
-// Unused with transport config approach
-// import { createWriteStream } from 'node:fs';
+import { XDGPaths } from '../utils/xdgPaths.js';
 
-// Ensure the log directory exists
-const LOG_DIR = path.resolve(process.cwd(), 'log');
-fs.mkdirSync(LOG_DIR, { recursive: true });
+const logDir = XDGPaths.getAppLogDir('bktide');
+fs.mkdirSync(logDir, { recursive: true });
 
-// Create file stream for JSON logs
-const logFile = path.join(LOG_DIR, 'cli.log');
-// Unused with transport config approach
-// const fileStream = createWriteStream(logFile, { flags: 'a' });
+const logFile = path.join(logDir, 'cli.log');
 
-console.log(`[DEBUG] LOG_LEVEL at time of logger init=${process.env.LOG_LEVEL}`);
-// Create the logger
 export const logger = pino(
   {
     level: process.env.LOG_LEVEL || 'info',
