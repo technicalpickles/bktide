@@ -58,6 +58,12 @@ interface CommandWithExecute {
   execute(options: any): Promise<void>;
 }
 
+// Define a type for the constructor that includes static properties
+type CommandConstructor = {
+  new (options?: any): BaseCommand & CommandWithExecute;
+  requiresToken: boolean;
+}
+
 // Extend the Command type to include our custom properties
 interface ExtendedCommand extends Command {
   mergedOptions?: any;
@@ -78,18 +84,20 @@ interface ExtendedCommand extends Command {
 }
 
 // Handler for executing commands with proper option handling
-const createCommandHandler = (CommandClass: new (token: string, options?: any) => BaseCommand & CommandWithExecute) => {
+const createCommandHandler = (CommandClass: CommandConstructor) => {
   return async function(this: ExtendedCommand) {
     try {
       const options = this.mergedOptions || this.opts();
       const cacheOptions = { enabled: options.cache !== false, ttl: options.cacheTtl, clear: options.clearCache };
+
+      if (CommandClass.requiresToken) {
+        const token = await BaseCommand.getToken(options);
+        options.token = token;
+      }
       
-      // This now returns a Promise
-      const token = await BaseCommand.getToken(options);
-      
-      const handler = new CommandClass(token, {
+      const handler = new CommandClass({
         ...cacheOptions,
-        token: token,
+        token: options.token,
         debug: options.debug,
         format: options.format,
         saveToken: options.saveToken

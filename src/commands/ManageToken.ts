@@ -9,11 +9,12 @@ export interface TokenOptions extends BaseCommandOptions {
 }
 
 export class ManageToken extends BaseCommand {
-  constructor(token: string, options?: Partial<TokenOptions>) {
-    // Set requiresToken to false before calling super
-    super(token, options);
-    // Override the requiresToken property after construction
-    this.requiresToken = false;
+  constructor(options?: Partial<TokenOptions>) {
+    super(options);
+  }
+
+  static get requiresToken(): boolean {
+    return false;
   }
 
   async execute(options: TokenOptions): Promise<void> {

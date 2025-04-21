@@ -6,32 +6,22 @@ export interface OrganizationOptions extends BaseCommandOptions {
 }
 
 export class ListOrganizations extends BaseCommand {
-  constructor(token: string, options?: Partial<OrganizationOptions>) {
-    super(token, options);
+  constructor(options?: Partial<OrganizationOptions>) {
+    super(options);
   }
   
-  public async execute(options: OrganizationOptions = {}): Promise<void> {
-    try {
-      if (options.debug) {
-        logger.debug('Fetching organizations...');
-      }
-      
-      // Use the refactored getOrganizations method which now returns the processed array
-      const organizations = await this.client.getOrganizations();
-      
-      if (options.debug) {
-        logger.debug(`Fetched ${organizations.length} organizations`);
-      }
-      
-      // Get the appropriate formatter
-      const formatter = this.getFormatter(FormatterType.ORGANIZATION, options) as OrganizationFormatter;
-      
-      // Format and output the organizations
-      const output = formatter.formatOrganizations(organizations, { debug: options.debug });
-      logger.console(output);
-      
-    } catch (error) {
-      throw error;
+  public async execute(options: OrganizationOptions = {}): Promise<void> {      
+    const organizations = await this.client.getOrganizations();
+    
+    if (options.debug) {
+      logger.debug(`Fetched ${organizations.length} organizations`);
     }
+    
+    // Get the appropriate formatter
+    const formatter = this.getFormatter(FormatterType.ORGANIZATION, options) as OrganizationFormatter;
+    
+    // Format and output the organizations
+    const output = formatter.formatOrganizations(organizations, { debug: options.debug });
+    logger.console(output);
   }
 } 

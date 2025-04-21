@@ -11,8 +11,8 @@ export interface PipelineOptions extends BaseCommandOptions {
 export class ListPipelines extends BaseCommand {
   readonly BATCH_SIZE = 500;
   
-  constructor(token: string, options?: Partial<PipelineOptions>) {
-    super(token, options);
+  constructor(options?: Partial<PipelineOptions>) {
+    super(options);
   }
   
   async execute(options: PipelineOptions): Promise<void> {

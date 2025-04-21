@@ -1,4 +1,5 @@
 import { BuildkiteClient } from '../services/BuildkiteClient.js';
+import { BuildkiteRestClient } from '../services/BuildkiteRestClient.js';
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { timeIt } from '../services/logger.js';
 import { logger } from '../services/logger.js';
@@ -31,35 +32,67 @@ interface ApiError extends Error {
 }
 
 export abstract class BaseCommand {
-  protected token: string;
+  protected token: string | undefined;
   protected requiresToken: boolean = true;
+  private _client: BuildkiteClient | undefined;
+  private _restClient: BuildkiteRestClient | undefined;
   
-  protected client: BuildkiteClient;
   protected options: Partial<BaseCommandOptions>;
   protected initialized: boolean = false;
   protected static credentialManager = new CredentialManager();
 
-  constructor(token: string, options?: Partial<BaseCommandOptions>) {
-    this.token = token;
+  constructor(options?: Partial<BaseCommandOptions>) {
     this.options = options || {};
-    if (options?.debug) {
+    this.token = this.options.token;
+    
+    if (this.options.debug) {
       // Include token length (not the actual token) for debugging auth issues
       // Debug mode is already handled here by logger.debug use
       logger.debug('BaseCommandHandler options:', {
         ...options,
-        token: token ? `${token.substring(0, 4)}...${token.substring(token.length - 4)} (${token.length} chars)` : 'Not provided'
+        token: this.token ? `${this.token.substring(0, 4)}...${this.token.substring(this.token.length - 4)} (${this.token.length} chars)` : 'Not provided'
       });
     }
     
     // If saveToken option is specified, save the token to the keyring
-    if (options?.saveToken && token) {
-      this.saveToken(token).catch(err => {
+    if (options?.saveToken && this.token) {
+      this.saveToken(this.token).catch(err => {
         logger.error('Failed to save token to keyring', err);
       });
     }
-    
-    this.client = new BuildkiteClient(token, options);
-    this.initialized = true; // Client is initialized in constructor
+
+    // this.initialized = true; // Client is initialized in constructor
+  }
+
+  get client(): BuildkiteClient {
+    if (this._client) {
+      return this._client;
+    } else {
+      if (this.token) {
+        this._client = new BuildkiteClient(this.token, this.options);
+        return this._client;
+      } else {
+        throw new Error('No token provided');
+      }
+    }
+  }
+
+  get restClient(): BuildkiteRestClient {
+    if (this._restClient) {
+      return this._restClient;
+    } else {
+      if (this.token) {
+        this._restClient = new BuildkiteRestClient(this.token, this.options);
+        return this._restClient;
+      } else {
+        throw new Error('No token provided');
+      }
+    }
+  }
+
+
+  static get requiresToken(): boolean {
+    return true;
   }
 
   // Save the token to the keyring
@@ -116,7 +149,7 @@ export abstract class BaseCommand {
   }
 
   // Static helper to get token from options, keyring, or environment
-  static async getToken(options: any): Promise<string> {
+  static async getToken(options: any): Promise<string | undefined> {
     // First check if token is provided directly in options
     if (options.token) {
       if (options.saveToken) {
@@ -147,7 +180,11 @@ export abstract class BaseCommand {
       return envToken;
     }
     
-    throw new Error('API token required. Set via --token, BK_TOKEN environment variable, or store it using --save-token.');
+    if (options.requiresToken) {
+      throw new Error('API token required. Set via --token, BK_TOKEN environment variable, or store it using --save-token.');
+    } else {
+      return
+    }
   }
 
   /**

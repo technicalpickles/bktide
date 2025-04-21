@@ -7,8 +7,8 @@ export interface ViewerOptions extends BaseCommandOptions {
 }
 
 export class ShowViewer extends BaseCommand {
-  constructor(token: string, options?: Partial<ViewerOptions>) {
-    super(token, options);
+  constructor(options?: Partial<ViewerOptions>) {
+    super(options);
   }
   
   async execute(options: ViewerOptions): Promise<void> {
