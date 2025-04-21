@@ -126,32 +126,26 @@ export class ListBuilds extends BaseCommand {
       }
     }
     
-    if (allBuilds.length === 0) {
-      // Determine the format type based on options
-      const format = options.format || 'plain';
-      
-      if (format === 'alfred') {
-        // Return empty Alfred JSON format
-        console.log(JSON.stringify({ items: [] }));
-        return;
-      } else if (format === 'json') {
-        console.log(JSON.stringify([]));
-        return;
-      }
-      console.log(`No builds found for ${userName} (${userEmail || userId}).`);
-      if (!options.org) {
-        console.log('Try specifying an organization with --org to narrow your search.');
-      }
-      return;
-    }
-    
     const format = options.format || 'plain';
     const formatter = getBuildFormatter(format);
     const formatterOptions = { 
       debug: options.debug, 
       organizationsCount: orgs.length, 
-      orgSpecified: !!options.org 
+      orgSpecified: !!options.org,
+      userName,
+      userEmail,
+      userId
     };
+    
+    // Special case handling for empty results with Alfred and JSON formatters
+    if (allBuilds.length === 0 && format === 'alfred') {
+      console.log(JSON.stringify({ items: [] }));
+      return;
+    } else if (allBuilds.length === 0 && format === 'json') {
+      console.log(JSON.stringify([]));
+      return;
+    }
+    
     const output = formatter.formatBuilds(allBuilds, formatterOptions);
     console.log(output);
     

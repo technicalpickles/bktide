@@ -7,7 +7,23 @@ export class PlainTextFormatter extends BaseFormatter {
   
   formatBuilds(builds: Build[], options?: FormatterOptions): string {
     if (builds.length === 0) {
-      return 'No builds found.';
+      let output = 'No builds found.';
+      
+      // Add user info if provided
+      if (options?.userName) {
+        output = `No builds found for ${options.userName}`;
+        if (options?.userEmail || options?.userId) {
+          output += ` (${options.userEmail || options.userId})`;
+        }
+        output += '.';
+      }
+      
+      // Add organization suggestion if applicable
+      if (!options?.orgSpecified) {
+        output += '\nTry specifying an organization with --org to narrow your search.';
+      }
+      
+      return output;
     }
 
     let output = `Found ${builds.length} builds:\n`;

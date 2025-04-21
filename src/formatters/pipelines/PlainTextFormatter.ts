@@ -8,6 +8,11 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
   }
 
   formatPipelines(pipelines: Pipeline[], organizations: string[], options?: FormatterOptions): string {
+    // If no organizations are found, handle that case
+    if (organizations.length === 0) {
+      return 'No organizations found.';
+    }
+    
     return this.format(pipelines, this.formatPipelinesImpl.bind(this, organizations), options);
   }
 

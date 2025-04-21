@@ -4,6 +4,10 @@ export interface FormatterOptions {
   debug?: boolean;
   organizationsCount?: number;
   orgSpecified?: boolean;
+  // User information for more specific no-results messages
+  userName?: string;
+  userEmail?: string;
+  userId?: string;
 }
 
 export interface FormatFunction<T> {

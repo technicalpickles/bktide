@@ -1,6 +1,7 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { getViewerFormatter } from '../formatters/index.js';
 import { ViewerData } from '../types/index.js';
+import { logger } from '../services/logger.js';
 
 export interface ViewerOptions extends BaseCommandOptions {
 }
@@ -22,6 +23,6 @@ export class ShowViewer extends BaseCommand {
     const formatter = getViewerFormatter(options.format || 'plain');
     const output = formatter.formatViewer(data as unknown as ViewerData, { debug: options.debug });
     
-    console.log(output);
+    logger.console(output);
   }
 } 

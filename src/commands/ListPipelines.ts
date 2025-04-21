@@ -23,10 +23,6 @@ export class ListPipelines extends BaseCommand {
     if (!org) {
       try {
         const orgs = await this.client.getViewerOrganizationSlugs();
-        if (orgs.length === 0) {
-          console.log('No organizations found.');
-          return;
-        }
         await this.listPipelines(orgs, options);
       } catch (error) {
         logger.error('Error fetching organizations:', error);
@@ -127,6 +123,6 @@ export class ListPipelines extends BaseCommand {
     const formatter = getPipelineFormatter(format);
     const output = formatter.formatPipelines(allPipelines, organizations);
     
-    console.log(output);
+    logger.console(output);
   }
 } 
