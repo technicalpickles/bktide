@@ -47,28 +47,18 @@ process.on('unhandledRejection', (reason) => {
 
 const program = new Command();
 
-const addCacheOptions = (command: Command): Command => {
-  return command
-    .option('--no-cache', 'Disable caching of API responses')
-    .option('--cache-ttl <milliseconds>', 'Set cache time-to-live in milliseconds', parseInt)
-    .option('--clear-cache', 'Clear all cached data before executing command');
-};
-
-const addTokenOption = (command: Command): Command => {
-  return command
-    .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)');
-};
-
-const addFormatOption = (command: Command): Command => {
-  return command
-    .option('-f, --format <format>', 'Output format (plain, json, alfred)', 'plain');
-};
-
 program
   .name('bk-cli')
   .description('Buildkite CLI tool')
   .version('1.0.0')
-  .option('--log-level <level>', 'Set logging level (trace, debug, info, warn, error, fatal)', 'info');
+  .configureHelp({ showGlobalOptions: true })
+  .option('--log-level <level>', 'Set logging level (trace, debug, info, warn, error, fatal)', 'info')
+  .option('-d, --debug', 'Show debug information for errors')
+  .option('--no-cache', 'Disable caching of API responses')
+  .option('--cache-ttl <milliseconds>', 'Set cache time-to-live in milliseconds', parseInt)
+  .option('--clear-cache', 'Clear all cached data before executing command')
+  .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
+  .option('-f, --format <format>', 'Output format (plain, json, alfred)', 'plain');
 
 // Create a handler for command execution with error handling
 function handleCommand<T extends BaseCommand>(
@@ -102,24 +92,16 @@ function handleCommand<T extends BaseCommand>(
 // GraphQL commands
 const viewerCmd = program
   .command('viewer')
-  .description('Show logged in user information')
-  .option('-d, --debug', 'Show debug information for errors')
+  .description('Show logged in user information');
 
-addCacheOptions(viewerCmd)
-addTokenOption(viewerCmd)
-addFormatOption(viewerCmd)
 viewerCmd.action(
   handleCommand(ShowViewer, 'execute')
 );
 
 const orgsCmd = program
   .command('orgs')
-  .description('List organizations')
-  .option('-d, --debug', 'Show debug information for errors');
+  .description('List organizations');
 
-addCacheOptions(orgsCmd)
-addTokenOption(orgsCmd)
-addFormatOption(orgsCmd)
 orgsCmd.action(
   handleCommand(ListOrganizations, 'execute')
 );
@@ -129,12 +111,8 @@ const pipelinesCmd = program
   .description('List pipelines for an organization')
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-n, --count <count>', 'Limit to specified number of pipelines per organization')
-  .option('-d, --debug', 'Show debug information for errors')
   .option('--filter <name>', 'Filter pipelines by name (case insensitive)');
 
-addCacheOptions(pipelinesCmd)
-addTokenOption(pipelinesCmd)
-addFormatOption(pipelinesCmd)
 pipelinesCmd.action(
   handleCommand(ListPipelines, 'execute')
 );
@@ -149,12 +127,8 @@ const buildsCmd = program
   .option('-s, --state <state>', 'Filter by build state (running, scheduled, passed, failing, failed, canceled, etc.)')
   .option('-n, --count <count>', 'Number of builds per page', '10')
   .option('--page <page>', 'Page number', '1')
-  .option('--filter <filter>', 'Fuzzy filter builds by name or other properties')
-  .option('-d, --debug', 'Show debug information for errors')
+  .option('--filter <filter>', 'Fuzzy filter builds by name or other properties');
 
-addCacheOptions(buildsCmd)
-addTokenOption(buildsCmd)
-addFormatOption(buildsCmd)
 buildsCmd.action(
   handleCommand(ListBuilds, 'execute')
 );
