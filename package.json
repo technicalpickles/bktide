@@ -1,11 +1,11 @@
 {
-  "name": "bk-cli",
+  "name": "bktide",
   "version": "1.0.0",
   "description": "Buildkite CLI tool",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "bk-cli": "dist/index.js"
+    "bktide": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

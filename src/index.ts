@@ -48,7 +48,7 @@ process.on('unhandledRejection', (reason) => {
 const program = new Command();
 
 program
-  .name('bk-cli')
+  .name('bktide')
   .description('Buildkite CLI tool')
   .version('1.0.0')
   .configureHelp({ showGlobalOptions: true })

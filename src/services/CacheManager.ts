@@ -31,7 +31,7 @@ export class CacheManager {
   public async init(): Promise<void> {
     if (this.initialized) return;
     
-    const storageDir = path.join(os.homedir(), '.alfred-buildkite', 'cache');
+    const storageDir = path.join(os.homedir(), '.bktide', 'cache');
     
     await nodePersist.init({
       dir: storageDir,

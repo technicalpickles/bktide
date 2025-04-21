@@ -1,11 +1,11 @@
-# Alfred Buildkite CLI
+# bktide
 
 A command-line tool for interacting with Buildkite's GraphQL API.
 
 ## Installation
 
 ```bash
-npm install
+npm install -g bktide
 ```
 
 ## Development
@@ -85,7 +85,7 @@ You can authenticate with Buildkite in two ways:
 
 ## Caching
 
-This CLI implements disk-based caching to improve performance, particularly for repeated queries. Cached data is stored in the `~/.alfred-buildkite/cache/` directory.
+This CLI implements disk-based caching to improve performance, particularly for repeated queries. Cached data is stored in the `~/.bktide/cache/` directory.
 
 ### Default Cache TTL Values
 
@@ -145,7 +145,7 @@ The caching system uses `node-persist` for persistent storage between CLI invoca
 
 ## Usage
 
-### View Your Login Information
+### Show Your Login Information
 
 ```bash
 npm run dev -- viewer
@@ -316,13 +316,13 @@ The CLI uses a structured logging system based on Pino. This provides several be
 - Pretty-printed logs to the console
 - Performance measurements
 
-## Log Levels
+## Log Level Configuration
 
-You can control the verbosity of logs with the `--log-level` option:
+You can configure the log level with the `--log-level` option:
 
 ```bash
-bk-cli orgs --log-level=debug  # Show debug messages
-bk-cli builds --log-level=trace # Show all messages including trace
+bktide orgs --log-level=debug  # Show debug messages
+bktide builds --log-level=trace # Show all messages including trace
 ```
 
 Available log levels (from most to least verbose):
