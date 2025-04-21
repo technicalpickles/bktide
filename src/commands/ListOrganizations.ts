@@ -1,4 +1,6 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
+import { logger } from '../services/logger.js';
+import { FormatterType } from '../formatters/index.js';
 
 export interface OrganizationOptions extends BaseCommandOptions {
 }
@@ -8,34 +10,57 @@ export class ListOrganizations extends BaseCommand {
     super(token, options);
   }
   
-  async execute(options: OrganizationOptions): Promise<void> {
-    await this.ensureInitialized();
-    
+  public async execute(options: OrganizationOptions = {}): Promise<void> {
+    try {
     const data = await this.client.getOrganizations();
     
     if (options.debug) {
-      console.debug('API Response:', JSON.stringify(data, null, 2));
+        logger.debug('API Response:', JSON.stringify(data, null, 2));
     }
     
-    console.log('Your organizations:');
-    
-    // Safely check if data and required properties exist
-    if (data?.viewer?.organizations?.edges && Array.isArray(data.viewer.organizations.edges)) {
-      if (data.viewer.organizations.edges.length === 0) {
-        console.log('No organizations found.');
+      if (!data?.viewer?.organizations?.edges) {
+        logger.error('No organizations data returned from API.');
+        
+        if (options.debug) {
+          logger.debug('Received data structure:', Object.keys(data || {}).join(', '));
+        }
         return;
       }
       
-      data.viewer.organizations.edges.forEach((edge) => {
-        if (edge?.node) {
-          console.log(`- ${edge.node.name} (${edge.node.slug})`);
-        }
-      });
-    } else {
-      console.log('No organizations data returned from API.');
-      if (options.debug) {
-        console.debug('Received data structure:', Object.keys(data || {}).join(', '));
+      const edges = data.viewer.organizations.edges;
+      
+      if (edges.length === 0) {
+        logger.info('No organizations found.');
+        return;
       }
+      
+      logger.info('Your organizations:');
+      
+      // Use formatter if available, otherwise simple text output
+      if (this.options.format) {
+        const formatter = this.getFormatter(FormatterType.VIEWER, options);
+        // Filter out null edges and map to non-null nodes
+        const nodes = edges
+          .filter((edge): edge is NonNullable<typeof edge> => edge !== null)
+          .map(edge => edge.node)
+          .filter((node): node is NonNullable<typeof node> => node !== null);
+          
+        const output = formatter.format(nodes, 
+          (orgs) => orgs.map(org => `${org.name} (${org.slug})`).join('\n'), 
+          { debug: options.debug }
+        );
+        console.log(output);
+      } else {
+        // Simple text output directly
+        edges.forEach(edge => {
+          if (edge && edge.node) {
+            console.log(`- ${edge.node.name} (${edge.node.slug})`);
+          }
+        });
+      }
+      
+    } catch (error) {
+      throw error;
     }
   }
 } 

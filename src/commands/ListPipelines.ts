@@ -2,7 +2,7 @@ import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { getPipelineFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
 import { Pipeline } from '../types/index.js';
-
+import { logger } from '../services/logger.js';
 export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
   count?: string;
@@ -29,7 +29,7 @@ export class ListPipelines extends BaseCommand {
         }
         await this.listPipelines(orgs, options);
       } catch (error) {
-        console.error('Error fetching organizations:', error);
+        logger.error('Error fetching organizations:', error);
         throw new Error('Failed to determine your organizations. Please specify an organization with --org');
       }
     } else {
@@ -50,7 +50,7 @@ export class ListPipelines extends BaseCommand {
         
         while (hasNextPage && allPipelines.length < resultLimit) {
           if (options.debug) {
-            console.log(`Debug: Fetching batch of pipelines from org ${org}, cursor: ${cursor || 'initial'}`);
+            logger.debug(`Debug: Fetching batch of pipelines from org ${org}, cursor: ${cursor || 'initial'}`);
           }
           
           const data = await this.client.getPipelines(org, batchSize, cursor || undefined);
@@ -81,9 +81,9 @@ export class ListPipelines extends BaseCommand {
           cursor = data?.organization?.pipelines?.pageInfo?.endCursor || null;
           
           if (options.debug) {
-            console.log(`Debug: Fetched batch of ${data?.organization?.pipelines?.edges?.length || 0} pipelines from org ${org}`);
+            logger.debug(`Debug: Fetched batch of ${data?.organization?.pipelines?.edges?.length || 0} pipelines from org ${org}`);
             if (hasNextPage) {
-              console.log(`Debug: More pages available, cursor: ${cursor}`);
+              logger.debug(`Debug: More pages available, cursor: ${cursor}`);
             }
           }
           
@@ -105,7 +105,7 @@ export class ListPipelines extends BaseCommand {
     
     if (options.filter && allPipelines.length > 0) {
       if (options.debug) {
-        console.log(`Debug: Applying fuzzy filter '${options.filter}' to ${allPipelines.length} pipelines`);
+        logger.debug(`Debug: Applying fuzzy filter '${options.filter}' to ${allPipelines.length} pipelines`);
       }
       
       const fuse = new Fuse(allPipelines, {
@@ -119,7 +119,7 @@ export class ListPipelines extends BaseCommand {
       allPipelines = searchResults.map(result => result.item);
       
       if (options.debug) {
-        console.log(`Debug: Filtered to ${allPipelines.length} pipelines matching '${options.filter}'`);
+        logger.debug(`Debug: Filtered to ${allPipelines.length} pipelines matching '${options.filter}'`);
       }
     }
     

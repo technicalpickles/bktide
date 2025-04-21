@@ -19,6 +19,8 @@ Each step should involve making code changes, confirming it compiles and aren't 
 
 When there are a lot of steps and moving parts, confirm the approach with the user.
 
+Don't make unprompted, unrelated improvements when implementing features. Instead, make note of them when summarizing what was done as possible followup work.
+
 
 # Running commands
 

@@ -3,10 +3,24 @@
 import { Command } from 'commander';
 // Configure logger level based on command line arguments before anything else runs
 const logLevelArg = process.argv.find(arg => arg.startsWith('--log-level='));
-if (logLevelArg) {
-  const level = logLevelArg.split('=')[1];
-  process.env.LOG_LEVEL = level;
+// Set default level from LOG_LEVEL env var or 'info'
+let logLevel = process.env.LOG_LEVEL || 'info';
+
+// Check for --debug flag to set log level if not explicitly specified
+if (process.argv.includes('--debug') || process.argv.includes('-d')) {
+  // Only apply debug level if not already set to a more verbose level
+  if (logLevel === 'info' || logLevel === 'warn' || logLevel === 'error' || logLevel === 'fatal') {
+    logLevel = 'debug';
+  }
 }
+
+// Apply explicit log level setting if provided (overrides --debug)
+if (logLevelArg) {
+  logLevel = logLevelArg.split('=')[1];
+}
+
+// Set the log level for the logger
+process.env.LOG_LEVEL = logLevel;
 
 import {
   BaseCommand,
@@ -146,7 +160,11 @@ buildsCmd.action(
 );
 
 // Parse command line arguments
-program.parse();
+program.parse(); 
 
 // Log startup information
-logger.info({ pid: process.pid }, 'Buildkite CLI started'); 
+logger.info({ 
+  pid: process.pid, 
+  logLevel: process.env.LOG_LEVEL, 
+  debug: process.argv.includes('--debug') || process.argv.includes('-d')
+}, 'Buildkite CLI started'); 

@@ -21,13 +21,13 @@ export function initializeErrorHandling(): void {
     logger.fatal(err.stack || err.toString());
     process.exit(1);
   });
-  
+
   process.on('unhandledRejection', (reason) => {
     logger.fatal('🚨 UNHANDLED PROMISE REJECTION 🚨');
     logger.fatal(reason instanceof Error ? reason.stack : reason);
     process.exit(1);
   });
-  
+
   logger.debug('Error handling system initialized with improved stack traces');
 }
 

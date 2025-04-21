@@ -3,15 +3,7 @@ import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/Bui
 import { getBuildFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
 import { Build } from '../types/index.js';
-
-// Add a custom console.debug that respects the debug flag
-const createDebugLogger = (isDebugEnabled: boolean) => {
-  return (...args: any[]) => {
-    if (isDebugEnabled) {
-      console.log('[DEBUG]', ...args);
-    }
-  };
-};
+import { logger } from '../services/logger.js';
 
 export interface ViewerBuildsOptions extends BaseCommandOptions {
   count?: string;
@@ -46,18 +38,11 @@ export class ListBuilds extends BaseCommand {
   }
 
   async execute(options: ViewerBuildsOptions): Promise<void> {
-    // Declare originalDebug outside the try block so it's accessible in catch
-    const originalDebug = console.debug;
-  
-    // Override console.debug to respect the debug flag
-    console.debug = createDebugLogger(!!options.debug);
-    
-    // Ensure initialization is complete
     await this.ensureInitialized();
     
     const executeStartTime = process.hrtime.bigint();
     if (options.debug) {
-      console.log('[DEBUG] Starting ViewerBuildsCommandHandler execution');
+      logger.debug('[DEBUG] Starting ViewerBuildsCommandHandler execution');
     }
     
     // First, get the current user's information using GraphQL
@@ -82,7 +67,7 @@ export class ListBuilds extends BaseCommand {
       try {
         orgs = await this.client.getViewerOrganizationSlugs();
       } catch (error) {
-        console.error('Error fetching organizations:', error);
+        logger.error('Error fetching organizations:', error);
         throw new Error('Failed to determine your organizations. Please specify an organization with --org');
       }
     } else {
@@ -104,15 +89,14 @@ export class ListBuilds extends BaseCommand {
         });
         
         if (options.debug) {
-          console.log(`Debug: Received ${builds.length} builds from org ${org}`);
+          logger.debug(`Debug: Received ${builds.length} builds from org ${org}`);
         }
         
         allBuilds = allBuilds.concat(builds);
       } catch (error) {
         if (options.debug) {
-          console.error(`Error fetching builds for org ${org}:`, error);
+          logger.error(`Error fetching builds for org ${org}:`, error);
         }
-        // Continue to the next organization
       }
     }
     
@@ -122,7 +106,7 @@ export class ListBuilds extends BaseCommand {
     // Apply fuzzy filter if specified
     if (options.filter) {
       if (options.debug) {
-        console.log(`Debug: Applying fuzzy filter '${options.filter}' to ${allBuilds.length} builds`);
+        logger.debug(`Debug: Applying fuzzy filter '${options.filter}' to ${allBuilds.length} builds`);
       }
       
       // Configure Fuse for fuzzy searching
@@ -138,7 +122,7 @@ export class ListBuilds extends BaseCommand {
       allBuilds = searchResults.map(result => result.item);
       
       if (options.debug) {
-        console.log(`Debug: Filtered to ${allBuilds.length} builds matching '${options.filter}'`);
+        logger.debug(`Debug: Filtered to ${allBuilds.length} builds matching '${options.filter}'`);
       }
     }
     
@@ -173,9 +157,7 @@ export class ListBuilds extends BaseCommand {
     
     if (options.debug) {
       const executeDuration = Number(process.hrtime.bigint() - executeStartTime) / 1000000;
-      console.log(`[DEBUG] ViewerBuildsCommandHandler execution completed in ${executeDuration.toFixed(2)}ms`);
+      logger.debug(`[DEBUG] ViewerBuildsCommandHandler execution completed in ${executeDuration.toFixed(2)}ms`);
     }
-    
-    console.debug = originalDebug;
   }
 }

@@ -54,6 +54,16 @@ export class BuildkiteClient {
   constructor(token: string, options?: BuildkiteClientOptions, debug?: boolean) {
     this.token = token;
     this.debug = debug || options?.debug || false;
+    
+    if (this.debug) {
+      logger.debug('Initializing BuildkiteClient with options:', {
+        baseUrl: options?.baseUrl || this.baseUrl,
+        caching: options?.caching !== false,
+        debug: this.debug,
+        tokenLength: token ? token.length : 0
+      });
+    }
+    
     if (options?.baseUrl) {
       this.baseUrl = options.baseUrl;
     }

@@ -38,7 +38,11 @@ export abstract class BaseCommand {
     this.token = token;
     this.options = options || {};
     if (options?.debug) {
-      logger.debug('BaseCommandHandler options:', options);
+      // Include token length (not the actual token) for debugging auth issues
+      logger.debug('BaseCommandHandler options:', {
+        ...options,
+        token: token ? `${token.substring(0, 4)}...${token.substring(token.length - 4)} (${token.length} chars)` : 'Not provided'
+      });
     }
     this.client = new BuildkiteClient(token, options);
     this.initialized = true; // Client is initialized in constructor
