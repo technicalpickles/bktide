@@ -306,3 +306,41 @@ The `src/graphql/queries.ts` file contains several pre-defined GraphQL queries:
 The `src/services/BuildkiteRestClient.ts` file provides access to the Buildkite REST API endpoints:
 
 - `getBuilds`: Get builds from an organization with filtering options including by creator/user 
+
+# Logging System
+
+The CLI uses a structured logging system based on Pino. This provides several benefits:
+
+- Different log levels (trace, debug, info, warn, error, fatal)
+- JSON logs saved to disk (in `log/cli.log`)
+- Pretty-printed logs to the console
+- Performance measurements
+
+## Log Levels
+
+You can control the verbosity of logs with the `--log-level` option:
+
+```bash
+bk-cli orgs --log-level=debug  # Show debug messages
+bk-cli builds --log-level=trace # Show all messages including trace
+```
+
+Available log levels (from most to least verbose):
+- trace: Very detailed tracing for debugging
+- debug: Detailed information for developers
+- info: General information (default)
+- warn: Warning conditions
+- error: Error conditions
+- fatal: Severe errors causing termination
+
+## Log Files
+
+All logs are written to `log/cli.log` in JSON format, which can be processed with tools like jq:
+
+```bash
+# View recent errors
+cat log/cli.log | grep -v '"level":30' | jq
+
+# Analyze performance 
+cat log/cli.log | jq 'select(.duration != null) | {msg, duration}'
+``` 

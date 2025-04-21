@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 import { CacheManager } from './CacheManager.js';
 import { createHash } from 'crypto';
+import { logger } from './logger.js';
 
 export interface BuildkiteRestClientOptions {
   baseUrl?: string;
@@ -104,7 +105,7 @@ export class BuildkiteRestClient {
       const cachedResult = await this.cacheManager.get<T>(cacheKey);
       if (cachedResult) {
         if (this.debug) {
-          console.debug(`✅ Served from cache: REST ${endpoint}`);
+          logger.debug(`✅ Served from cache: REST ${endpoint}`);
         }
         return cachedResult;
       }
@@ -113,7 +114,7 @@ export class BuildkiteRestClient {
     try {
       const startTime = process.hrtime.bigint();
       if (this.debug) {
-        console.debug(`🕒 Starting REST API request: GET ${endpoint}`);
+        logger.debug(`🕒 Starting REST API request: GET ${endpoint}`);
       }
       
       const response = await fetch(url.toString(), {
@@ -139,12 +140,12 @@ export class BuildkiteRestClient {
       const endTime = process.hrtime.bigint();
       const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
       if (this.debug) {
-        console.debug(`✅ REST API request completed: GET ${endpoint} (${duration.toFixed(2)}ms)`);
+        logger.debug(`✅ REST API request completed: GET ${endpoint} (${duration.toFixed(2)}ms)`);
       }
       
       return result;
     } catch (error) {
-      console.error('REST API request error:', error);
+      logger.error('REST API request error:', error);
       throw error;
     }
   }
@@ -167,7 +168,7 @@ export class BuildkiteRestClient {
     const endpoint = `/organizations/${org}/builds`;
     const startTime = process.hrtime.bigint();
     if (this.debug) {
-      console.debug(`🕒 Fetching builds for organization: ${org}`);
+      logger.debug(`🕒 Fetching builds for organization: ${org}`);
     }
     
     const builds = await this.get<any[]>(endpoint, params as Record<string, string>);
@@ -175,7 +176,7 @@ export class BuildkiteRestClient {
     const endTime = process.hrtime.bigint();
     const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
     if (this.debug) {
-      console.debug(`✅ Retrieved ${builds.length} builds for ${org} (${duration.toFixed(2)}ms)`);
+      logger.debug(`✅ Retrieved ${builds.length} builds for ${org} (${duration.toFixed(2)}ms)`);
     }
     
     return builds;

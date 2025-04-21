@@ -2,6 +2,7 @@ import { BuildFormatter } from './Formatter.js';
 import { PlainTextFormatter } from './PlainTextFormatter.js';
 import { JsonFormatter } from './JsonFormatter.js';
 import { AlfredFormatter } from './AlfredFormatter.js';
+import { logger } from '../../services/logger.js';
 
 /**
  * Get the appropriate build formatter based on the format string
@@ -21,7 +22,7 @@ export function getBuildFormatter(format: string = 'plain'): BuildFormatter {
     case 'text':
       return new PlainTextFormatter();
     default:
-      console.warn(`Unknown format '${format}', defaulting to plain text`);
+      logger.warn(`Unknown format '${format}', defaulting to plain text`);
       return new PlainTextFormatter();
   }
 }

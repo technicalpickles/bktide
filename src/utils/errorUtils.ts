@@ -1,39 +1,46 @@
 /**
  * Error handling utilities with source map support
  */
-import sourceMapSupport from 'source-map-support';
+import * as sourceMap from 'source-map-support';
+import { logger } from '../services/logger.js';
 
 /**
- * Initialize improved error handling with source maps
- * Call this function early in your application to ensure all errors have proper stack traces
+ * Initialize error handling for the application
+ * This sets up source map support and global handlers
  */
 export function initializeErrorHandling(): void {
   // Install source map support for better stack traces
-  sourceMapSupport.install({
+  sourceMap.install({
     handleUncaughtExceptions: true,
     hookRequire: true
   });
   
-  // Set long stack traces for async operations
-  Error.stackTraceLimit = 30;
-
-  // Handle uncaught exceptions
+  // Set up custom handlers for uncaught exceptions and unhandled rejections
   process.on('uncaughtException', (err) => {
-    console.error('\n\x1b[31m%s\x1b[0m', '🚨 UNCAUGHT EXCEPTION 🚨');
-    console.error('\x1b[31m%s\x1b[0m', err.stack || err.toString());
+    logger.fatal('🚨 UNCAUGHT EXCEPTION 🚨');
+    logger.fatal(err.stack || err.toString());
     process.exit(1);
   });
-
-  // Handle unhandled promise rejections
-  process.on('unhandledRejection', (reason, _promise) => {
-    console.error('\n\x1b[31m%s\x1b[0m', '🚨 UNHANDLED PROMISE REJECTION 🚨');
-    console.error('\x1b[31m%s\x1b[0m', reason instanceof Error ? reason.stack : reason);
+  
+  process.on('unhandledRejection', (reason) => {
+    logger.fatal('🚨 UNHANDLED PROMISE REJECTION 🚨');
+    logger.fatal(reason instanceof Error ? reason.stack : reason);
     process.exit(1);
   });
+  
+  logger.debug('Error handling system initialized with improved stack traces');
+}
 
-  // Log start of error handling system
-  if (process.env.DEBUG) {
-    console.debug('Error handling system initialized with improved stack traces');
+/**
+ * Log an error with proper formatting
+ * @param error The error to log
+ */
+export function logError(error: unknown): void {
+  if (error instanceof Error) {
+    logger.error('❌ Error occurred:');
+    logger.error(error.stack || error.message);
+  } else {
+    logger.error('Unknown error:', error);
   }
 }
 

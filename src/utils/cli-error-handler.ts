@@ -2,6 +2,8 @@
  * CLI Error Handler - Provides improved error display for CLI applications
  */
 
+import { logger } from '../services/logger.js';
+
 /**
  * Format an error object for display in the CLI
  * Extracts as much useful information as possible, including stack traces
@@ -117,8 +119,14 @@ export function formatErrorForCLI(error: unknown, debug = false): string {
  * @param debug Whether to include debug information
  */
 export function displayCLIError(error: unknown, debug = false): void {
-  // Print the formatted error
-  console.error(formatErrorForCLI(error, debug));
+  // Format the error
+  const formattedError = formatErrorForCLI(error, debug);
+  
+  // Log using pino logger (which will send to both console and file)
+  logger.error({ error }, formattedError);
+  
+  // Still print the formatted error directly to console for better readability
+  console.error(formattedError);
   
   // Exit with error code unless we're in debug mode
   if (!debug) {

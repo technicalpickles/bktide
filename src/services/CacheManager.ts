@@ -1,7 +1,8 @@
-import storage from 'node-persist';
+import nodePersist from 'node-persist';
 import path from 'path';
 import os from 'os';
 import { createHash } from 'crypto';
+import { logger } from './logger.js';
 
 /**
  * CacheManager for handling persistent caching with node-persist
@@ -32,7 +33,7 @@ export class CacheManager {
     
     const storageDir = path.join(os.homedir(), '.alfred-buildkite', 'cache');
     
-    await storage.init({
+    await nodePersist.init({
       dir: storageDir,
       stringify: JSON.stringify,
       parse: JSON.parse,
@@ -53,12 +54,12 @@ export class CacheManager {
     
     if (this.tokenHash !== hash) {
       // Get current stored token hash
-      const storedHash = await storage.getItem('token_hash');
+      const storedHash = await nodePersist.getItem('token_hash');
       
       // If token changed, clear viewer-related caches
       if (storedHash !== hash) {
         await this.invalidateType('viewer');
-        await storage.setItem('token_hash', hash);
+        await nodePersist.setItem('token_hash', hash);
       }
       
       this.tokenHash = hash;
@@ -107,19 +108,19 @@ export class CacheManager {
     const key = query.startsWith('REST:') ? query : this.generateCacheKey(query, variables);
     
     try {
-      const entry = await storage.getItem(key);
+      const entry = await nodePersist.getItem(key);
       
       if (!entry) return null;
       
       // Check if manually expired
       if (Date.now() > entry.expiresAt) {
-        await storage.removeItem(key);
+        await nodePersist.removeItem(key);
         return null;
       }
       
       return entry.value as T;
     } catch (error) {
-      console.debug(`Cache miss or error for key ${key}:`, error);
+      logger.debug(`Cache miss or error for key ${key}:`, error);
       return null;
     }
   }
@@ -153,7 +154,7 @@ export class CacheManager {
     
     const ttl = this.ttls[cacheType as keyof typeof CacheManager.DEFAULT_TTLs] || CacheManager.DEFAULT_TTLs.default;
     
-    await storage.setItem(key, {
+    await nodePersist.setItem(key, {
       value,
       expiresAt: Date.now() + ttl,
       type: cacheType,
@@ -166,13 +167,13 @@ export class CacheManager {
    */
   public async invalidateType(type: string): Promise<void> {
     await this.init();
-    const keys = await storage.keys();
+    const keys = await nodePersist.keys();
     
     for (const key of keys) {
       try {
-        const entry = await storage.getItem(key);
+        const entry = await nodePersist.getItem(key);
         if (entry && entry.type === type) {
-          await storage.removeItem(key);
+          await nodePersist.removeItem(key);
         }
       } catch (error) {
         // Continue to next item if there's an error
@@ -185,6 +186,6 @@ export class CacheManager {
    */
   public async clear(): Promise<void> {
     await this.init();
-    await storage.clear();
+    await nodePersist.clear();
   }
 } 

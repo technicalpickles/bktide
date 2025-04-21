@@ -1,3 +1,5 @@
+import { logger } from '../services/logger.js';
+
 export interface FormatterOptions {
   debug?: boolean;
   organizationsCount?: number;
@@ -22,7 +24,7 @@ export abstract class AbstractFormatter implements BaseFormatter {
 
   format<T>(data: T[], formatFn: FormatFunction<T>, options?: FormatterOptions): string {
     if (options?.debug) {
-      console.log(`Debug: Formatting with ${this.name} formatter`);
+      logger.debug(`Formatting with ${this.name} formatter`);
     }
     return formatFn(data, options);
   }

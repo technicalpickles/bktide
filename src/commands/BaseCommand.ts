@@ -1,5 +1,7 @@
 import { BuildkiteClient } from '../services/BuildkiteClient.js';
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
+import { timeIt } from '../services/logger.js';
+import { logger } from '../services/logger.js';
 
 export interface BaseCommandOptions {
   cacheTTL?: number;
@@ -36,9 +38,9 @@ export abstract class BaseCommand {
     this.token = token;
     this.options = options || {};
     if (options?.debug) {
-      console.log('Debug: BaseCommandHandler options:', JSON.stringify(options));
+      logger.debug('BaseCommandHandler options:', options);
     }
-    this.client = new BuildkiteClient(token);
+    this.client = new BuildkiteClient(token, options);
     this.initialized = true; // Client is initialized in constructor
   }
 
@@ -48,46 +50,45 @@ export abstract class BaseCommand {
   }
 
   protected handleError(error: any, debug: boolean = false): void {
-    console.error('\x1b[31m%s\x1b[0m', '🔥 Error Details:');
+    logger.error('🔥 Error Details:');
     
     if (error instanceof Error) {
-      console.error('\x1b[31m%s\x1b[0m', `Message: ${error.message}`);
+      logger.error(`Message: ${error.message}`);
       
       // Always print the stack trace for proper debugging
       if (error.stack) {
-        console.error('\x1b[33m%s\x1b[0m', 'Stack Trace:');
-        console.error('\x1b[33m%s\x1b[0m', error.stack);
+        logger.error('Stack Trace:');
+        logger.error(error.stack);
       }
       
       // If it's a GraphQL error or API error, show more details
       const apiError = error as ApiError;
       if (apiError.response?.errors) {
-        console.error('\x1b[33m%s\x1b[0m', 'GraphQL Errors:');
+        logger.error('GraphQL Errors:');
         apiError.response.errors.forEach((gqlError, index) => {
-          console.error(`  Error ${index + 1}: ${gqlError.message}`);
-          if (gqlError.path) console.error(`  Path: ${gqlError.path.join('.')}`);
-          if (gqlError.locations) console.error(`  Locations: ${JSON.stringify(gqlError.locations)}`);
-          console.error('');
+          logger.error(`  Error ${index + 1}: ${gqlError.message}`);
+          if (gqlError.path) logger.error(`  Path: ${gqlError.path.join('.')}`);
+          if (gqlError.locations) logger.error(`  Locations: ${JSON.stringify(gqlError.locations)}`);
         });
       }
       
       // Show request details if available and in debug mode
       if (debug && apiError.request) {
-        console.error('\x1b[36m%s\x1b[0m', 'Request Details:');
-        console.error(`  URL: ${apiError.request.url || 'N/A'}`);
-        console.error(`  Method: ${apiError.request.method || 'N/A'}`);
+        logger.error('Request Details:');
+        logger.error(`  URL: ${apiError.request.url || 'N/A'}`);
+        logger.error(`  Method: ${apiError.request.method || 'N/A'}`);
       }
     } else if (typeof error === 'object') {
-      console.error('\x1b[31m%s\x1b[0m', JSON.stringify(error, null, 2));
+      logger.error(JSON.stringify(error, null, 2));
     } else {
-      console.error('\x1b[31m%s\x1b[0m', 'An unknown error occurred:', error);
+      logger.error('An unknown error occurred:', error);
     }
     
     if (debug) {
-      console.error('\x1b[36m%s\x1b[0m', '\nDebug Information:');
-      console.error('\x1b[36m%s\x1b[0m', `⏰ Timestamp: ${new Date().toISOString()}`);
-      console.error('\x1b[36m%s\x1b[0m', `🔧 Node Version: ${process.version}`);
-      console.error('\x1b[36m%s\x1b[0m', `💻 Platform: ${process.platform} (${process.arch})`);
+      logger.debug('\nDebug Information:');
+      logger.debug(`⏰ Timestamp: ${new Date().toISOString()}`);
+      logger.debug(`🔧 Node Version: ${process.version}`);
+      logger.debug(`💻 Platform: ${process.platform} (${process.arch})`);
     }
   }
 
@@ -110,8 +111,15 @@ export abstract class BaseCommand {
     // Format precedence: command line option > constructor option > default
     const format = options.format || this.options.format || 'plain';
     if (options.debug) {
-      console.log(`Debug: Using ${format} formatter for ${type}`);
+      logger.debug(`Using ${format} formatter for ${type}`);
     }
     return FormatterFactory.getFormatter(type, format);
   }
+}
+
+export async function executeWithTiming<T>(
+  commandName: string, 
+  fn: () => Promise<T>
+): Promise<T> {
+  return await timeIt(`Command ${commandName}`, fn, 'info');
 } 

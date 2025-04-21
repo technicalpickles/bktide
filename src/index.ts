@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+// Configure logger level based on command line arguments before anything else runs
+const logLevelArg = process.argv.find(arg => arg.startsWith('--log-level='));
+if (logLevelArg) {
+  const level = logLevelArg.split('=')[1];
+  process.env.LOG_LEVEL = level;
+}
+
 import {
   BaseCommand,
   ShowViewer,
@@ -10,6 +17,7 @@ import {
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError } from './utils/cli-error-handler.js';
+import { logger } from './services/logger.js';
 
 initializeErrorHandling();
 
@@ -45,7 +53,8 @@ const addFormatOption = (command: Command): Command => {
 program
   .name('bk-cli')
   .description('Buildkite CLI tool')
-  .version('1.0.0');
+  .version('1.0.0')
+  .option('--log-level <level>', 'Set logging level (trace, debug, info, warn, error, fatal)', 'info');
 
 // Create a handler for command execution with error handling
 function handleCommand<T extends BaseCommand>(
@@ -137,4 +146,7 @@ buildsCmd.action(
 );
 
 // Parse command line arguments
-program.parse(); 
+program.parse();
+
+// Log startup information
+logger.info({ pid: process.pid }, 'Buildkite CLI started'); 

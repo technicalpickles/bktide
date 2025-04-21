@@ -6,6 +6,20 @@ alwaysApply: true
 
 This is a typescript CLI for interacting with the Buildkite GraphQL API.
 
+# Developing
+
+When asked to implement features or fix problems, make an iterative plan to be able to make small change and validate them. For example, when asked to new subcommand, consider a plan like:
+
+- add new subcommand to [index.ts](mdc:src/index.ts), but with a placeholder action that just logs something
+- create a new command in src/commands that just logs a message, and update the [index.ts](mdc:src/index.ts) to call that
+- start implementing logic in new command
+- etc
+
+Each step should involve making code changes, confirming it compiles and aren't any lint errors, and then try running the code.
+
+When there are a lot of steps and moving parts, confirm the approach with the user.
+
+
 # Running commands
 
 Assume you are in the correct directory, ie the root of the repository. Don't try cd'ing to it
@@ -15,12 +29,8 @@ Some noteable commands, as defined in [package.json](mdc:package.json):
 - `npm run build` 
 - `npm run start` to execute the script, which passes args to the CLI
 
-
-# Making changes
-
-When updating things like [queries.ts](mdc:src/graphql/queries.ts), make sure to update callsites that are using it.
-
-
 # GraphQL
 
 Make sure queries stay in [queries.ts](mdc:src/graphql/queries.ts) . Calls to the API should go through [BuildkiteClient.ts](mdc:src/services/BuildkiteClient.ts)
+
+When updating queries in [queries.js](mdc:src/graphql/queries.js) , make sure to update callsites that are using when the output changes.

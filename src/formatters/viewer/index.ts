@@ -1,24 +1,22 @@
-import { ViewerFormatter } from './Formatter.js';
 import { PlainTextFormatter } from './PlainTextFormatter.js';
 import { JsonFormatter } from './JsonFormatter.js';
+import { ViewerFormatter } from './Formatter.js';
+import { logger } from '../../services/logger.js';
 
 /**
- * Get the appropriate viewer formatter based on the format string
- * @param format The format to use ('plain', 'json')
+ * Factory function to create the appropriate formatter for viewer data
+ * @param format The format to use
  * @returns A ViewerFormatter instance
  */
 export function getViewerFormatter(format: string = 'plain'): ViewerFormatter {
-  // Normalize the format string
-  const normalizedFormat = format.toLowerCase().trim();
-  
-  switch (normalizedFormat) {
-    case 'json':
-      return new JsonFormatter();
+  switch (format.toLowerCase()) {
     case 'plain':
     case 'text':
       return new PlainTextFormatter();
+    case 'json':
+      return new JsonFormatter();
     default:
-      console.warn(`Unknown format '${format}', defaulting to plain text`);
+      logger.warn(`Unknown format '${format}', defaulting to plain text`);
       return new PlainTextFormatter();
   }
 }
