@@ -163,16 +163,13 @@ export class ListBuilds extends BaseCommand {
     
     const format = options.format || 'plain';
     const formatter = getBuildFormatter(format);
-    const output = formatter.formatBuilds(allBuilds, { debug: options.debug });
+    const formatterOptions = { 
+      debug: options.debug, 
+      organizationsCount: orgs.length, 
+      orgSpecified: !!options.org 
+    };
+    const output = formatter.formatBuilds(allBuilds, formatterOptions);
     console.log(output);
-    
-    if (format === 'plain') {
-      console.log(`Showing ${allBuilds.length} builds. Use --count and --page options to see more.`);
-      
-      if (!options.org && orgs.length > 1) {
-        console.log(`Searched across ${orgs.length} organizations. Use --org to filter to a specific organization.`);
-      }
-    }
     
     if (options.debug) {
       const executeDuration = Number(process.hrtime.bigint() - executeStartTime) / 1000000;

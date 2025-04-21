@@ -43,6 +43,12 @@ export class PlainTextFormatter extends BaseFormatter {
       }
     });
     
+    // Summary and guidance lines
+    output += `\nShowing ${builds.length} builds. Use --count and --page options to see more.\n`;
+    if (options?.organizationsCount && options.organizationsCount > 1 && !options.orgSpecified) {
+      output += `Searched across ${options.organizationsCount} organizations. Use --org to filter to a specific organization.\n`;
+    }
+    
     return output;
   }
 } 

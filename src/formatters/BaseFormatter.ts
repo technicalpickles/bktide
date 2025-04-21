@@ -1,5 +1,7 @@
 export interface FormatterOptions {
   debug?: boolean;
+  organizationsCount?: number;
+  orgSpecified?: boolean;
 }
 
 export interface FormatFunction<T> {
