@@ -3,6 +3,7 @@
  */
 import * as sourceMap from 'source-map-support';
 import { logger } from '../services/logger.js';
+import { displayCLIError } from './cli-error-handler.js';
 
 /**
  * Initialize error handling for the application
@@ -11,21 +12,20 @@ import { logger } from '../services/logger.js';
 export function initializeErrorHandling(): void {
   // Install source map support for better stack traces
   sourceMap.install({
-    handleUncaughtExceptions: true,
+    handleUncaughtExceptions: false, // We'll handle these ourselves
     hookRequire: true
   });
   
   // Set up custom handlers for uncaught exceptions and unhandled rejections
+  // These will be replaced by the handlers in index.ts, but provide a fallback
   process.on('uncaughtException', (err) => {
-    logger.fatal('🚨 UNCAUGHT EXCEPTION 🚨');
-    logger.fatal(err.stack || err.toString());
-    process.exit(1);
+    // Use our CLI error handler to format the error correctly
+    displayCLIError(err, false);
   });
 
   process.on('unhandledRejection', (reason) => {
-    logger.fatal('🚨 UNHANDLED PROMISE REJECTION 🚨');
-    logger.fatal(reason instanceof Error ? reason.stack : reason);
-    process.exit(1);
+    // Use our CLI error handler to format the error correctly
+    displayCLIError(reason, false);
   });
 
   logger.debug('Error handling system initialized with improved stack traces');

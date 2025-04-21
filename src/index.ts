@@ -10,20 +10,45 @@ import {
   ListPipelines
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
-import { displayCLIError } from './utils/cli-error-handler.js';
+import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
 import { logger, setLogLevel } from './services/logger.js';
 
-initializeErrorHandling();
-
 // Set a global error handler for uncaught exceptions
-process.on('uncaughtException', (err) => {
-  displayCLIError(err, process.argv.includes('--debug'));
-});
+const uncaughtExceptionHandler = (err: Error) => {
+  // Remove any existing handlers to avoid duplicates
+  const handlers = process.listeners('uncaughtException');
+  handlers.forEach(listener => {
+    if (listener !== uncaughtExceptionHandler) {
+      process.removeListener('uncaughtException', listener);
+    }
+  });
+  
+  displayCLIError(
+    err, 
+    process.argv.includes('--debug')
+  );
+};
+process.on('uncaughtException', uncaughtExceptionHandler);
 
 // Set a global error handler for unhandled promise rejections
-process.on('unhandledRejection', (reason) => {
-  displayCLIError(reason, process.argv.includes('--debug'));
-});
+const unhandledRejectionHandler = (reason: unknown) => {
+  // Remove any existing handlers to avoid duplicates
+  const handlers = process.listeners('unhandledRejection');
+  handlers.forEach(listener => {
+    if (listener !== unhandledRejectionHandler) {
+      process.removeListener('unhandledRejection', listener);
+    }
+  });
+  
+  displayCLIError(
+    reason, 
+    process.argv.includes('--debug')
+  );
+};
+process.on('unhandledRejection', unhandledRejectionHandler);
+
+// Initialize error handling after our handlers are registered
+initializeErrorHandling();
 
 const program = new Command();
 
@@ -78,6 +103,7 @@ const createCommandHandler = (CommandClass: new (token: string, options?: any) =
       await handler.execute(options);
     } catch (error) {
       const debug = this.mergedOptions?.debug || this.opts().debug || false;
+      // No need to pass format - will use global format set in preAction hook
       displayCLIError(error, debug);
     }
   };
@@ -94,7 +120,7 @@ program
   .option('--cache-ttl <milliseconds>', 'Set cache time-to-live in milliseconds', parseInt)
   .option('--clear-cache', 'Clear all cached data before executing command')
   .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)', process.env.BK_TOKEN)
-  .option('-f, --format <format>', 'Output format (plain, json, alfred)', 'plain');
+  .option('-f, --format <format>', 'Output format for results and errors (plain, json, alfred)', 'plain');
 
 // Add hooks for handling options
 program
@@ -106,6 +132,11 @@ program
     const globalOpts = program.opts();
     const commandOpts = cmd.opts();
     const mergedOptions = { ...globalOpts, ...commandOpts };
+    
+    // Set the global error format from the command line options
+    if (mergedOptions.format) {
+      setErrorFormat(mergedOptions.format);
+    }
     
     if (mergedOptions.cacheTtl && (isNaN(mergedOptions.cacheTtl) || mergedOptions.cacheTtl <= 0)) {
       logger.error('cache-ttl must be a positive number');
@@ -122,13 +153,10 @@ program
       process.exit(1);
     }
 
-    
-    // Adding custom properties to the command object
     cmd.mergedOptions = mergedOptions;
-    
-    // Handle command-specific options
+
     const commandName = cmd.name();
-    
+
     if (commandName === 'pipelines') {
       // Create pipeline-specific options structure
       cmd.pipelineOptions = {
@@ -174,7 +202,6 @@ program
     }
   });
 
-// GraphQL commands with simplified action handlers
 program
   .command('viewer')
   .description('Show logged in user information')
@@ -206,7 +233,42 @@ program
   .option('--filter <filter>', 'Fuzzy filter builds by name or other properties')
   .action(createCommandHandler(ListBuilds));
 
-// Parse command line arguments
+program
+  .command('boom')
+  .description('Test error handling with different formats')
+  .option('--type <type>', 'Type of error to throw (basic, api, object)', 'basic')
+  .action((options) => {
+    switch (options.type) {
+      case 'api':
+        // Simulate an API error
+        const apiError = new Error('API request failed');
+        (apiError as any).response = {
+          errors: [
+            { message: 'Invalid token', path: ['viewer'], locations: [{ line: 1, column: 10 }] },
+            { message: 'Permission denied', path: ['viewer', 'organizations'] }
+          ]
+        };
+        (apiError as any).request = {
+          url: 'https://graphql.buildkite.com/v1',
+          method: 'POST'
+        };
+        throw apiError;
+        
+      case 'object':
+        // Throw a non-Error object
+        throw {
+          message: 'This is not an Error instance',
+          code: 'CUSTOM_ERROR',
+          timestamp: new Date().toISOString()
+        };
+        
+      case 'basic':
+      default:
+        // Simple error
+        throw new Error('Boom! This is a test error');
+    }
+  });
+
 program.parse();
 
 // Apply log level from command line options
@@ -220,7 +282,6 @@ if (options.debug) {
   logger.debug(`Log level set to ${options.logLevel} via --log-level option`);
 }
 
-// Log startup information
 logger.debug({ 
   pid: process.pid, 
 }, 'Buildkite CLI started'); 

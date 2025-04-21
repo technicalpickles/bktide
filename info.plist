@@ -235,6 +235,8 @@
 	<dict>
 		<key>BK_TOKEN</key>
 		<string>bkua_8c191fcdd7ccf1186c8df4ae77109085b300376d</string>
+		<key>NODE_BIN</key>
+		<string>/Users/josh.nichols/.local/share/mise/shims/node</string>
 	</dict>
 	<key>version</key>
 	<string></string>

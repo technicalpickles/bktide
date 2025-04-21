@@ -14,10 +14,15 @@ if [[ -z "$command" ]]; then
   exit 1
 fi
 
+if [[ -z "$NODE_BIN" ]]; then
+  export NODE_BIN=node
+fi
+
 filter="$2"
 args=(--format alfred)
 if [[ -n "$filter" ]]; then
   args+=(--filter "$filter")
 fi
-echo "Running command: node dist/index.js $command" "${args[@]}" >> "$log_file"
-node "$workflow_dir/dist/index.js" "$command" "${args[@]}" 2>&1 | tee -a "$log_file"
+
+echo "Running command: $NODE_BIN $workflow_dir/dist/index.js $command" "${args[@]}" >> "$log_file"
+"$NODE_BIN" "$workflow_dir/dist/index.js" "$command" "${args[@]}" 2>&1 | tee -a "$log_file"

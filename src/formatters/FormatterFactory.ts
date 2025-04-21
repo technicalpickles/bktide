@@ -3,18 +3,20 @@ import { getPipelineFormatter } from './pipelines/index.js';
 import { getBuildFormatter } from './builds/index.js';
 import { getViewerFormatter } from './viewer/index.js';
 import { getOrganizationFormatter } from './organizations/index.js';
+import { getErrorFormatter } from './errors/index.js';
 
 export enum FormatterType {
   PIPELINE = 'pipeline',
   BUILD = 'build', 
   VIEWER = 'viewer',
-  ORGANIZATION = 'organization'
+  ORGANIZATION = 'organization',
+  ERROR = 'error'
 }
 
 export class FormatterFactory {
   /**
    * Get the appropriate formatter based on the type and format
-   * @param type The formatter type ('pipeline', 'build', 'viewer', 'organization')
+   * @param type The formatter type ('pipeline', 'build', 'viewer', 'organization', 'error')
    * @param format The format to use ('plain', 'json', 'alfred')
    * @returns The appropriate formatter instance
    */
@@ -31,6 +33,8 @@ export class FormatterFactory {
         return getViewerFormatter(normalizedFormat);
       case FormatterType.ORGANIZATION:
         return getOrganizationFormatter(normalizedFormat);
+      case FormatterType.ERROR:
+        return getErrorFormatter(normalizedFormat);
       default:
         throw new Error(`Unknown formatter type: ${type}`);
     }
