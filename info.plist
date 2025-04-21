@@ -231,6 +231,13 @@
 	</dict>
 	<key>userconfigurationconfig</key>
 	<array/>
+	<key>variables</key>
+	<dict>
+		<key>BK_TOKEN</key>
+		<string>bkua_8c191fcdd7ccf1186c8df4ae77109085b300376d</string>
+	</dict>
+	<key>version</key>
+	<string></string>
 	<key>webaddress</key>
 	<string></string>
 </dict>

@@ -2,12 +2,10 @@
 
 set -e
 
-cd "$(dirname "$0")/.."
+workflow_dir="$(dirname "$0")/.."
 
-if [ -f .env ]; then
-  BK_TOKEN=$(source .env; echo $BK_TOKEN)
-  export BK_TOKEN
-fi
+log_file="$HOME/.local/state/bktide/logs/alfred.log"
+mkdir -p "$(dirname "$log_file")"
 
 export PATH=$HOME/.local/share/mise/shims:$PATH
 
@@ -22,5 +20,5 @@ args=(--format alfred)
 if [[ -n "$filter" ]]; then
   args+=(--filter "$filter")
 fi
-echo "Running command: node dist/index.js $command" "${args[@]}" >> log/alfred.log
-node dist/index.js "$command" "${args[@]}" 2>&1 | tee -a log/alfred.log
+echo "Running command: node dist/index.js $command" "${args[@]}" >> "$log_file"
+node "$workflow_dir/dist/index.js" "$command" "${args[@]}" 2>&1 | tee -a "$log_file"
