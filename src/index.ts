@@ -163,7 +163,7 @@ buildsCmd.action(
 program.parse(); 
 
 // Log startup information
-logger.info({ 
+logger.debug({ 
   pid: process.pid, 
   logLevel: process.env.LOG_LEVEL, 
   debug: process.argv.includes('--debug') || process.argv.includes('-d')

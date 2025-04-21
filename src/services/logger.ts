@@ -25,6 +25,7 @@ export const logger = pino(
           level: 'trace',
           options: {
             colorize: true,
+            sync: true,
             translateTime: 'HH:MM:ss.l',
             ignore: 'pid,hostname',
             levelFirst: true,
