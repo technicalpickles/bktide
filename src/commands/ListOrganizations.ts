@@ -12,28 +12,16 @@ export class ListOrganizations extends BaseCommand {
   
   public async execute(options: OrganizationOptions = {}): Promise<void> {
     try {
-      const data = await this.client.getOrganizations();
+      if (options.debug) {
+        logger.debug('Fetching organizations...');
+      }
+      
+      // Use the new method that handles filtering null values
+      const organizations = await this.client.getOrganizationsArray();
       
       if (options.debug) {
-        logger.debug('API Response:', JSON.stringify(data, null, 2));
+        logger.debug(`Fetched ${organizations.length} organizations`);
       }
-      
-      if (!data?.viewer?.organizations?.edges) {
-        logger.error('No organizations data returned from API.');
-        
-        if (options.debug) {
-          logger.debug('Received data structure:', Object.keys(data || {}).join(', '));
-        }
-        return;
-      }
-      
-      const edges = data.viewer.organizations.edges;
-      
-      // Filter out null edges and map to non-null nodes
-      const organizations = edges
-        .filter((edge): edge is NonNullable<typeof edge> => edge !== null)
-        .map(edge => edge.node)
-        .filter((node): node is NonNullable<typeof node> => node !== null);
       
       // Get the appropriate formatter
       const formatter = this.getFormatter(FormatterType.ORGANIZATION, options) as OrganizationFormatter;

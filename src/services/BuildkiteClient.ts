@@ -310,6 +310,28 @@ export class BuildkiteClient {
   }
 
   /**
+   * Get a processed array of organizations for the current viewer with null values filtered out
+   * @returns An array of non-null Organization objects
+   */
+  public async getOrganizationsArray(): Promise<Array<{ id: string; name: string; slug: string; }>> {
+    const data = await this.getOrganizations();
+    
+    if (!data?.viewer?.organizations?.edges) {
+      return [];
+    }
+    
+    const edges = data.viewer.organizations.edges;
+    
+    // Filter out null edges and map to non-null nodes
+    const organizations = edges
+      .filter((edge): edge is NonNullable<typeof edge> => edge !== null)
+      .map(edge => edge.node)
+      .filter((node): node is NonNullable<typeof node> => node !== null);
+      
+    return organizations;
+  }
+
+  /**
    * Get pipelines for an organization with type safety
    * @param organizationSlug The organization slug
    * @param first Number of pipelines to retrieve
