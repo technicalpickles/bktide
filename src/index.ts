@@ -40,69 +40,82 @@ program
   .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)')
   .option('-f, --format <format>', 'Output format (plain, json, alfred)', 'plain');
 
-// Create a handler for command execution with error handling
-function handleCommand<T extends BaseCommand>(
-  HandlerClass: new (token: string, options?: any) => T,
-  methodName: keyof T
-): (options: any) => void {
-  return function(options: any): void {
-    const isDebug = !!options.debug;
+// Add hooks for common behaviors across all commands
+program
+  .hook('preAction', (_thisCommand, actionCommand) => {
+    // Merge global options with command-specific options
+    const globalOpts = program.opts();
+    const commandOpts = actionCommand.opts();
+    const mergedOptions = { ...globalOpts, ...commandOpts };
     
-    (async () => {
-      try {
-        // Merge global options with command-specific options
-        const globalOpts = program.opts();
-        const mergedOptions = { ...globalOpts, ...options };
-        
-        const token = BaseCommand.getToken(mergedOptions);
-        const handler = new HandlerClass(token, {
-          noCache: mergedOptions.cache === false,
-          cacheTTL: mergedOptions.cacheTtl,
-          clearCache: mergedOptions.clearCache,
-          debug: isDebug,
-          format: mergedOptions.format
-        });
-        
-        // Call the specified method on the handler instance
-        const method = handler[methodName] as unknown as (options: any) => Promise<void>;
-        await method.call(handler, mergedOptions);
-      } catch (error) {
-        displayCLIError(error, isDebug);
-      }
-    })();
-  };
+    // Store merged options for access in the action handler
+    // @ts-ignore: Adding a custom property to the command object
+    actionCommand.mergedOptions = mergedOptions;
+    
+    if (mergedOptions.debug) {
+      logger.debug(`Executing command: ${actionCommand.name()}`);
+      logger.debug('Options:', mergedOptions);
+    }
+  })
+  .hook('postAction', (_thisCommand, actionCommand) => {
+    // @ts-ignore: Accessing the custom property
+    const options = actionCommand.mergedOptions || {};
+    if (options.debug) {
+      logger.debug(`Command ${actionCommand.name()} completed`);
+    }
+  });
+
+// Define a generic interface for the command classes that includes the execute method
+interface CommandWithExecute {
+  execute(options: any): Promise<void>;
 }
 
-// GraphQL commands
-const viewerCmd = program
+// Common function to create action handlers for commands
+const createCommandHandler = (CommandClass: new (token: string, options?: any) => BaseCommand & CommandWithExecute) => {
+  return async function() {
+    try {
+      // @ts-ignore: Accessing the custom property added in preAction
+      const options = this.mergedOptions || this.opts();
+      const token = BaseCommand.getToken(options);
+      
+      const handler = new CommandClass(token, {
+        noCache: options.cache === false,
+        cacheTTL: options.cacheTtl,
+        clearCache: options.clearCache,
+        debug: options.debug,
+        format: options.format
+      });
+      
+      await handler.execute(options);
+    } catch (error) {
+      // @ts-ignore: Accessing the custom property
+      const debug = this.mergedOptions?.debug || this.opts().debug || false;
+      displayCLIError(error, debug);
+    }
+  };
+};
+
+// GraphQL commands with simplified action handlers
+program
   .command('viewer')
-  .description('Show logged in user information');
+  .description('Show logged in user information')
+  .action(createCommandHandler(ShowViewer));
 
-viewerCmd.action(
-  handleCommand(ShowViewer, 'execute')
-);
-
-const orgsCmd = program
+program
   .command('orgs')
-  .description('List organizations');
+  .description('List organizations')
+  .action(createCommandHandler(ListOrganizations));
 
-orgsCmd.action(
-  handleCommand(ListOrganizations, 'execute')
-);
-
-const pipelinesCmd = program
+program
   .command('pipelines')
   .description('List pipelines for an organization')
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-n, --count <count>', 'Limit to specified number of pipelines per organization')
-  .option('--filter <name>', 'Filter pipelines by name (case insensitive)');
-
-pipelinesCmd.action(
-  handleCommand(ListPipelines, 'execute')
-);
+  .option('--filter <name>', 'Filter pipelines by name (case insensitive)')
+  .action(createCommandHandler(ListPipelines));
 
 // Update the builds command to include REST API filtering options
-const buildsCmd = program
+program
   .command('builds')
   .description('List builds for the current user')
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
@@ -111,11 +124,8 @@ const buildsCmd = program
   .option('-s, --state <state>', 'Filter by build state (running, scheduled, passed, failing, failed, canceled, etc.)')
   .option('-n, --count <count>', 'Number of builds per page', '10')
   .option('--page <page>', 'Page number', '1')
-  .option('--filter <filter>', 'Fuzzy filter builds by name or other properties');
-
-buildsCmd.action(
-  handleCommand(ListBuilds, 'execute')
-);
+  .option('--filter <filter>', 'Fuzzy filter builds by name or other properties')
+  .action(createCommandHandler(ListBuilds));
 
 // Parse command line arguments
 program.parse();
