@@ -38,6 +38,9 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
       }
     });
     
+    // Summary line showing total pipelines listed
+    output.push(`Showing ${pipelines.length} pipelines.`);
+    
     if (organizations.length > 1) {
       output.push(`\nSearched across ${organizations.length} organizations. Use --org to filter to a specific organization.`);
     }

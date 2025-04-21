@@ -9,6 +9,8 @@ export interface PipelineOptions extends BaseCommandOptions {
 }
 
 export class ListPipelines extends BaseCommand {
+  readonly BATCH_SIZE = 500;
+  
   constructor(token: string, options?: Partial<PipelineOptions>) {
     super(token, options);
   }
@@ -40,7 +42,7 @@ export class ListPipelines extends BaseCommand {
     
     for (const org of organizations) {
       try {
-        const batchSize = 500;
+        const batchSize = this.BATCH_SIZE;
         let hasNextPage = true;
         let cursor: string | null = null;
         const limitResults = options.count !== undefined;
@@ -121,26 +123,10 @@ export class ListPipelines extends BaseCommand {
       }
     }
     
-    if (allPipelines.length === 0) {
-      const format = options.format || 'plain';
-      const formatter = getPipelineFormatter(format);
-      const output = formatter.formatPipelines(allPipelines, organizations);
-      console.log(output);
-      return;
-    }
-    
     const format = options.format || 'plain';
     const formatter = getPipelineFormatter(format);
     const output = formatter.formatPipelines(allPipelines, organizations);
     
     console.log(output);
-    
-    if (format === 'plain') {
-      console.log(`Showing ${allPipelines.length} pipelines.`);
-      
-      if (organizations.length > 1) {
-        console.log(`Searched across ${organizations.length} organizations. Use --org to filter to a specific organization.`);
-      }
-    }
   }
 } 
