@@ -1,5 +1,4 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
-import {  BuildkiteRestClientOptions } from '../services/BuildkiteRestClient.js';
 import { getBuildFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
 import { Build } from '../types/index.js';
@@ -16,21 +15,7 @@ export interface ViewerBuildsOptions extends BaseCommandOptions {
 
 export class ListBuilds extends BaseCommand {
   constructor(options?: Partial<ViewerBuildsOptions>) {
-    super( options);
-    
-    // Configure REST client with the same caching options
-    const restClientOptions: BuildkiteRestClientOptions = {
-      debug: options?.debug,
-      caching: !options?.noCache,
-    };
-    
-    // If a specific cache TTL is provided, apply it to REST client
-    if (options?.cacheTTL) {
-      restClientOptions.cacheTTLs = {
-        default: options.cacheTTL,
-        builds: options.cacheTTL,
-      };
-    }    
+    super(options);
   }
 
   async execute(options: ViewerBuildsOptions): Promise<void> {

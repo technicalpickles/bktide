@@ -29,7 +29,7 @@ export class ManageToken extends BaseCommand {
       await this.checkToken();
     } else {
       // Default action if no specific flag is provided
-      await this.checkToken();
+      await this.storeToken();
     }
   }
 
@@ -80,9 +80,9 @@ export class ManageToken extends BaseCommand {
     try {
       const hasToken = await BaseCommand.credentialManager.hasToken();
       if (hasToken) {
-        logger.info('Token found in system keychain');
+        logger.console('Token found in system keychain');
       } else {
-        logger.info('No token found in system keychain');
+        logger.console('No token found in system keychain');
       }
     } catch (error) {
       logger.error('Error checking token', error);

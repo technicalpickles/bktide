@@ -1,5 +1,5 @@
 import { BuildkiteClient } from '../services/BuildkiteClient.js';
-import { BuildkiteRestClient } from '../services/BuildkiteRestClient.js';
+import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/BuildkiteRestClient.js';
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { timeIt } from '../services/logger.js';
 import { logger } from '../services/logger.js';
@@ -36,6 +36,7 @@ export abstract class BaseCommand {
   protected requiresToken: boolean = true;
   private _client: BuildkiteClient | undefined;
   private _restClient: BuildkiteRestClient | undefined;
+  private _restClientOptions: BuildkiteRestClientOptions | undefined;
   
   protected options: Partial<BaseCommandOptions>;
   protected initialized: boolean = false;
@@ -87,6 +88,27 @@ export abstract class BaseCommand {
       } else {
         throw new Error('No token provided');
       }
+    }
+  }
+
+  get restClientOptions(): BuildkiteRestClientOptions {
+    if (this._restClientOptions) {
+      return this._restClientOptions;
+    } else {
+      // Configure REST client with the same caching options
+        const restClientOptions: BuildkiteRestClientOptions = {
+          debug: this.options?.debug,
+          caching: !this.options?.noCache,
+        };
+        
+        // If a specific cache TTL is provided, apply it to REST client
+        if (this.options?.cacheTTL) {
+          restClientOptions.cacheTTLs = {
+            default: this.options.cacheTTL,
+            builds: this.options.cacheTTL,
+          };
+      }
+      return restClientOptions;
     }
   }
 
