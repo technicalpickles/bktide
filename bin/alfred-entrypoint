@@ -3,11 +3,10 @@
 set -e
 
 workflow_dir="$(dirname "$0")/.."
-
 log_file="$HOME/.local/state/bktide/logs/alfred.log"
 mkdir -p "$(dirname "$log_file")"
 
-export PATH=$HOME/.local/share/mise/shims:$PATH
+export PATH="$HOME/.local/share/mise/shims:$PATH"
 
 command="$1"
 if [[ -z "$command" ]]; then
