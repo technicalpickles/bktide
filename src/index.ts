@@ -1,19 +1,18 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import prompts from 'prompts';
 
 import {
   BaseCommand,
   ShowViewer,
   ListOrganizations,
   ListBuilds,
-  ListPipelines
+  ListPipelines,
+  ManageToken
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
 import { logger, setLogLevel } from './services/logger.js';
-import { CredentialManager } from './services/CredentialManager.js';
 
 // Set a global error handler for uncaught exceptions
 const uncaughtExceptionHandler = (err: Error) => {
@@ -239,79 +238,14 @@ program
   .option('--filter <filter>', 'Fuzzy filter builds by name or other properties')
   .action(createCommandHandler(ListBuilds));
 
-// Add token management commands
+// Add token management command
 program
   .command('token')
   .description('Manage API tokens')
-  .addCommand(
-    new Command('store')
-      .description('Store a token in the system keychain')
-      .action(async () => {
-        try {
-          const response = await prompts({
-            type: 'password',
-            name: 'token',
-            message: 'Enter your Buildkite API token:',
-            validate: value => value.length > 0 ? true : 'Please enter a valid token'
-          });
-          
-          // Check if user cancelled the prompt (Ctrl+C)
-          if (!response.token) {
-            logger.info('Token storage cancelled');
-            return;
-          }
-          
-          const credentialManager = new CredentialManager();
-          const success = await credentialManager.saveToken(response.token);
-          if (success) {
-            logger.info('Token successfully stored in system keychain');
-          } else {
-            logger.error('Failed to store token');
-          }
-        } catch (error) {
-          displayCLIError(error, program.opts().debug);
-        }
-      })
-  )
-  .addCommand(
-    new Command('delete')
-      .description('Delete the stored token from system keychain')
-      .action(async () => {
-        try {
-          const credentialManager = new CredentialManager();
-          
-          if (await credentialManager.hasToken()) {
-            const success = await credentialManager.deleteToken();
-            if (success) {
-              logger.info('Token successfully deleted from system keychain');
-            } else {
-              logger.error('Failed to delete token');
-            }
-          } else {
-            logger.info('No token found in system keychain');
-          }
-        } catch (error) {
-          displayCLIError(error, program.opts().debug);
-        }
-      })
-  )
-  .addCommand(
-    new Command('check')
-      .description('Check if a token is stored in the system keychain')
-      .action(async () => {
-        try {
-          const credentialManager = new CredentialManager();
-          const hasToken = await credentialManager.hasToken();
-          if (hasToken) {
-            logger.info('Token found in system keychain');
-          } else {
-            logger.info('No token found in system keychain');
-          }
-        } catch (error) {
-          displayCLIError(error, program.opts().debug);
-        }
-      })
-  );
+  .option('--check', 'Check if a token is stored in the system keychain')
+  .option('--store', 'Store a token in the system keychain')
+  .option('--reset', 'Delete the stored token from system keychain')
+  .action(createCommandHandler(ManageToken));
 
 program
   .command('boom')

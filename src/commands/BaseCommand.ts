@@ -32,6 +32,8 @@ interface ApiError extends Error {
 
 export abstract class BaseCommand {
   protected token: string;
+  protected requiresToken: boolean = true;
+  
   protected client: BuildkiteClient;
   protected options: Partial<BaseCommandOptions>;
   protected initialized: boolean = false;
