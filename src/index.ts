@@ -35,11 +35,6 @@ interface CommandWithExecute {
 // Extend the Command type to include our custom properties
 interface ExtendedCommand extends Command {
   mergedOptions?: any;
-  cacheOptions?: {
-    enabled: boolean;
-    ttl?: number;
-    clear?: boolean;
-  };
   pipelineOptions?: {
     organization?: string;
     count?: number;
@@ -61,7 +56,7 @@ const createCommandHandler = (CommandClass: new (token: string, options?: any) =
   return async function(this: ExtendedCommand) {
     try {
       const options = this.mergedOptions || this.opts();
-      const cacheOptions = this.cacheOptions || { enabled: options.cache !== false, ttl: options.cacheTtl, clear: options.clearCache };
+      const cacheOptions = { enabled: options.cache !== false, ttl: options.cacheTtl, clear: options.clearCache };
       const token = BaseCommand.getToken(options);
       
       const handler = new CommandClass(token, {
@@ -112,7 +107,6 @@ program
     const commandOpts = cmd.opts();
     const mergedOptions = { ...globalOpts, ...commandOpts };
     
-    // Validate cache options
     if (mergedOptions.cacheTtl && (isNaN(mergedOptions.cacheTtl) || mergedOptions.cacheTtl <= 0)) {
       logger.error('cache-ttl must be a positive number');
       process.exit(1);
@@ -127,17 +121,10 @@ program
       logger.error('count must be a positive number');
       process.exit(1);
     }
-    
-    // Process cache options and store them in a structured way
-    const cacheOptions = {
-      enabled: mergedOptions.cache !== false,
-      ttl: mergedOptions.cacheTtl,
-      clear: mergedOptions.clearCache
-    };
+
     
     // Adding custom properties to the command object
     cmd.mergedOptions = mergedOptions;
-    cmd.cacheOptions = cacheOptions;
     
     // Handle command-specific options
     const commandName = cmd.name();
@@ -174,7 +161,6 @@ program
     if (mergedOptions.debug) {
       logger.debug(`Executing command: ${commandName}`);
       logger.debug('Options:', mergedOptions);
-      logger.debug('Cache options:', cacheOptions);
     }
   })
   .hook('postAction', (_thisCommand, actionCommand) => {
