@@ -1,7 +1,6 @@
 import { BuildkiteClient } from '../services/BuildkiteClient.js';
 import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/BuildkiteRestClient.js';
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
-import { timeIt } from '../services/logger.js';
 import { logger } from '../services/logger.js';
 import { CredentialManager } from '../services/CredentialManager.js';
 
@@ -111,7 +110,6 @@ export abstract class BaseCommand {
       return restClientOptions;
     }
   }
-
 
   static get requiresToken(): boolean {
     return true;
@@ -226,10 +224,3 @@ export abstract class BaseCommand {
    */
   abstract execute(options: BaseCommandOptions): Promise<number>;
 }
-
-export async function executeWithTiming<T>(
-  commandName: string, 
-  fn: () => Promise<T>
-): Promise<T> {
-  return await timeIt(`Command ${commandName}`, fn, 'info');
-} 
