@@ -130,7 +130,7 @@ export abstract class BaseCommand {
   protected handleError(error: any, debug: boolean = false): void {
     // Only log the error message and stack trace
     if (error instanceof Error) {
-      logger.error(`Error: ${error.message}`);
+      logger.error(`${error.message}`);
       
       // Always print the stack trace for proper debugging
       if (error.stack) {

@@ -110,7 +110,7 @@ export function formatErrorForCLI(error: unknown, debug = false): string {
     }
   } else {
     // Handle primitive values
-    output += `\x1b[31mError: ${String(error)}\x1b[0m\n\n`;
+    output += `\x1b[31m${String(error)}\x1b[0m\n\n`;
   }
   
   if (debug) {
@@ -162,16 +162,13 @@ export function displayCLIError(
   // Format the error using the selected formatter
   const formattedError = formatter.formatError(error, { debug, exitOnError });
   
-  // Log using the logger (which will handle file logging if configured)
-  logger.error({ error }, 'Error occurred');
-  
   // Print the formatted output to the console
   if (outputFormat === 'plain') {
     // For plain text, print directly to stderr
-    console.error(formattedError);
+    logger.error(formattedError);
   } else {
     // For structured formats like JSON or Alfred, print to stdout
-    console.log(formattedError);
+    logger.console(formattedError);
   }
   
   // Exit with error code if requested
