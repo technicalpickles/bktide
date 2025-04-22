@@ -76,29 +76,29 @@ export class ManageToken extends BaseCommand {
   }
 
   private async checkOrStoreToken(): Promise<void> {
-    try {
-      const hasToken = await BaseCommand.credentialManager.hasToken();
-      if (hasToken) {
-        logger.console('Token found in system keychain');
-      } else {
-        await this.storeToken();
-      }
-    } catch (error) {
-      logger.error('Error checking or storing token', error);
+    if (await this.checkToken()) {
+      return;
     }
-  }
-  
 
-  private async checkToken(): Promise<void> {
-    try {
-      const hasToken = await BaseCommand.credentialManager.hasToken();
-      if (hasToken) {
-        logger.console('Token found in system keychain');
+    await this.storeToken();
+  }
+
+  private async checkToken(): Promise<boolean> {
+    const hasToken = await BaseCommand.credentialManager.hasToken();
+    if (hasToken) {
+      logger.console('Token found in system keychain');
+
+      if (await BaseCommand.credentialManager.validateToken()) {
+        logger.console('Token is valid');
+        return true;
       } else {
-        logger.console('No token found in system keychain');
+        logger.console('Token is invalid');
+        return false;
       }
-    } catch (error) {
-      logger.error('Error checking token', error);
+    } else {
+      logger.console('No token found in system keychain');
+      return false;
     }
+
   }
 } 

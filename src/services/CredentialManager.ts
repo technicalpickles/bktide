@@ -1,5 +1,7 @@
 import { Entry } from '@napi-rs/keyring';
 import { logger } from './logger.js';
+import { BuildkiteClient } from './BuildkiteClient.js';
+import { GET_VIEWER } from '../graphql/queries.js';
 
 const SERVICE_NAME = 'bktide';
 const ACCOUNT_KEY = 'default';
@@ -66,5 +68,33 @@ export class CredentialManager {
   async hasToken(): Promise<boolean> {
     const token = await this.getToken();
     return !!token;
+  }
+
+  /**
+   * Validates if a token is valid by making a test API call
+   * @param token Optional token to validate. If not provided, will use the stored token.
+   * @returns true if the token is valid, false otherwise
+   */
+  async validateToken(token?: string): Promise<boolean> {
+    try {
+      // If no token provided, try to get the stored one
+      const tokenToValidate = token || await this.getToken();
+      if (!tokenToValidate) {
+        logger.debug('No token provided for validation');
+        return false;
+      }
+
+      // Create a client with the token
+      const client = new BuildkiteClient(tokenToValidate, { debug: false });
+      
+      // Try to make a simple API call that requires authentication
+      await client.query(GET_VIEWER, {});
+      
+      logger.debug('Token validation successful');
+      return true;
+    } catch (error) {
+      logger.debug('Token validation failed', error);
+      return false;
+    }
   }
 } 
