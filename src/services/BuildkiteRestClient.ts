@@ -115,6 +115,10 @@ export class BuildkiteRestClient {
       const startTime = process.hrtime.bigint();
       if (this.debug) {
         logger.debug(`🕒 Starting REST API request: GET ${endpoint}`);
+        logger.debug(`🕒 Request URL: ${url.toString()}`);
+        if (params) {
+          logger.debug(`🕒 Request params: ${JSON.stringify(params)}`);
+        }
       }
       
       const response = await fetch(url.toString(), {
@@ -127,7 +131,22 @@ export class BuildkiteRestClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+        let errorMessage = `API request failed with status ${response.status}: ${errorText}`;
+        
+        // Try to parse the error as JSON for more details
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.message) {
+            errorMessage = `API request failed: ${errorJson.message}`;
+          }
+          if (errorJson.errors && Array.isArray(errorJson.errors)) {
+            errorMessage += `\nErrors: ${errorJson.errors.map((e: any) => e.message).join(', ')}`;
+          }
+        } catch (e) {
+          // If parsing fails, use the original error text
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const result = await response.json() as T;
@@ -180,6 +199,24 @@ export class BuildkiteRestClient {
     }
     
     return builds;
+  }
+  
+  /**
+   * Check if the current user has access to an organization
+   * @param org Organization slug
+   * @returns True if the user has access, false otherwise
+   */
+  public async hasOrganizationAccess(org: string): Promise<boolean> {
+    try {
+      const endpoint = `/organizations/${org}`;
+      await this.get(endpoint);
+      return true;
+    } catch (error) {
+      if (this.debug) {
+        logger.debug(`User does not have access to organization: ${org}`);
+      }
+      return false;
+    }
   }
   
   /**

@@ -57,9 +57,17 @@ export class ListBuilds extends BaseCommand {
     
     // Initialize results array
     let allBuilds: Build[] = [];
+    let errors: string[] = [];
     
     for (const org of orgs) {
       try {
+        // First check if the user has access to this organization
+        const hasAccess = await this.restClient.hasOrganizationAccess(org);
+        if (!hasAccess) {
+          errors.push(`You don't have access to organization ${org}`);
+          continue;
+        }
+        
         const builds = await this.restClient.getBuilds(org, {
           creator: userId,
           pipeline: options.pipeline,
@@ -75,9 +83,23 @@ export class ListBuilds extends BaseCommand {
         
         allBuilds = allBuilds.concat(builds);
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        errors.push(`Error fetching builds for org ${org}: ${errorMessage}`);
+        
         if (options.debug) {
           logger.error(`Error fetching builds for org ${org}:`, error);
         }
+      }
+    }
+    
+    // If we have no builds and there were errors, provide a helpful message
+    if (allBuilds.length === 0 && errors.length > 0) {
+      if (options.org) {
+        // If org was specified, show the specific error
+        throw new Error(`No builds found for ${userName} (${userEmail}) in organization ${options.org}. ${errors[0]}`);
+      } else {
+        // If no org was specified, suggest using --org
+        throw new Error(`No builds found for ${userName} (${userEmail}). Try specifying an organization with --org to narrow your search.`);
       }
     }
     

@@ -1,6 +1,8 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { logger } from '../services/logger.js';
 import prompts from 'prompts';
+import { BuildkiteClient } from '../services/BuildkiteClient.js';
+import { BuildkiteRestClient } from '../services/BuildkiteRestClient.js';
 
 export interface TokenOptions extends BaseCommandOptions {
   check?: boolean;
@@ -47,6 +49,45 @@ export class ManageToken extends BaseCommand {
         return;
       }
       
+      // Validate the token before storing it
+      logger.console('Validating token...');
+      
+      // Create clients for testing
+      const graphqlClient = new BuildkiteClient(response.token, { debug: false });
+      const restClient = new BuildkiteRestClient(response.token, { debug: false });
+      
+      // Test GraphQL API
+      let graphqlValid = false;
+      try {
+        await graphqlClient.getViewer();
+        graphqlValid = true;
+      } catch (error) {
+        logger.console('GraphQL API validation failed');
+      }
+      
+      // Test REST API
+      let restValid = false;
+      try {
+        await restClient.hasOrganizationAccess('buildkite');
+        restValid = true;
+      } catch (error) {
+        logger.console('REST API validation failed');
+      }
+      
+      // Check if token is valid for both APIs
+      if (!graphqlValid || !restValid) {
+        if (!graphqlValid && !restValid) {
+          logger.error('Token is invalid for both GraphQL and REST APIs');
+        } else if (!graphqlValid) {
+          logger.error('Token is valid for REST API but not for GraphQL API');
+        } else {
+          logger.error('Token is valid for GraphQL API but not for REST API');
+        }
+        logger.error('Please ensure your token has the necessary permissions for both APIs');
+        return;
+      }
+      
+      // Store the token if it's valid
       const success = await BaseCommand.credentialManager.saveToken(response.token);
       if (success) {
         logger.info('Token successfully stored in system keychain');
@@ -88,17 +129,57 @@ export class ManageToken extends BaseCommand {
     if (hasToken) {
       logger.console('Token found in system keychain');
 
-      if (await BaseCommand.credentialManager.validateToken()) {
-        logger.console('Token is valid');
-        return true;
-      } else {
-        logger.console('Token is invalid');
+      try {
+        // Get the token for validation
+        const token = await BaseCommand.credentialManager.getToken();
+        if (!token) {
+          logger.console('Token is invalid or corrupted');
+          return false;
+        }
+
+        // Create clients for testing
+        const graphqlClient = new BuildkiteClient(token, { debug: false });
+        const restClient = new BuildkiteRestClient(token, { debug: false });
+        
+        // Test GraphQL API
+        let graphqlValid = false;
+        try {
+          await graphqlClient.getViewer();
+          graphqlValid = true;
+        } catch (error) {
+          logger.console('GraphQL API validation failed');
+        }
+        
+        // Test REST API
+        let restValid = false;
+        try {
+          await restClient.hasOrganizationAccess('buildkite');
+          restValid = true;
+        } catch (error) {
+          logger.console('REST API validation failed');
+        }
+        
+        // Report results
+        if (graphqlValid && restValid) {
+          logger.console('Token is valid for both GraphQL and REST APIs');
+          return true;
+        } else if (graphqlValid) {
+          logger.console('Token is valid for GraphQL API but not for REST API');
+          return false;
+        } else if (restValid) {
+          logger.console('Token is valid for REST API but not for GraphQL API');
+          return false;
+        } else {
+          logger.console('Token is invalid for both GraphQL and REST APIs');
+          return false;
+        }
+      } catch (error) {
+        logger.console('Error validating token');
         return false;
       }
     } else {
       logger.console('No token found in system keychain');
       return false;
     }
-
   }
 } 

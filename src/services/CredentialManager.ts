@@ -1,6 +1,7 @@
 import { Entry } from '@napi-rs/keyring';
 import { logger } from './logger.js';
 import { BuildkiteClient } from './BuildkiteClient.js';
+import { BuildkiteRestClient } from './BuildkiteRestClient.js';
 
 const SERVICE_NAME = 'bktide';
 const ACCOUNT_KEY = 'default';
@@ -70,9 +71,9 @@ export class CredentialManager {
   }
 
   /**
-   * Validates if a token is valid by making a test API call
+   * Validates if a token is valid by making test API calls to both GraphQL and REST APIs
    * @param token Optional token to validate. If not provided, will use the stored token.
-   * @returns true if the token is valid, false otherwise
+   * @returns true if the token is valid for both APIs, false otherwise
    */
   async validateToken(token?: string): Promise<boolean> {
     try {
@@ -83,13 +84,31 @@ export class CredentialManager {
         return false;
       }
 
-      // Create a client with the token
-      const client = new BuildkiteClient(tokenToValidate, { debug: false });
+      // Create clients with the token
+      const graphqlClient = new BuildkiteClient(tokenToValidate, { debug: false });
+      const restClient = new BuildkiteRestClient(tokenToValidate, { debug: false });
       
-      // Try to make a simple API call that requires authentication
-      await client.getViewer();
+      // Try to make simple API calls that require authentication
+      // First check GraphQL API
+      try {
+        await graphqlClient.getViewer();
+        logger.debug('GraphQL API token validation successful');
+      } catch (error) {
+        logger.debug('GraphQL API token validation failed', error);
+        return false;
+      }
       
-      logger.debug('Token validation successful');
+      // Then check REST API
+      try {
+        // Try to get organizations as a simple REST API test
+        await restClient.hasOrganizationAccess('buildkite');
+        logger.debug('REST API token validation successful');
+      } catch (error) {
+        logger.debug('REST API token validation failed', error);
+        return false;
+      }
+      
+      logger.debug('Token validation successful for both GraphQL and REST APIs');
       return true;
     } catch (error) {
       logger.debug('Token validation failed', error);
