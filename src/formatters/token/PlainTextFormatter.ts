@@ -1,4 +1,5 @@
 import { BaseTokenFormatter, TokenFormatter } from './Formatter.js';
+import { TokenStatus, TokenValidationStatus } from '../../types/credentials.js';
     
 /**
  * Plain text formatter for tokens
@@ -9,31 +10,23 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
   /**
    * Format token status information in plain text
    * 
-   * @param hasToken Whether a token exists
-   * @param isValid Whether the token is valid
-   * @param graphqlValid Whether the token is valid for GraphQL API
-   * @param restValid Whether the token is valid for REST API
+   * @param status The token status information
    * @returns Formatted token status message
    */
-  formatTokenStatus(
-    hasToken: boolean,
-    isValid: boolean,
-    graphqlValid: boolean,
-    restValid: boolean,
-  ): string {
-    if (!hasToken) {
+  formatTokenStatus(status: TokenStatus): string {
+    if (!status.hasToken) {
       return 'No token found in system keychain';
     }
 
-    if (isValid) {
+    if (status.isValid) {
       return 'Token is valid for both GraphQL and REST APIs';
     }
 
-    if (graphqlValid && !restValid) {
+    if (status.validation.graphqlValid && !status.validation.restValid) {
       return 'Token is valid for GraphQL API but not for REST API';
     }
 
-    if (!graphqlValid && restValid) {
+    if (!status.validation.graphqlValid && status.validation.restValid) {
       return 'Token is valid for REST API but not for GraphQL API';
     }
 
@@ -76,17 +69,15 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
   /**
    * Format token validation error in plain text
    * 
-   * @param graphqlValid Whether the token is valid for GraphQL API
-   * @param restValid Whether the token is valid for REST API
+   * @param validation The validation status for each API
    * @returns Formatted token validation error message
    */
   formatTokenValidationError(
-    graphqlValid: boolean,
-    restValid: boolean
+    validation: TokenValidationStatus
   ): string {
-    if (!graphqlValid && !restValid) {
+    if (!validation.graphqlValid && !validation.restValid) {
       return 'Token is invalid for both GraphQL and REST APIs';
-    } else if (!graphqlValid) {
+    } else if (!validation.graphqlValid) {
       return 'Token is valid for REST API but not for GraphQL API';
     } else {
       return 'Token is valid for GraphQL API but not for REST API';
@@ -96,19 +87,17 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
   /**
    * Format token validation status in plain text
    * 
-   * @param graphqlValid Whether the token is valid for GraphQL API
-   * @param restValid Whether the token is valid for REST API
+   * @param validation The validation status for each API
    * @returns Formatted token validation status message
    */
   formatTokenValidationStatus(
-    graphqlValid: boolean,
-    restValid: boolean
+    validation: TokenValidationStatus
   ): string {
-    if (graphqlValid && restValid) {
+    if (validation.graphqlValid && validation.restValid) {
       return 'Token is valid for both GraphQL and REST APIs';
-    } else if (graphqlValid) {
+    } else if (validation.graphqlValid) {
       return 'Token is valid for GraphQL API but not for REST API';
-    } else if (restValid) {
+    } else if (validation.restValid) {
       return 'Token is valid for REST API but not for GraphQL API';
     } else {
       return 'Token is invalid for both GraphQL and REST APIs';

@@ -1,5 +1,6 @@
 import { BaseFormatter as BaseFormatterInterface, FormatterOptions } from '../BaseFormatter.js';
 import { logger } from '../../services/logger.js';
+import { TokenStatus, TokenValidationStatus } from '../../types/credentials.js';
 
 /**
  * Additional options specific to token formatting
@@ -14,19 +15,11 @@ export interface TokenFormatterOptions extends FormatterOptions {
 export interface TokenFormatter extends BaseFormatterInterface {
   /**
    * Format token status information
-   * @param hasToken Whether a token exists
-   * @param isValid Whether the token is valid
-   * @param graphqlValid Whether the token is valid for GraphQL API
-   * @param restValid Whether the token is valid for REST API
+   * @param status The token status information
    * @param options Formatting options
    * @returns Formatted token status message
    */
-  formatTokenStatus(
-    hasToken: boolean,
-    isValid: boolean,
-    graphqlValid: boolean,
-    restValid: boolean
-  ): string;
+  formatTokenStatus(status: TokenStatus): string;
 
   /**
    * Format token storage result
@@ -47,27 +40,23 @@ export interface TokenFormatter extends BaseFormatterInterface {
 
   /**
    * Format token validation error
-   * @param graphqlValid Whether the token is valid for GraphQL API
-   * @param restValid Whether the token is valid for REST API
+   * @param validation The validation status for each API
    * @param options Formatting options
    * @returns Formatted token validation error message
    */
   formatTokenValidationError(
-    graphqlValid: boolean,
-    restValid: boolean,
+    validation: TokenValidationStatus,
     options?: TokenFormatterOptions
   ): string;
 
   /**
    * Format token validation status
-   * @param graphqlValid Whether the token is valid for GraphQL API
-   * @param restValid Whether the token is valid for REST API
+   * @param validation The validation status for each API
    * @param options Formatting options
    * @returns Formatted token validation status message
    */
   formatTokenValidationStatus(
-    graphqlValid: boolean,
-    restValid: boolean,
+    validation: TokenValidationStatus,
     options?: TokenFormatterOptions
   ): string;
 
@@ -92,10 +81,7 @@ export abstract class BaseTokenFormatter implements TokenFormatter {
   abstract name: string;
   
   abstract formatTokenStatus(
-    hasToken: boolean,
-    isValid: boolean,
-    graphqlValid: boolean,
-    restValid: boolean,
+    status: TokenStatus,
     options?: TokenFormatterOptions
   ): string;
 
@@ -104,14 +90,12 @@ export abstract class BaseTokenFormatter implements TokenFormatter {
   abstract formatTokenResetResult(success: boolean, hadToken: boolean, options?: TokenFormatterOptions): string;
 
   abstract formatTokenValidationError(
-    graphqlValid: boolean,
-    restValid: boolean,
+    validation: TokenValidationStatus,
     options?: TokenFormatterOptions
   ): string;
 
   abstract formatTokenValidationStatus(
-    graphqlValid: boolean,
-    restValid: boolean,
+    validation: TokenValidationStatus,
     options?: TokenFormatterOptions
   ): string;
 

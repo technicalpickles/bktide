@@ -3,6 +3,7 @@ import { logger } from '../services/logger.js';
 import prompts from 'prompts';
 import { FormatterFactory, FormatterType } from '../formatters/FormatterFactory.js';
 import { TokenFormatter } from '../formatters/token/Formatter.js';
+import { TokenStatus, TokenValidationStatus } from '../types/credentials.js';
 
 export interface TokenOptions extends BaseCommandOptions {
   check?: boolean;
@@ -68,10 +69,7 @@ export class ManageToken extends BaseCommand {
       
       // Check if token is valid for both APIs
       if (!validationResult.graphqlValid || !validationResult.restValid) {
-        const validationError = this.formatter.formatTokenValidationError(
-          validationResult.graphqlValid, 
-          validationResult.restValid
-        );
+        const validationError = this.formatter.formatTokenValidationError(validationResult);
         logger.console(validationError);
         return;
       }
@@ -113,24 +111,26 @@ export class ManageToken extends BaseCommand {
   private async checkToken(): Promise<boolean> {
     const hasToken = await BaseCommand.credentialManager.hasToken();
     let isValid = false;
-    let graphqlValid = false;
-    let restValid = false;
+    let validation: TokenValidationStatus = { graphqlValid: false, restValid: false };
 
     if (hasToken) {
       try {
         // Get the token for validation
         const token = await BaseCommand.credentialManager.getToken();
         if (!token) {
-          const formattedResult = this.formatter.formatTokenStatus(false, false, false, false);
+          const tokenStatus: TokenStatus = {
+            hasToken: false,
+            isValid: false,
+            validation: { graphqlValid: false, restValid: false }
+          };
+          const formattedResult = this.formatter.formatTokenStatus(tokenStatus);
           logger.console(formattedResult);
           return false;
         }
 
         // Validate the token using the CredentialManager
-        const validationResult = await BaseCommand.credentialManager.validateToken(token);
-        graphqlValid = validationResult.graphqlValid;
-        restValid = validationResult.restValid;
-        isValid = graphqlValid && restValid;
+        validation = await BaseCommand.credentialManager.validateToken(token);
+        isValid = validation.graphqlValid && validation.restValid;
       } catch (error) {
         const formattedError = this.formatter.formatError('validating', error);
         logger.console(formattedError);
@@ -138,7 +138,13 @@ export class ManageToken extends BaseCommand {
       }
     }
     
-    const formattedResult = this.formatter.formatTokenStatus(hasToken, isValid, graphqlValid, restValid);
+    const tokenStatus: TokenStatus = {
+      hasToken,
+      isValid,
+      validation
+    };
+    
+    const formattedResult = this.formatter.formatTokenStatus(tokenStatus);
     logger.console(formattedResult);
     
     return hasToken && isValid;

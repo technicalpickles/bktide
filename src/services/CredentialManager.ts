@@ -2,6 +2,7 @@ import { Entry } from '@napi-rs/keyring';
 import { logger } from './logger.js';
 import { BuildkiteClient } from './BuildkiteClient.js';
 import { BuildkiteRestClient } from './BuildkiteRestClient.js';
+import { TokenValidationStatus } from '../types/credentials.js';
 
 const SERVICE_NAME = 'bktide';
 const ACCOUNT_KEY = 'default';
@@ -75,7 +76,7 @@ export class CredentialManager {
    * @param token Optional token to validate. If not provided, will use the stored token.
    * @returns Object containing validation status for both GraphQL and REST APIs
    */
-  async validateToken(token?: string): Promise<{ graphqlValid: boolean; restValid: boolean }> {
+  async validateToken(token?: string): Promise<TokenValidationStatus> {
     try {
       // If no token provided, try to get the stored one
       const tokenToValidate = token || await this.getToken();

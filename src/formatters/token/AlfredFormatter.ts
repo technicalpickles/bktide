@@ -1,4 +1,5 @@
 import { BaseTokenFormatter, TokenFormatter } from './Formatter.js';
+import { TokenStatus, TokenValidationStatus } from '../../types/credentials.js';
 
 /**
  * Alfred formatter for tokens
@@ -9,30 +10,22 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
   /**
    * Format token status information for Alfred
    * 
-   * @param hasToken Whether a token exists
-   * @param isValid Whether the token is valid
-   * @param graphqlValid Whether the token is valid for GraphQL API
-   * @param restValid Whether the token is valid for REST API
+   * @param status The token status information
    * @returns Formatted token status message for Alfred
    */
-  formatTokenStatus(
-    hasToken: boolean,
-    isValid: boolean,
-    graphqlValid: boolean,
-    restValid: boolean
-  ): string {
-    const message = this.getStatusMessage(hasToken, isValid, graphqlValid, restValid);
-    const icon = this.getStatusIcon(hasToken, isValid);
+  formatTokenStatus(status: TokenStatus): string {
+    const message = this.getStatusMessage(status);
+    const icon = this.getStatusIcon(status.hasToken, status.isValid);
     
     return JSON.stringify({
       items: [
         {
           title: message,
-          subtitle: hasToken ? 'Token exists in keychain' : 'No token found',
+          subtitle: status.hasToken ? 'Token exists in keychain' : 'No token found',
           icon: {
             path: icon
           },
-          arg: hasToken ? 'token:exists' : 'token:missing'
+          arg: status.hasToken ? 'token:exists' : 'token:missing'
         }
       ]
     });
@@ -95,15 +88,13 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
   /**
    * Format token validation error for Alfred
    * 
-   * @param graphqlValid Whether the token is valid for GraphQL API
-   * @param restValid Whether the token is valid for REST API
+   * @param validation The validation status for each API
    * @returns Formatted token validation error message for Alfred
    */
   formatTokenValidationError(
-    graphqlValid: boolean,
-    restValid: boolean
+    validation: TokenValidationStatus
   ): string {
-    const message = this.getValidationErrorMessage(graphqlValid, restValid);
+    const message = this.getValidationErrorMessage(validation);
     const icon = 'xmark';
     
     return JSON.stringify({
@@ -123,28 +114,27 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
   /**
    * Format token validation status for Alfred
    * 
-   * @param graphqlValid Whether the token is valid for GraphQL API
-   * @param restValid Whether the token is valid for REST API
+   * @param validation The validation status for each API
    * @returns Formatted token validation status message for Alfred
    */
   formatTokenValidationStatus(
-    graphqlValid: boolean,
-    restValid: boolean
+    validation: TokenValidationStatus
   ): string {
-    const message = this.getValidationStatusMessage(graphqlValid, restValid);
-    const icon = graphqlValid && restValid ? 'checkmark' : 'exclamation';
+    const message = this.getValidationStatusMessage(validation);
+    const isValid = validation.graphqlValid && validation.restValid;
+    const icon = isValid ? 'checkmark' : 'exclamation';
     
     return JSON.stringify({
       items: [
         {
           title: message,
-          subtitle: graphqlValid && restValid 
+          subtitle: isValid 
             ? 'Token is valid for all operations' 
             : 'Token has limited functionality',
           icon: {
             path: icon
           },
-          arg: graphqlValid && restValid ? 'token:valid' : 'token:partially-valid'
+          arg: isValid ? 'token:valid' : 'token:partially-valid'
         }
       ]
     });
@@ -181,25 +171,20 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
   /**
    * Get a human-readable status message based on token status
    */
-  private getStatusMessage(
-    hasToken: boolean,
-    isValid: boolean,
-    graphqlValid: boolean,
-    restValid: boolean
-  ): string {
-    if (!hasToken) {
+  private getStatusMessage(status: TokenStatus): string {
+    if (!status.hasToken) {
       return 'No token found in system keychain';
     }
 
-    if (isValid) {
+    if (status.isValid) {
       return 'Token is valid for both GraphQL and REST APIs';
     }
 
-    if (graphqlValid && !restValid) {
+    if (status.validation.graphqlValid && !status.validation.restValid) {
       return 'Token is valid for GraphQL API but not for REST API';
     }
 
-    if (!graphqlValid && restValid) {
+    if (!status.validation.graphqlValid && status.validation.restValid) {
       return 'Token is valid for REST API but not for GraphQL API';
     }
 
@@ -224,10 +209,10 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
   /**
    * Get a human-readable validation error message
    */
-  private getValidationErrorMessage(graphqlValid: boolean, restValid: boolean): string {
-    if (!graphqlValid && !restValid) {
+  private getValidationErrorMessage(validation: TokenValidationStatus): string {
+    if (!validation.graphqlValid && !validation.restValid) {
       return 'Token is invalid for both GraphQL and REST APIs';
-    } else if (!graphqlValid) {
+    } else if (!validation.graphqlValid) {
       return 'Token is valid for REST API but not for GraphQL API';
     } else {
       return 'Token is valid for GraphQL API but not for REST API';
@@ -237,12 +222,12 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
   /**
    * Get a human-readable validation status message
    */
-  private getValidationStatusMessage(graphqlValid: boolean, restValid: boolean): string {
-    if (graphqlValid && restValid) {
+  private getValidationStatusMessage(validation: TokenValidationStatus): string {
+    if (validation.graphqlValid && validation.restValid) {
       return 'Token is valid for both GraphQL and REST APIs';
-    } else if (graphqlValid) {
+    } else if (validation.graphqlValid) {
       return 'Token is valid for GraphQL API but not for REST API';
-    } else if (restValid) {
+    } else if (validation.restValid) {
       return 'Token is valid for REST API but not for GraphQL API';
     } else {
       return 'Token is invalid for both GraphQL and REST APIs';

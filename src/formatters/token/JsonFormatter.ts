@@ -1,4 +1,5 @@
 import { BaseTokenFormatter, TokenFormatter } from './Formatter.js';
+import { TokenStatus, TokenValidationStatus } from '../../types/credentials.js';
 
 /**
  * JSON formatter for tokens
@@ -9,27 +10,16 @@ export class JsonFormatter extends BaseTokenFormatter implements TokenFormatter 
   /**
    * Format token status information as JSON
    * 
-   * @param hasToken Whether a token exists
-   * @param isValid Whether the token is valid
-   * @param graphqlValid Whether the token is valid for GraphQL API
-   * @param restValid Whether the token is valid for REST API
+   * @param status The token status information
    * @returns Formatted token status message as JSON string
    */
-  formatTokenStatus(
-    hasToken: boolean,
-    isValid: boolean,
-    graphqlValid: boolean,
-    restValid: boolean
-  ): string {
-    const status = {
-      hasToken,
-      isValid,
-      graphqlValid,
-      restValid,
-      message: this.getStatusMessage(hasToken, isValid, graphqlValid, restValid)
+  formatTokenStatus(status: TokenStatus): string {
+    const result = {
+      ...status,
+      message: this.getStatusMessage(status)
     };
 
-    return JSON.stringify(status, null, 2);
+    return JSON.stringify(result, null, 2);
   }
 
   /**
@@ -69,19 +59,16 @@ export class JsonFormatter extends BaseTokenFormatter implements TokenFormatter 
   /**
    * Format token validation error as JSON
    * 
-   * @param graphqlValid Whether the token is valid for GraphQL API
-   * @param restValid Whether the token is valid for REST API
+   * @param validation The validation status for each API
    * @param options Formatting options
    * @returns Formatted token validation error message as JSON string
    */
   formatTokenValidationError(
-    graphqlValid: boolean,
-    restValid: boolean
+    validation: TokenValidationStatus
   ): string {
     const error = {
-      graphqlValid,
-      restValid,
-      message: this.getValidationErrorMessage(graphqlValid, restValid)
+      ...validation,
+      message: this.getValidationErrorMessage(validation)
     };
 
     return JSON.stringify(error, null, 2);
@@ -90,20 +77,17 @@ export class JsonFormatter extends BaseTokenFormatter implements TokenFormatter 
   /**
    * Format token validation status as JSON
    * 
-   * @param graphqlValid Whether the token is valid for GraphQL API
-   * @param restValid Whether the token is valid for REST API
+   * @param validation The validation status for each API
    * @param options Formatting options
    * @returns Formatted token validation status message as JSON string
    */
   formatTokenValidationStatus(
-    graphqlValid: boolean,
-    restValid: boolean
+    validation: TokenValidationStatus
   ): string {
     const status = {
-      graphqlValid,
-      restValid,
-      isValid: graphqlValid && restValid,
-      message: this.getValidationStatusMessage(graphqlValid, restValid)
+      ...validation,
+      isValid: validation.graphqlValid && validation.restValid,
+      message: this.getValidationStatusMessage(validation)
     };
 
     return JSON.stringify(status, null, 2);
@@ -133,25 +117,20 @@ export class JsonFormatter extends BaseTokenFormatter implements TokenFormatter 
   /**
    * Get a human-readable status message based on token status
    */
-  private getStatusMessage(
-    hasToken: boolean,
-    isValid: boolean,
-    graphqlValid: boolean,
-    restValid: boolean
-  ): string {
-    if (!hasToken) {
+  private getStatusMessage(status: TokenStatus): string {
+    if (!status.hasToken) {
       return 'No token found in system keychain';
     }
 
-    if (isValid) {
+    if (status.isValid) {
       return 'Token is valid for both GraphQL and REST APIs';
     }
 
-    if (graphqlValid && !restValid) {
+    if (status.validation.graphqlValid && !status.validation.restValid) {
       return 'Token is valid for GraphQL API but not for REST API';
     }
 
-    if (!graphqlValid && restValid) {
+    if (!status.validation.graphqlValid && status.validation.restValid) {
       return 'Token is valid for REST API but not for GraphQL API';
     }
 
@@ -176,10 +155,10 @@ export class JsonFormatter extends BaseTokenFormatter implements TokenFormatter 
   /**
    * Get a human-readable validation error message
    */
-  private getValidationErrorMessage(graphqlValid: boolean, restValid: boolean): string {
-    if (!graphqlValid && !restValid) {
+  private getValidationErrorMessage(validation: TokenValidationStatus): string {
+    if (!validation.graphqlValid && !validation.restValid) {
       return 'Token is invalid for both GraphQL and REST APIs';
-    } else if (!graphqlValid) {
+    } else if (!validation.graphqlValid) {
       return 'Token is valid for REST API but not for GraphQL API';
     } else {
       return 'Token is valid for GraphQL API but not for REST API';
@@ -189,12 +168,12 @@ export class JsonFormatter extends BaseTokenFormatter implements TokenFormatter 
   /**
    * Get a human-readable validation status message
    */
-  private getValidationStatusMessage(graphqlValid: boolean, restValid: boolean): string {
-    if (graphqlValid && restValid) {
+  private getValidationStatusMessage(validation: TokenValidationStatus): string {
+    if (validation.graphqlValid && validation.restValid) {
       return 'Token is valid for both GraphQL and REST APIs';
-    } else if (graphqlValid) {
+    } else if (validation.graphqlValid) {
       return 'Token is valid for GraphQL API but not for REST API';
-    } else if (restValid) {
+    } else if (validation.restValid) {
       return 'Token is valid for REST API but not for GraphQL API';
     } else {
       return 'Token is invalid for both GraphQL and REST APIs';
