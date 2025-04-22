@@ -198,7 +198,7 @@ export class BuildkiteClient {
       const organizations = this.processOrganizationsResponse(data);
       
       if (organizations.length === 0) {
-        throw new Error('No organizations found for the current user');
+        return []
       }
       
       // Map to just the slugs

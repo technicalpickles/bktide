@@ -128,45 +128,40 @@ export abstract class BaseCommand {
   }
 
   protected handleError(error: any, debug: boolean = false): void {
-    logger.error('🔥 Error Details:');
-    
+    // Only log the error message and stack trace
     if (error instanceof Error) {
-      logger.error(`Message: ${error.message}`);
+      logger.error(`Error: ${error.message}`);
       
       // Always print the stack trace for proper debugging
       if (error.stack) {
-        logger.error('Stack Trace:');
         logger.error(error.stack);
       }
       
       // If it's a GraphQL error or API error, show more details
       const apiError = error as ApiError;
       if (apiError.response?.errors) {
-        logger.error('GraphQL Errors:');
         apiError.response.errors.forEach((gqlError, index) => {
-          logger.error(`  Error ${index + 1}: ${gqlError.message}`);
-          if (gqlError.path) logger.error(`  Path: ${gqlError.path.join('.')}`);
-          if (gqlError.locations) logger.error(`  Locations: ${JSON.stringify(gqlError.locations)}`);
+          logger.error(`GraphQL Error ${index + 1}: ${gqlError.message}`);
+          if (gqlError.path) logger.error(`Path: ${gqlError.path.join('.')}`);
         });
       }
       
       // Show request details if available and in debug mode
       if (debug && apiError.request) {
-        logger.error('Request Details:');
-        logger.error(`  URL: ${apiError.request.url || 'N/A'}`);
-        logger.error(`  Method: ${apiError.request.method || 'N/A'}`);
+        logger.debug('Request Details:');
+        logger.debug(`URL: ${apiError.request.url || 'N/A'}`);
+        logger.debug(`Method: ${apiError.request.method || 'N/A'}`);
       }
     } else if (typeof error === 'object') {
       logger.error(JSON.stringify(error, null, 2));
     } else {
-      logger.error('An unknown error occurred:', error);
+      logger.error(`An unknown error occurred: ${error}`);
     }
     
     if (debug) {
-      logger.debug('\nDebug Information:');
-      logger.debug(`⏰ Timestamp: ${new Date().toISOString()}`);
-      logger.debug(`🔧 Node Version: ${process.version}`);
-      logger.debug(`💻 Platform: ${process.platform} (${process.arch})`);
+      logger.debug(`Timestamp: ${new Date().toISOString()}`);
+      logger.debug(`Node Version: ${process.version}`);
+      logger.debug(`Platform: ${process.platform} (${process.arch})`);
     }
   }
 

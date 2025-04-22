@@ -31,7 +31,8 @@ export class ListBuilds extends BaseCommand {
       const viewerData = await this.client.getViewer();
       
       if (!viewerData?.viewer?.user?.uuid) {
-        throw new Error('Failed to get current user UUID information');
+        logger.error('Failed to get current user UUID information');
+        return 1;
       }
       
       const userId = viewerData.viewer.user.uuid;
@@ -49,8 +50,8 @@ export class ListBuilds extends BaseCommand {
         try {
           orgs = await this.client.getViewerOrganizationSlugs();
         } catch (error) {
-          logger.error('Error fetching organizations:', error);
-          throw new Error('Failed to determine your organizations. Please specify an organization with --org');
+          logger.error('Failed to determine your organizations');
+          return 1;
         }
       } else {
         orgs = [options.org];
@@ -58,14 +59,14 @@ export class ListBuilds extends BaseCommand {
       
       // Initialize results array
       let allBuilds: Build[] = [];
-      let errors: string[] = [];
+      let accessErrors: string[] = [];
       
       for (const org of orgs) {
         try {
           // First check if the user has access to this organization
           const hasAccess = await this.restClient.hasOrganizationAccess(org);
           if (!hasAccess) {
-            errors.push(`You don't have access to organization ${org}`);
+            accessErrors.push(`You don't have access to organization ${org}`);
             continue;
           }
           
@@ -84,24 +85,39 @@ export class ListBuilds extends BaseCommand {
           
           allBuilds = allBuilds.concat(builds);
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          errors.push(`Error fetching builds for org ${org}: ${errorMessage}`);
-          
-          if (options.debug) {
-            logger.error(`Error fetching builds for org ${org}:`, error);
-          }
+          // Log unexpected errors but continue processing other orgs
+          logger.error(`Error fetching builds for org ${org}: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
       
-      // If we have no builds and there were errors, provide a helpful message
-      if (allBuilds.length === 0 && errors.length > 0) {
+      // Handle the case where we have no builds due to access issues
+      if (allBuilds.length === 0 && accessErrors.length > 0) {
         if (options.org) {
           // If org was specified, show the specific error
-          throw new Error(`No builds found for ${userName} (${userEmail}) in organization ${options.org}. ${errors[0]}`);
+          logger.error(`No builds found for ${userName} (${userEmail}) in organization ${options.org}. ${accessErrors[0]}`);
         } else {
           // If no org was specified, suggest using --org
-          throw new Error(`No builds found for ${userName} (${userEmail}). Try specifying an organization with --org to narrow your search.`);
+          logger.error(`No builds found for ${userName} (${userEmail}). Try specifying an organization with --org to narrow your search.`);
         }
+        return 1;
+      }
+      
+      // Handle the case where we have no builds but no errors (just empty results)
+      if (allBuilds.length === 0) {
+        if (options.org) {
+          logger.info(`No builds found for ${userName} (${userEmail}) in organization ${options.org}.`);
+        } else {
+          logger.info(`No builds found for ${userName} (${userEmail}). Try specifying an organization with --org to narrow your search.`);
+        }
+        
+        // Special case handling for empty results with Alfred and JSON formatters
+        const format = options.format || 'plain';
+        if (format === 'alfred') {
+          logger.console(JSON.stringify({ items: [] }));
+        } else if (format === 'json') {
+          logger.console(JSON.stringify([]));
+        }
+        return 0;
       }
       
       // Limit to the requested number of builds
@@ -128,6 +144,20 @@ export class ListBuilds extends BaseCommand {
         if (options.debug) {
           logger.debug(`Filtered to ${allBuilds.length} builds matching '${options.filter}'`);
         }
+        
+        // Handle case where filter returned no results
+        if (allBuilds.length === 0) {
+          logger.info(`No builds found matching filter '${options.filter}'.`);
+          
+          // Special case handling for empty results with Alfred and JSON formatters
+          const format = options.format || 'plain';
+          if (format === 'alfred') {
+            logger.console(JSON.stringify({ items: [] }));
+          } else if (format === 'json') {
+            logger.console(JSON.stringify([]));
+          }
+          return 0;
+        }
       }
       
       const format = options.format || 'plain';
@@ -141,25 +171,18 @@ export class ListBuilds extends BaseCommand {
         userId
       };
       
-      // Special case handling for empty results with Alfred and JSON formatters
-      if (allBuilds.length === 0 && format === 'alfred') {
-        logger.console(JSON.stringify({ items: [] }));
-        return 0;
-      } else if (allBuilds.length === 0 && format === 'json') {
-        logger.console(JSON.stringify([]));
-        return 0;
-      }
-      
       const output = formatter.formatBuilds(allBuilds, formatterOptions);
       logger.console(output);
       
       if (options.debug) {
         const executeDuration = Number(process.hrtime.bigint() - executeStartTime) / 1000000;
-        logger.debug(` ViewerBuildsCommandHandler execution completed in ${executeDuration.toFixed(2)}ms`);
+        logger.debug(`ViewerBuildsCommandHandler execution completed in ${executeDuration.toFixed(2)}ms`);
       }
       
       return 0; // Success
     } catch (error) {
+      // Only unexpected errors should reach here
+      // Let the base command handle the error display
       this.handleError(error, options.debug);
       return 1; // Error
     }
