@@ -53,7 +53,7 @@ export class ListPipelines extends BaseCommand {
         
         while (hasNextPage && allPipelines.length < resultLimit) {
           if (options.debug) {
-            logger.debug(`Debug: Fetching batch of pipelines from org ${org}, cursor: ${cursor || 'initial'}`);
+            logger.debug(`Fetching batch of pipelines from org ${org}, cursor: ${cursor || 'initial'}`);
           }
           
           const data = await this.client.getPipelines(org, batchSize, cursor || undefined);
@@ -84,9 +84,9 @@ export class ListPipelines extends BaseCommand {
           cursor = data?.organization?.pipelines?.pageInfo?.endCursor || null;
           
           if (options.debug) {
-            logger.debug(`Debug: Fetched batch of ${data?.organization?.pipelines?.edges?.length || 0} pipelines from org ${org}`);
+            logger.debug(`Fetched batch of ${data?.organization?.pipelines?.edges?.length || 0} pipelines from org ${org}`);
             if (hasNextPage) {
-              logger.debug(`Debug: More pages available, cursor: ${cursor}`);
+              logger.debug(`More pages available, cursor: ${cursor}`);
             }
           }
           
@@ -108,7 +108,7 @@ export class ListPipelines extends BaseCommand {
     
     if (options.filter && allPipelines.length > 0) {
       if (options.debug) {
-        logger.debug(`Debug: Applying fuzzy filter '${options.filter}' to ${allPipelines.length} pipelines`);
+        logger.debug(`Applying fuzzy filter '${options.filter}' to ${allPipelines.length} pipelines`);
       }
       
       const fuse = new Fuse(allPipelines, {
@@ -122,7 +122,7 @@ export class ListPipelines extends BaseCommand {
       allPipelines = searchResults.map(result => result.item);
       
       if (options.debug) {
-        logger.debug(`Debug: Filtered to ${allPipelines.length} pipelines matching '${options.filter}'`);
+        logger.debug(`Filtered to ${allPipelines.length} pipelines matching '${options.filter}'`);
       }
     }
     

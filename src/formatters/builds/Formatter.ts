@@ -13,7 +13,7 @@ export abstract class BaseFormatter implements BuildFormatter {
   
   format<T>(data: T[], formatFn: (data: T[], options?: FormatterOptions) => string, options?: FormatterOptions): string {
     if (options?.debug) {
-      logger.debug(`Debug: Formatting with ${this.name} formatter`);
+      logger.debug(`Formatting with ${this.name} formatter`);
     }
     return formatFn(data, options);
   }

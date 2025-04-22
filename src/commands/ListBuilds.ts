@@ -79,7 +79,7 @@ export class ListBuilds extends BaseCommand {
           });
           
           if (options.debug) {
-            logger.debug(`Debug: Received ${builds.length} builds from org ${org}`);
+            logger.debug(`Received ${builds.length} builds from org ${org}`);
           }
           
           allBuilds = allBuilds.concat(builds);
@@ -110,7 +110,7 @@ export class ListBuilds extends BaseCommand {
       // Apply fuzzy filter if specified
       if (options.filter) {
         if (options.debug) {
-          logger.debug(`Debug: Applying fuzzy filter '${options.filter}' to ${allBuilds.length} builds`);
+          logger.debug(`Applying fuzzy filter '${options.filter}' to ${allBuilds.length} builds`);
         }
         
         // Configure Fuse for fuzzy searching
@@ -126,7 +126,7 @@ export class ListBuilds extends BaseCommand {
         allBuilds = searchResults.map(result => result.item);
         
         if (options.debug) {
-          logger.debug(`Debug: Filtered to ${allBuilds.length} builds matching '${options.filter}'`);
+          logger.debug(`Filtered to ${allBuilds.length} builds matching '${options.filter}'`);
         }
       }
       
