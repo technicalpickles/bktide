@@ -25,8 +25,7 @@ export interface TokenFormatter extends BaseFormatterInterface {
     hasToken: boolean,
     isValid: boolean,
     graphqlValid: boolean,
-    restValid: boolean,
-    options?: TokenFormatterOptions
+    restValid: boolean
   ): string;
 
   /**
@@ -35,7 +34,7 @@ export interface TokenFormatter extends BaseFormatterInterface {
    * @param options Formatting options
    * @returns Formatted token storage result message
    */
-  formatTokenStorageResult(success: boolean, options?: TokenFormatterOptions): string;
+  formatTokenStorageResult(success: boolean): string;
 
   /**
    * Format token reset result
@@ -44,7 +43,46 @@ export interface TokenFormatter extends BaseFormatterInterface {
    * @param options Formatting options
    * @returns Formatted token reset result message
    */
-  formatTokenResetResult(success: boolean, hadToken: boolean, options?: TokenFormatterOptions): string;
+  formatTokenResetResult(success: boolean, hadToken: boolean): string;
+
+  /**
+   * Format token validation error
+   * @param graphqlValid Whether the token is valid for GraphQL API
+   * @param restValid Whether the token is valid for REST API
+   * @param options Formatting options
+   * @returns Formatted token validation error message
+   */
+  formatTokenValidationError(
+    graphqlValid: boolean,
+    restValid: boolean,
+    options?: TokenFormatterOptions
+  ): string;
+
+  /**
+   * Format token validation status
+   * @param graphqlValid Whether the token is valid for GraphQL API
+   * @param restValid Whether the token is valid for REST API
+   * @param options Formatting options
+   * @returns Formatted token validation status message
+   */
+  formatTokenValidationStatus(
+    graphqlValid: boolean,
+    restValid: boolean,
+    options?: TokenFormatterOptions
+  ): string;
+
+  /**
+   * Format general error message
+   * @param operation The operation that failed (e.g., 'storing', 'resetting', 'validating')
+   * @param error The error that occurred
+   * @param options Formatting options
+   * @returns Formatted error message
+   */
+  formatError(
+    operation: string,
+    error: unknown,
+    options?: TokenFormatterOptions
+  ): string;
 }
 
 /**
@@ -64,6 +102,24 @@ export abstract class BaseTokenFormatter implements TokenFormatter {
   abstract formatTokenStorageResult(success: boolean, options?: TokenFormatterOptions): string;
 
   abstract formatTokenResetResult(success: boolean, hadToken: boolean, options?: TokenFormatterOptions): string;
+
+  abstract formatTokenValidationError(
+    graphqlValid: boolean,
+    restValid: boolean,
+    options?: TokenFormatterOptions
+  ): string;
+
+  abstract formatTokenValidationStatus(
+    graphqlValid: boolean,
+    restValid: boolean,
+    options?: TokenFormatterOptions
+  ): string;
+
+  abstract formatError(
+    operation: string,
+    error: unknown,
+    options?: TokenFormatterOptions
+  ): string;
   
   format<T>(data: T[], formatFn: (data: T[], options?: FormatterOptions) => string, options?: FormatterOptions): string {
     if (options?.debug) {

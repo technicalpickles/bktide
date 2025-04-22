@@ -42,7 +42,6 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
    * Format token storage result for Alfred
    * 
    * @param success Whether the token was successfully stored
-   * @param options Formatting options
    * @returns Formatted token storage result message for Alfred
    */
   formatTokenStorageResult(success: boolean): string {
@@ -94,6 +93,92 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
   }
 
   /**
+   * Format token validation error for Alfred
+   * 
+   * @param graphqlValid Whether the token is valid for GraphQL API
+   * @param restValid Whether the token is valid for REST API
+   * @returns Formatted token validation error message for Alfred
+   */
+  formatTokenValidationError(
+    graphqlValid: boolean,
+    restValid: boolean
+  ): string {
+    const message = this.getValidationErrorMessage(graphqlValid, restValid);
+    const icon = 'xmark';
+    
+    return JSON.stringify({
+      items: [
+        {
+          title: message,
+          subtitle: 'Please ensure your token has the necessary permissions for both APIs',
+          icon: {
+            path: icon
+          },
+          arg: 'token:invalid'
+        }
+      ]
+    });
+  }
+
+  /**
+   * Format token validation status for Alfred
+   * 
+   * @param graphqlValid Whether the token is valid for GraphQL API
+   * @param restValid Whether the token is valid for REST API
+   * @returns Formatted token validation status message for Alfred
+   */
+  formatTokenValidationStatus(
+    graphqlValid: boolean,
+    restValid: boolean
+  ): string {
+    const message = this.getValidationStatusMessage(graphqlValid, restValid);
+    const icon = graphqlValid && restValid ? 'checkmark' : 'exclamation';
+    
+    return JSON.stringify({
+      items: [
+        {
+          title: message,
+          subtitle: graphqlValid && restValid 
+            ? 'Token is valid for all operations' 
+            : 'Token has limited functionality',
+          icon: {
+            path: icon
+          },
+          arg: graphqlValid && restValid ? 'token:valid' : 'token:partially-valid'
+        }
+      ]
+    });
+  }
+
+  /**
+   * Format general error message for Alfred
+   * 
+   * @param operation The operation that failed (e.g., 'storing', 'resetting', 'validating')
+   * @param error The error that occurred
+   * @returns Formatted error message for Alfred
+   */
+  formatError(
+    operation: string,
+    error: unknown
+  ): string {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const message = `Error ${operation} token: ${errorMessage}`;
+    
+    return JSON.stringify({
+      items: [
+        {
+          title: message,
+          subtitle: 'An error occurred while managing your token',
+          icon: {
+            path: 'xmark'
+          },
+          arg: `token:error:${operation}`
+        }
+      ]
+    });
+  }
+
+  /**
    * Get a human-readable status message based on token status
    */
   private getStatusMessage(
@@ -133,6 +218,34 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
       return 'Token successfully deleted from system keychain';
     } else {
       return 'Failed to delete token';
+    }
+  }
+
+  /**
+   * Get a human-readable validation error message
+   */
+  private getValidationErrorMessage(graphqlValid: boolean, restValid: boolean): string {
+    if (!graphqlValid && !restValid) {
+      return 'Token is invalid for both GraphQL and REST APIs';
+    } else if (!graphqlValid) {
+      return 'Token is valid for REST API but not for GraphQL API';
+    } else {
+      return 'Token is valid for GraphQL API but not for REST API';
+    }
+  }
+
+  /**
+   * Get a human-readable validation status message
+   */
+  private getValidationStatusMessage(graphqlValid: boolean, restValid: boolean): string {
+    if (graphqlValid && restValid) {
+      return 'Token is valid for both GraphQL and REST APIs';
+    } else if (graphqlValid) {
+      return 'Token is valid for GraphQL API but not for REST API';
+    } else if (restValid) {
+      return 'Token is valid for REST API but not for GraphQL API';
+    } else {
+      return 'Token is invalid for both GraphQL and REST APIs';
     }
   }
 

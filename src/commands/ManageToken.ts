@@ -1,8 +1,6 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { logger } from '../services/logger.js';
 import prompts from 'prompts';
-import { BuildkiteClient } from '../services/BuildkiteClient.js';
-import { BuildkiteRestClient } from '../services/BuildkiteRestClient.js';
 import { FormatterFactory, FormatterType } from '../formatters/FormatterFactory.js';
 import { TokenFormatter } from '../formatters/token/Formatter.js';
 
@@ -41,7 +39,8 @@ export class ManageToken extends BaseCommand {
       
       return 0; // Success
     } catch (error) {
-      this.handleError(error, options.debug);
+      const formattedError = this.formatter.formatError('executing', error);
+      logger.console(formattedError);
       return 1; // Error
     }
   }
@@ -64,38 +63,16 @@ export class ManageToken extends BaseCommand {
       // Validate the token before storing it
       logger.console('Validating token...');
       
-      // Create clients for testing
-      const graphqlClient = new BuildkiteClient(response.token, { debug: false });
-      const restClient = new BuildkiteRestClient(response.token, { debug: false });
-      
-      // Test GraphQL API
-      let graphqlValid = false;
-      try {
-        await graphqlClient.getViewer();
-        graphqlValid = true;
-      } catch (error) {
-        logger.console('GraphQL API validation failed');
-      }
-      
-      // Test REST API
-      let restValid = false;
-      try {
-        await restClient.hasOrganizationAccess('buildkite');
-        restValid = true;
-      } catch (error) {
-        logger.console('REST API validation failed');
-      }
+      // Validate the token using the CredentialManager
+      const validationResult = await BaseCommand.credentialManager.validateToken(response.token);
       
       // Check if token is valid for both APIs
-      if (!graphqlValid || !restValid) {
-        if (!graphqlValid && !restValid) {
-          logger.error('Token is invalid for both GraphQL and REST APIs');
-        } else if (!graphqlValid) {
-          logger.error('Token is valid for REST API but not for GraphQL API');
-        } else {
-          logger.error('Token is valid for GraphQL API but not for REST API');
-        }
-        logger.error('Please ensure your token has the necessary permissions for both APIs');
+      if (!validationResult.graphqlValid || !validationResult.restValid) {
+        const validationError = this.formatter.formatTokenValidationError(
+          validationResult.graphqlValid, 
+          validationResult.restValid
+        );
+        logger.console(validationError);
         return;
       }
       
@@ -104,7 +81,8 @@ export class ManageToken extends BaseCommand {
       const formattedResult = this.formatter.formatTokenStorageResult(success);
       logger.console(formattedResult);
     } catch (error) {
-      logger.error('Error storing token', error);
+      const formattedError = this.formatter.formatError('storing', error);
+      logger.console(formattedError);
     }
   }
 
@@ -120,7 +98,8 @@ export class ManageToken extends BaseCommand {
       const formattedResult = this.formatter.formatTokenResetResult(success, hadToken);
       logger.console(formattedResult);
     } catch (error) {
-      logger.error('Error resetting token', error);
+      const formattedError = this.formatter.formatError('resetting', error);
+      logger.console(formattedError);
     }
   }
 
@@ -147,30 +126,14 @@ export class ManageToken extends BaseCommand {
           return false;
         }
 
-        // Create clients for testing
-        const graphqlClient = new BuildkiteClient(token, { debug: false });
-        const restClient = new BuildkiteRestClient(token, { debug: false });
-        
-        // Test GraphQL API
-        try {
-          await graphqlClient.getViewer();
-          graphqlValid = true;
-        } catch (error) {
-          logger.console('GraphQL API validation failed');
-        }
-        
-        // Test REST API
-        try {
-          await restClient.hasOrganizationAccess('buildkite');
-          restValid = true;
-        } catch (error) {
-          logger.console('REST API validation failed');
-        }
-        
-        // Determine overall validity
+        // Validate the token using the CredentialManager
+        const validationResult = await BaseCommand.credentialManager.validateToken(token);
+        graphqlValid = validationResult.graphqlValid;
+        restValid = validationResult.restValid;
         isValid = graphqlValid && restValid;
       } catch (error) {
-        logger.console('Error validating token');
+        const formattedError = this.formatter.formatError('validating', error);
+        logger.console(formattedError);
         return false;
       }
     }

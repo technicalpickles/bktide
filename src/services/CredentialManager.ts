@@ -73,15 +73,15 @@ export class CredentialManager {
   /**
    * Validates if a token is valid by making test API calls to both GraphQL and REST APIs
    * @param token Optional token to validate. If not provided, will use the stored token.
-   * @returns true if the token is valid for both APIs, false otherwise
+   * @returns Object containing validation status for both GraphQL and REST APIs
    */
-  async validateToken(token?: string): Promise<boolean> {
+  async validateToken(token?: string): Promise<{ graphqlValid: boolean; restValid: boolean }> {
     try {
       // If no token provided, try to get the stored one
       const tokenToValidate = token || await this.getToken();
       if (!tokenToValidate) {
         logger.debug('No token provided for validation');
-        return false;
+        return { graphqlValid: false, restValid: false };
       }
 
       // Create clients with the token
@@ -90,29 +90,31 @@ export class CredentialManager {
       
       // Try to make simple API calls that require authentication
       // First check GraphQL API
+      let graphqlValid = false;
       try {
         await graphqlClient.getViewer();
         logger.debug('GraphQL API token validation successful');
+        graphqlValid = true;
       } catch (error) {
         logger.debug('GraphQL API token validation failed', error);
-        return false;
       }
       
       // Then check REST API
+      let restValid = false;
       try {
         // Try to get organizations as a simple REST API test
         await restClient.hasOrganizationAccess('buildkite');
         logger.debug('REST API token validation successful');
+        restValid = true;
       } catch (error) {
         logger.debug('REST API token validation failed', error);
-        return false;
       }
       
-      logger.debug('Token validation successful for both GraphQL and REST APIs');
-      return true;
+      logger.debug(`Token validation results: GraphQL=${graphqlValid}, REST=${restValid}`);
+      return { graphqlValid, restValid };
     } catch (error) {
       logger.debug('Token validation failed', error);
-      return false;
+      return { graphqlValid: false, restValid: false };
     }
   }
 } 
