@@ -16,25 +16,20 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
   formatTokenStatus(status: TokenStatus): string {
     const items = [];
     
-    // Add a summary item
-    const summaryMessage = this.getStatusMessage(status);
-    const summaryIcon = this.getStatusIcon(status.hasToken, status.isValid);
-    
     items.push({
-      title: summaryMessage,
+      title: "Keychain",
       subtitle: status.hasToken ? 'Token exists in keychain' : 'No token found',
       icon: {
-        path: summaryIcon
+        path: this.getIcon(status.hasToken)
       },
+      valid: false,
       arg: status.hasToken ? 'token:exists' : 'token:missing'
     });
     
     // Add GraphQL API status item
     if (status.hasToken) {
-      const graphqlIcon = status.validation.graphqlValid ? 'checkmark' : 'xmark';
-      const graphqlTitle = status.validation.graphqlValid 
-        ? 'GraphQL API: Valid' 
-        : 'GraphQL API: Invalid';
+      const graphqlIcon = this.getIcon(status.validation.graphqlValid);
+      const graphqlTitle = 'GraphQL API';
       const graphqlSubtitle = status.validation.graphqlValid 
         ? 'Token has GraphQL API access' 
         : 'Token lacks GraphQL API access';
@@ -45,14 +40,13 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
         icon: {
           path: graphqlIcon
         },
+        valid: false, // to indicate if you can select it
         arg: status.validation.graphqlValid ? 'token:graphql:valid' : 'token:graphql:invalid'
       });
       
       // Add Builds REST API status item
-      const buildsIcon = status.validation.buildAccessValid ? 'checkmark' : 'xmark';
-      const buildsTitle = status.validation.buildAccessValid 
-        ? 'Builds REST API: Valid' 
-        : 'Builds REST API: Invalid';
+      const buildsIcon = this.getIcon(status.validation.buildAccessValid);
+      const buildsTitle = 'Builds REST API';
       const buildsSubtitle = status.validation.buildAccessValid 
         ? 'Token has Builds REST API access' 
         : 'Token lacks Builds REST API access';
@@ -63,14 +57,13 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
         icon: {
           path: buildsIcon
         },
+        valid: false, // to indicate if you can select it
         arg: status.validation.buildAccessValid ? 'token:rest:builds:valid' : 'token:rest:builds:invalid'
       });
 
       // Add Organization REST API status item
-      const orgIcon = status.validation.orgAccessValid ? 'checkmark' : 'xmark';
-      const orgTitle = status.validation.orgAccessValid 
-        ? 'Organization REST API: Valid' 
-        : 'Organization REST API: Invalid';
+      const orgIcon = this.getIcon(status.validation.orgAccessValid);
+      const orgTitle = 'Organization REST API';
       const orgSubtitle = status.validation.orgAccessValid 
         ? 'Token has Organization REST API access' 
         : 'Token lacks Organization REST API access';
@@ -81,6 +74,7 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
         icon: {
           path: orgIcon
         },
+        valid: false, // to indicate if you can select it
         arg: status.validation.orgAccessValid ? 'token:rest:org:valid' : 'token:rest:org:invalid'
       });
     }
@@ -124,7 +118,7 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
    */
   formatTokenResetResult(success: boolean, hadToken: boolean): string {
     const message = this.getResetMessage(success, hadToken);
-    const icon = success ? 'checkmark' : 'xmark';
+    const icon = this.getIcon(success && hadToken);
     
     return JSON.stringify({
       items: [
@@ -152,7 +146,7 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
     validation: TokenValidationStatus
   ): string {
     const message = this.getValidationErrorMessage(validation);
-    const icon = 'xmark';
+    const icon = this.getIcon(false);
     
     return JSON.stringify({
       items: [
@@ -179,7 +173,7 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
   ): string {
     const message = this.getValidationStatusMessage(validation);
     const isValid = validation.valid;
-    const icon = isValid ? 'checkmark' : 'exclamation';
+    const icon = this.getIcon(isValid);
     
     return JSON.stringify({
       items: [
@@ -217,36 +211,12 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
           title: message,
           subtitle: 'An error occurred while managing your token',
           icon: {
-            path: 'xmark'
+            path: this.getIcon(false)
           },
           arg: `token:error:${operation}`
         }
       ]
     });
-  }
-
-  /**
-   * Get a human-readable status message based on token status
-   */
-  private getStatusMessage(status: TokenStatus): string {
-    if (!status.hasToken) {
-      return 'No token found in system keychain';
-    }
-
-    if (status.isValid) {
-      return 'Token is valid for GraphQL and both REST APIs';
-    }
-
-    const validApis = [];
-    if (status.validation.graphqlValid) validApis.push('GraphQL');
-    if (status.validation.buildAccessValid) validApis.push('Builds REST');
-    if (status.validation.orgAccessValid) validApis.push('Organization REST');
-
-    if (validApis.length === 0) {
-      return 'Token is invalid for all APIs';
-    }
-
-    return `Token is valid for ${validApis.join(', ')} API${validApis.length > 1 ? 's' : ''}`;
   }
 
   /**
@@ -300,18 +270,7 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
     return `Token is valid for ${validApis.join(', ')} API${validApis.length > 1 ? 's' : ''}`;
   }
 
-  /**
-   * Get the appropriate icon for the token status
-   */
-  private getStatusIcon(hasToken: boolean, isValid: boolean): string {
-    if (!hasToken) {
-      return 'xmark';
-    }
-    
-    if (isValid) {
-      return 'checkmark';
-    }
-    
-    return 'exclamation';
+  private getIcon(valid: boolean): string {
+    return valid ? 'icons/passed.png' : 'icons/failed.png';
   }
 } 
