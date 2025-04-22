@@ -10,18 +10,25 @@ export class ListOrganizations extends BaseCommand {
     super(options);
   }
   
-  public async execute(options: OrganizationOptions = {}): Promise<void> {      
-    const organizations = await this.client.getOrganizations();
-    
-    if (options.debug) {
-      logger.debug(`Fetched ${organizations.length} organizations`);
+  public async execute(options: OrganizationOptions = {}): Promise<number> {      
+    try {
+      const organizations = await this.client.getOrganizations();
+      
+      if (options.debug) {
+        logger.debug(`Fetched ${organizations.length} organizations`);
+      }
+      
+      // Get the appropriate formatter
+      const formatter = this.getFormatter(FormatterType.ORGANIZATION, options) as OrganizationFormatter;
+      
+      // Format and output the organizations
+      const output = formatter.formatOrganizations(organizations, { debug: options.debug });
+      logger.console(output);
+      
+      return 0; // Success
+    } catch (error) {
+      this.handleError(error, options.debug);
+      return 1; // Error
     }
-    
-    // Get the appropriate formatter
-    const formatter = this.getFormatter(FormatterType.ORGANIZATION, options) as OrganizationFormatter;
-    
-    // Format and output the organizations
-    const output = formatter.formatOrganizations(organizations, { debug: options.debug });
-    logger.console(output);
   }
 } 

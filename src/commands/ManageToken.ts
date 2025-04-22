@@ -19,18 +19,25 @@ export class ManageToken extends BaseCommand {
     return false;
   }
 
-  async execute(options: TokenOptions): Promise<void> {
-    // Handle option priorities: if multiple options are provided, 
-    // we'll process them in this priority: store > reset > check
-    
-    if (options.store) {
-      await this.storeToken();
-    } else if (options.reset) {
-      await this.resetToken();
-    } else if (options.check) {
-      await this.checkToken();
-    } else {
-      await this.checkOrStoreToken();
+  async execute(options: TokenOptions): Promise<number> {
+    try {
+      // Handle option priorities: if multiple options are provided, 
+      // we'll process them in this priority: store > reset > check
+      
+      if (options.store) {
+        await this.storeToken();
+      } else if (options.reset) {
+        await this.resetToken();
+      } else if (options.check) {
+        await this.checkToken();
+      } else {
+        await this.checkOrStoreToken();
+      }
+      
+      return 0; // Success
+    } catch (error) {
+      this.handleError(error, options.debug);
+      return 1; // Error
     }
   }
 

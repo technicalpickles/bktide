@@ -55,7 +55,7 @@ const program = new Command();
 
 // Define a generic interface for the command classes that includes the execute method
 interface CommandWithExecute {
-  execute(options: any): Promise<void>;
+  execute(options: any): Promise<number>;
 }
 
 // Define a type for the constructor that includes static properties
@@ -112,11 +112,14 @@ const createCommandHandler = (CommandClass: CommandConstructor) => {
         logger.debug('Using build options:', this.buildOptions);
       }
       
-      await handler.execute(options);
+      const exitCode = await handler.execute(options);
+      // Set process.exitCode to propagate the exit code
+      process.exitCode = exitCode;
     } catch (error) {
       const debug = this.mergedOptions?.debug || this.opts().debug || false;
       // No need to pass format - will use global format set in preAction hook
       displayCLIError(error, debug);
+      process.exitCode = 1; // Set error exit code
     }
   };
 };

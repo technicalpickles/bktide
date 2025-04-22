@@ -15,21 +15,28 @@ export class ListPipelines extends BaseCommand {
     super(options);
   }
   
-  async execute(options: PipelineOptions): Promise<void> {
+  async execute(options: PipelineOptions): Promise<number> {
     await this.ensureInitialized();
     
-    // Need to get organization info if not provided
-    const org = options.org;
-    if (!org) {
-      try {
-        const orgs = await this.client.getViewerOrganizationSlugs();
-        await this.listPipelines(orgs, options);
-      } catch (error) {
-        logger.error('Error fetching organizations:', error);
-        throw new Error('Failed to determine your organizations. Please specify an organization with --org');
+    try {
+      // Need to get organization info if not provided
+      const org = options.org;
+      if (!org) {
+        try {
+          const orgs = await this.client.getViewerOrganizationSlugs();
+          await this.listPipelines(orgs, options);
+        } catch (error) {
+          logger.error('Error fetching organizations:', error);
+          throw new Error('Failed to determine your organizations. Please specify an organization with --org');
+        }
+      } else {
+        await this.listPipelines([org], options);
       }
-    } else {
-      await this.listPipelines([org], options);
+      
+      return 0; // Success
+    } catch (error) {
+      this.handleError(error, options.debug);
+      return 1; // Error
     }
   }
   

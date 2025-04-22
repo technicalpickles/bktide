@@ -223,6 +223,13 @@ export abstract class BaseCommand {
     }
     return FormatterFactory.getFormatter(type, format);
   }
+
+  /**
+   * Execute the command with the given options
+   * @param options Command options
+   * @returns A promise that resolves to an exit code (0 for success, non-zero for errors)
+   */
+  abstract execute(options: BaseCommandOptions): Promise<number>;
 }
 
 export async function executeWithTiming<T>(

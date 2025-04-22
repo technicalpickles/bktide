@@ -11,18 +11,24 @@ export class ShowViewer extends BaseCommand {
     super(options);
   }
   
-  async execute(options: ViewerOptions): Promise<void> {
+  async execute(options: ViewerOptions): Promise<number> {
     await this.ensureInitialized();
   
-    const data = await this.client.getViewer();
-    
-    if (!data?.viewer) {
-      throw new Error('Invalid response format: missing viewer data');
+    try {
+      const data = await this.client.getViewer();
+      
+      if (!data?.viewer) {
+        throw new Error('Invalid response format: missing viewer data');
+      }
+      
+      const formatter = getViewerFormatter(options.format || 'plain');
+      const output = formatter.formatViewer(data as unknown as ViewerData, { debug: options.debug });
+      
+      logger.console(output);
+      return 0; // Success
+    } catch (error) {
+      this.handleError(error, options.debug);
+      return 1; // Error
     }
-    
-    const formatter = getViewerFormatter(options.format || 'plain');
-    const output = formatter.formatViewer(data as unknown as ViewerData, { debug: options.debug });
-    
-    logger.console(output);
   }
 } 
