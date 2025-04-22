@@ -1,7 +1,6 @@
 import { Entry } from '@napi-rs/keyring';
 import { logger } from './logger.js';
 import { BuildkiteClient } from './BuildkiteClient.js';
-import { GET_VIEWER } from '../graphql/queries.js';
 
 const SERVICE_NAME = 'bktide';
 const ACCOUNT_KEY = 'default';
@@ -88,7 +87,7 @@ export class CredentialManager {
       const client = new BuildkiteClient(tokenToValidate, { debug: false });
       
       // Try to make a simple API call that requires authentication
-      await client.query(GET_VIEWER, {});
+      await client.getViewer();
       
       logger.debug('Token validation successful');
       return true;
