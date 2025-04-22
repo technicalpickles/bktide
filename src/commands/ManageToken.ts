@@ -3,6 +3,8 @@ import { logger } from '../services/logger.js';
 import prompts from 'prompts';
 import { BuildkiteClient } from '../services/BuildkiteClient.js';
 import { BuildkiteRestClient } from '../services/BuildkiteRestClient.js';
+import { FormatterFactory, FormatterType } from '../formatters/FormatterFactory.js';
+import { TokenFormatter } from '../formatters/token/Formatter.js';
 
 export interface TokenOptions extends BaseCommandOptions {
   check?: boolean;
@@ -11,8 +13,11 @@ export interface TokenOptions extends BaseCommandOptions {
 }
 
 export class ManageToken extends BaseCommand {
+  private formatter: TokenFormatter;
+
   constructor(options?: Partial<TokenOptions>) {
     super(options);
+    this.formatter = FormatterFactory.getFormatter(FormatterType.TOKEN, options?.format) as TokenFormatter;
   }
 
   static get requiresToken(): boolean {
@@ -96,11 +101,8 @@ export class ManageToken extends BaseCommand {
       
       // Store the token if it's valid
       const success = await BaseCommand.credentialManager.saveToken(response.token);
-      if (success) {
-        logger.info('Token successfully stored in system keychain');
-      } else {
-        logger.error('Failed to store token');
-      }
+      const formattedResult = this.formatter.formatTokenStorageResult(success);
+      logger.console(formattedResult);
     } catch (error) {
       logger.error('Error storing token', error);
     }
@@ -108,39 +110,40 @@ export class ManageToken extends BaseCommand {
 
   private async resetToken(): Promise<void> {
     try {
-      if (await BaseCommand.credentialManager.hasToken()) {
-        const success = await BaseCommand.credentialManager.deleteToken();
-        if (success) {
-          logger.info('Token successfully deleted from system keychain');
-        } else {
-          logger.error('Failed to delete token');
-        }
-      } else {
-        logger.info('No token found in system keychain');
+      const hadToken = await BaseCommand.credentialManager.hasToken();
+      let success = false;
+      
+      if (hadToken) {
+        success = await BaseCommand.credentialManager.deleteToken();
       }
+      
+      const formattedResult = this.formatter.formatTokenResetResult(success, hadToken);
+      logger.console(formattedResult);
     } catch (error) {
       logger.error('Error resetting token', error);
     }
   }
 
   private async checkOrStoreToken(): Promise<void> {
-    if (await this.checkToken()) {
-      return;
+    const hasToken = await this.checkToken();
+    if (!hasToken) {
+      await this.storeToken();
     }
-
-    await this.storeToken();
   }
 
   private async checkToken(): Promise<boolean> {
     const hasToken = await BaseCommand.credentialManager.hasToken();
-    if (hasToken) {
-      logger.console('Token found in system keychain');
+    let isValid = false;
+    let graphqlValid = false;
+    let restValid = false;
 
+    if (hasToken) {
       try {
         // Get the token for validation
         const token = await BaseCommand.credentialManager.getToken();
         if (!token) {
-          logger.console('Token is invalid or corrupted');
+          const formattedResult = this.formatter.formatTokenStatus(false, false, false, false);
+          logger.console(formattedResult);
           return false;
         }
 
@@ -149,7 +152,6 @@ export class ManageToken extends BaseCommand {
         const restClient = new BuildkiteRestClient(token, { debug: false });
         
         // Test GraphQL API
-        let graphqlValid = false;
         try {
           await graphqlClient.getViewer();
           graphqlValid = true;
@@ -158,7 +160,6 @@ export class ManageToken extends BaseCommand {
         }
         
         // Test REST API
-        let restValid = false;
         try {
           await restClient.hasOrganizationAccess('buildkite');
           restValid = true;
@@ -166,27 +167,17 @@ export class ManageToken extends BaseCommand {
           logger.console('REST API validation failed');
         }
         
-        // Report results
-        if (graphqlValid && restValid) {
-          logger.console('Token is valid for both GraphQL and REST APIs');
-          return true;
-        } else if (graphqlValid) {
-          logger.console('Token is valid for GraphQL API but not for REST API');
-          return false;
-        } else if (restValid) {
-          logger.console('Token is valid for REST API but not for GraphQL API');
-          return false;
-        } else {
-          logger.console('Token is invalid for both GraphQL and REST APIs');
-          return false;
-        }
+        // Determine overall validity
+        isValid = graphqlValid && restValid;
       } catch (error) {
         logger.console('Error validating token');
         return false;
       }
-    } else {
-      logger.console('No token found in system keychain');
-      return false;
     }
+    
+    const formattedResult = this.formatter.formatTokenStatus(hasToken, isValid, graphqlValid, restValid);
+    logger.console(formattedResult);
+    
+    return hasToken && isValid;
   }
 } 

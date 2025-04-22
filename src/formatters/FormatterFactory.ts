@@ -4,19 +4,21 @@ import { getBuildFormatter } from './builds/index.js';
 import { getViewerFormatter } from './viewer/index.js';
 import { getOrganizationFormatter } from './organizations/index.js';
 import { getErrorFormatter } from './errors/index.js';
+import { getTokenFormatter } from './token/index.js';
 
 export enum FormatterType {
   PIPELINE = 'pipeline',
   BUILD = 'build', 
   VIEWER = 'viewer',
   ORGANIZATION = 'organization',
-  ERROR = 'error'
+  ERROR = 'error',
+  TOKEN = 'token'
 }
 
 export class FormatterFactory {
   /**
    * Get the appropriate formatter based on the type and format
-   * @param type The formatter type ('pipeline', 'build', 'viewer', 'organization', 'error')
+   * @param type The formatter type ('pipeline', 'build', 'viewer', 'organization', 'error', 'token')
    * @param format The format to use ('plain', 'json', 'alfred')
    * @returns The appropriate formatter instance
    */
@@ -35,6 +37,8 @@ export class FormatterFactory {
         return getOrganizationFormatter(normalizedFormat);
       case FormatterType.ERROR:
         return getErrorFormatter(normalizedFormat);
+      case FormatterType.TOKEN:
+        return getTokenFormatter(normalizedFormat);
       default:
         throw new Error(`Unknown formatter type: ${type}`);
     }
