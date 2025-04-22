@@ -19,18 +19,19 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
     }
 
     if (status.isValid) {
-      return 'Token is valid for both GraphQL and REST APIs';
+      return 'Token is valid for GraphQL and both REST APIs';
     }
 
-    if (status.validation.graphqlValid && !status.validation.restValid) {
-      return 'Token is valid for GraphQL API but not for REST API';
+    const validApis = [];
+    if (status.validation.graphqlValid) validApis.push('GraphQL');
+    if (status.validation.buildAccessValid) validApis.push('Builds REST');
+    if (status.validation.orgAccessValid) validApis.push('Organization REST');
+
+    if (validApis.length === 0) {
+      return 'Token is invalid for all APIs';
     }
 
-    if (!status.validation.graphqlValid && status.validation.restValid) {
-      return 'Token is valid for REST API but not for GraphQL API';
-    }
-
-    return 'Token is invalid for both GraphQL and REST APIs';
+    return `Token is valid for ${validApis.join(', ')} API${validApis.length > 1 ? 's' : ''}`;
   }
 
   /**
@@ -75,13 +76,16 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
   formatTokenValidationError(
     validation: TokenValidationStatus
   ): string {
-    if (!validation.graphqlValid && !validation.restValid) {
-      return 'Token is invalid for both GraphQL and REST APIs';
-    } else if (!validation.graphqlValid) {
-      return 'Token is valid for REST API but not for GraphQL API';
-    } else {
-      return 'Token is valid for GraphQL API but not for REST API';
+    const invalidApis = [];
+    if (!validation.graphqlValid) invalidApis.push('GraphQL');
+    if (!validation.buildAccessValid) invalidApis.push('Builds REST');
+    if (!validation.orgAccessValid) invalidApis.push('Organization REST');
+
+    if (invalidApis.length === 0) {
+      return 'Token is valid for all APIs';
     }
+
+    return `Token is invalid for ${invalidApis.join(', ')} API${invalidApis.length > 1 ? 's' : ''}`;
   }
 
   /**
@@ -93,15 +97,20 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
   formatTokenValidationStatus(
     validation: TokenValidationStatus
   ): string {
-    if (validation.graphqlValid && validation.restValid) {
-      return 'Token is valid for both GraphQL and REST APIs';
-    } else if (validation.graphqlValid) {
-      return 'Token is valid for GraphQL API but not for REST API';
-    } else if (validation.restValid) {
-      return 'Token is valid for REST API but not for GraphQL API';
-    } else {
-      return 'Token is invalid for both GraphQL and REST APIs';
+    const validApis = [];
+    if (validation.graphqlValid) validApis.push('GraphQL');
+    if (validation.buildAccessValid) validApis.push('Builds REST');
+    if (validation.orgAccessValid) validApis.push('Organization REST');
+
+    if (validApis.length === 0) {
+      return 'Token is invalid for all APIs';
     }
+
+    if (validApis.length === 3) {
+      return 'Token is valid for all APIs';
+    }
+
+    return `Token is valid for ${validApis.join(', ')} API${validApis.length > 1 ? 's' : ''}`;
   }
 
   /**

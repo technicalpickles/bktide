@@ -68,7 +68,7 @@ export class ManageToken extends BaseCommand {
       const validationResult = await BaseCommand.credentialManager.validateToken(response.token);
       
       // Check if token is valid for both APIs
-      if (!validationResult.graphqlValid || !validationResult.restValid) {
+      if (!validationResult.valid) {
         const validationError = this.formatter.formatTokenValidationError(validationResult);
         logger.console(validationError);
         return;
@@ -111,7 +111,7 @@ export class ManageToken extends BaseCommand {
   private async checkToken(): Promise<boolean> {
     const hasToken = await BaseCommand.credentialManager.hasToken();
     let isValid = false;
-    let validation: TokenValidationStatus = { graphqlValid: false, restValid: false };
+    let validation: TokenValidationStatus = { graphqlValid: false, buildAccessValid: false, orgAccessValid: false, valid: false };
 
     if (hasToken) {
       try {
@@ -121,7 +121,7 @@ export class ManageToken extends BaseCommand {
           const tokenStatus: TokenStatus = {
             hasToken: false,
             isValid: false,
-            validation: { graphqlValid: false, restValid: false }
+            validation: { graphqlValid: false, buildAccessValid: false, orgAccessValid: false, valid: false }
           };
           const formattedResult = this.formatter.formatTokenStatus(tokenStatus);
           logger.console(formattedResult);
@@ -130,7 +130,7 @@ export class ManageToken extends BaseCommand {
 
         // Validate the token using the CredentialManager
         validation = await BaseCommand.credentialManager.validateToken(token);
-        isValid = validation.graphqlValid && validation.restValid;
+        isValid = validation.valid;
       } catch (error) {
         const formattedError = this.formatter.formatError('validating', error);
         logger.console(formattedError);

@@ -75,7 +75,7 @@ export class BuildkiteClient {
 
     // Initialize cache if caching is enabled
     if (options?.caching !== false) {
-      this.cacheManager = new CacheManager(options?.cacheTTLs);
+      this.cacheManager = new CacheManager(options?.cacheTTLs, this.debug);
       // Initialize cache and set token hash (async, but we don't wait)
       this.initCache();
     }
@@ -124,7 +124,7 @@ export class BuildkiteClient {
       
       // Store result in cache if caching is enabled
       if (this.cacheManager) {
-        await this.cacheManager.set(query, result, variables);
+        await this.cacheManager.set(query, result, variables, true);
       }
       
       const endTime = process.hrtime.bigint();
@@ -136,8 +136,47 @@ export class BuildkiteClient {
       return result;
     } catch (error) {
       logger.error('GraphQL query error:', error);
+      
+      // Check if this is an authentication error
+      const isAuthError = this.isAuthenticationError(error);
+      if (isAuthError && this.debug) {
+        logger.debug('Authentication error detected, not caching result');
+      }
+      
       throw error;
     }
+  }
+
+  /**
+   * Check if an error is an authentication error
+   */
+  private isAuthenticationError(error: any): boolean {
+    // Check for common authentication error patterns
+    if (error.response?.errors) {
+      const errors = error.response.errors;
+      return errors.some((err: any) => 
+        err.message?.includes('unauthorized') || 
+        err.message?.includes('authentication') || 
+        err.message?.includes('permission') ||
+        err.message?.includes('invalid token')
+      );
+    }
+    
+    // Check for HTTP status codes that indicate auth issues
+    if (error.response?.status) {
+      const status = error.response.status;
+      return status === 401 || status === 403;
+    }
+    
+    // Check error message directly
+    if (error.message) {
+      return error.message.includes('unauthorized') || 
+             error.message.includes('authentication') || 
+             error.message.includes('permission') ||
+             error.message.includes('invalid token');
+    }
+    
+    return false;
   }
 
   /**
@@ -472,4 +511,4 @@ export class BuildkiteClient {
 
     return result;
   }
-} 
+}

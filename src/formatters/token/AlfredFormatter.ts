@@ -14,21 +14,78 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
    * @returns Formatted token status message for Alfred
    */
   formatTokenStatus(status: TokenStatus): string {
-    const message = this.getStatusMessage(status);
-    const icon = this.getStatusIcon(status.hasToken, status.isValid);
+    const items = [];
     
-    return JSON.stringify({
-      items: [
-        {
-          title: message,
-          subtitle: status.hasToken ? 'Token exists in keychain' : 'No token found',
-          icon: {
-            path: icon
-          },
-          arg: status.hasToken ? 'token:exists' : 'token:missing'
-        }
-      ]
+    // Add a summary item
+    const summaryMessage = this.getStatusMessage(status);
+    const summaryIcon = this.getStatusIcon(status.hasToken, status.isValid);
+    
+    items.push({
+      title: summaryMessage,
+      subtitle: status.hasToken ? 'Token exists in keychain' : 'No token found',
+      icon: {
+        path: summaryIcon
+      },
+      arg: status.hasToken ? 'token:exists' : 'token:missing'
     });
+    
+    // Add GraphQL API status item
+    if (status.hasToken) {
+      const graphqlIcon = status.validation.graphqlValid ? 'checkmark' : 'xmark';
+      const graphqlTitle = status.validation.graphqlValid 
+        ? 'GraphQL API: Valid' 
+        : 'GraphQL API: Invalid';
+      const graphqlSubtitle = status.validation.graphqlValid 
+        ? 'Token has GraphQL API access' 
+        : 'Token lacks GraphQL API access';
+      
+      items.push({
+        title: graphqlTitle,
+        subtitle: graphqlSubtitle,
+        icon: {
+          path: graphqlIcon
+        },
+        arg: status.validation.graphqlValid ? 'token:graphql:valid' : 'token:graphql:invalid'
+      });
+      
+      // Add Builds REST API status item
+      const buildsIcon = status.validation.buildAccessValid ? 'checkmark' : 'xmark';
+      const buildsTitle = status.validation.buildAccessValid 
+        ? 'Builds REST API: Valid' 
+        : 'Builds REST API: Invalid';
+      const buildsSubtitle = status.validation.buildAccessValid 
+        ? 'Token has Builds REST API access' 
+        : 'Token lacks Builds REST API access';
+      
+      items.push({
+        title: buildsTitle,
+        subtitle: buildsSubtitle,
+        icon: {
+          path: buildsIcon
+        },
+        arg: status.validation.buildAccessValid ? 'token:rest:builds:valid' : 'token:rest:builds:invalid'
+      });
+
+      // Add Organization REST API status item
+      const orgIcon = status.validation.orgAccessValid ? 'checkmark' : 'xmark';
+      const orgTitle = status.validation.orgAccessValid 
+        ? 'Organization REST API: Valid' 
+        : 'Organization REST API: Invalid';
+      const orgSubtitle = status.validation.orgAccessValid 
+        ? 'Token has Organization REST API access' 
+        : 'Token lacks Organization REST API access';
+      
+      items.push({
+        title: orgTitle,
+        subtitle: orgSubtitle,
+        icon: {
+          path: orgIcon
+        },
+        arg: status.validation.orgAccessValid ? 'token:rest:org:valid' : 'token:rest:org:invalid'
+      });
+    }
+    
+    return JSON.stringify({ items });
   }
 
   /**
@@ -121,7 +178,7 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
     validation: TokenValidationStatus
   ): string {
     const message = this.getValidationStatusMessage(validation);
-    const isValid = validation.graphqlValid && validation.restValid;
+    const isValid = validation.valid;
     const icon = isValid ? 'checkmark' : 'exclamation';
     
     return JSON.stringify({
@@ -177,18 +234,19 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
     }
 
     if (status.isValid) {
-      return 'Token is valid for both GraphQL and REST APIs';
+      return 'Token is valid for GraphQL and both REST APIs';
     }
 
-    if (status.validation.graphqlValid && !status.validation.restValid) {
-      return 'Token is valid for GraphQL API but not for REST API';
+    const validApis = [];
+    if (status.validation.graphqlValid) validApis.push('GraphQL');
+    if (status.validation.buildAccessValid) validApis.push('Builds REST');
+    if (status.validation.orgAccessValid) validApis.push('Organization REST');
+
+    if (validApis.length === 0) {
+      return 'Token is invalid for all APIs';
     }
 
-    if (!status.validation.graphqlValid && status.validation.restValid) {
-      return 'Token is valid for REST API but not for GraphQL API';
-    }
-
-    return 'Token is invalid for both GraphQL and REST APIs';
+    return `Token is valid for ${validApis.join(', ')} API${validApis.length > 1 ? 's' : ''}`;
   }
 
   /**
@@ -210,28 +268,36 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
    * Get a human-readable validation error message
    */
   private getValidationErrorMessage(validation: TokenValidationStatus): string {
-    if (!validation.graphqlValid && !validation.restValid) {
-      return 'Token is invalid for both GraphQL and REST APIs';
-    } else if (!validation.graphqlValid) {
-      return 'Token is valid for REST API but not for GraphQL API';
-    } else {
-      return 'Token is valid for GraphQL API but not for REST API';
+    const invalidApis = [];
+    if (!validation.graphqlValid) invalidApis.push('GraphQL');
+    if (!validation.buildAccessValid) invalidApis.push('Builds REST');
+    if (!validation.orgAccessValid) invalidApis.push('Organization REST');
+
+    if (invalidApis.length === 0) {
+      return 'Token is valid for all APIs';
     }
+
+    return `Token is invalid for ${invalidApis.join(', ')} API${invalidApis.length > 1 ? 's' : ''}`;
   }
 
   /**
    * Get a human-readable validation status message
    */
   private getValidationStatusMessage(validation: TokenValidationStatus): string {
-    if (validation.graphqlValid && validation.restValid) {
-      return 'Token is valid for both GraphQL and REST APIs';
-    } else if (validation.graphqlValid) {
-      return 'Token is valid for GraphQL API but not for REST API';
-    } else if (validation.restValid) {
-      return 'Token is valid for REST API but not for GraphQL API';
-    } else {
-      return 'Token is invalid for both GraphQL and REST APIs';
+    const validApis = [];
+    if (validation.graphqlValid) validApis.push('GraphQL');
+    if (validation.buildAccessValid) validApis.push('Builds REST');
+    if (validation.orgAccessValid) validApis.push('Organization REST');
+
+    if (validApis.length === 0) {
+      return 'Token is invalid for all APIs';
     }
+
+    if (validApis.length === 3) {
+      return 'Token is valid for all APIs';
+    }
+
+    return `Token is valid for ${validApis.join(', ')} API${validApis.length > 1 ? 's' : ''}`;
   }
 
   /**

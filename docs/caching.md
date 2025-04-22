@@ -43,6 +43,14 @@ npm run dev -- builds --org your-org --count 50 --pipeline specific-pipeline
 npm run dev -- builds --org your-org --count 50 --branch main
 ```
 
+## Authentication Error Handling
+
+The caching system is designed to avoid caching authentication errors:
+
+- If an API request fails due to authentication issues (401, 403, or authentication-related error messages), the result will not be cached
+- This prevents the system from caching and repeatedly serving authentication failures
+- When authentication issues are resolved, the system will make fresh API requests
+
 ## Automatic Cache Invalidation
 
 - The cache is automatically invalidated when your API token changes

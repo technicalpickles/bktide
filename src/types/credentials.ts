@@ -2,10 +2,15 @@
  * Represents the validation status of a Buildkite API token
  */
 export interface TokenValidationStatus {
+  /** Combined status of all validation checks */
+  valid: boolean;
+
   /** Whether the token is valid for the GraphQL API */
   graphqlValid: boolean;
-  /** Whether the token is valid for the REST API */
-  restValid: boolean;
+  /** Whether the token is valid for the REST API to access a build */
+  buildAccessValid: boolean;
+  /** Whether the token is valid for the REST API to access an organization */
+  orgAccessValid: boolean;
 }
 
 /**

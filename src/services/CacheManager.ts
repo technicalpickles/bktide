@@ -9,6 +9,7 @@ import { XDGPaths } from '../utils/xdgPaths.js';
 export class CacheManager {
   private initialized = false;
   private tokenHash: string = '';
+  private debug: boolean = false;
   
   // Default TTLs in milliseconds
   private static DEFAULT_TTLs = {
@@ -19,9 +20,10 @@ export class CacheManager {
     default: 30 * 1000, // default 30 seconds
   };
 
-  constructor(private ttls: Partial<typeof CacheManager.DEFAULT_TTLs> = {}) {
+  constructor(private ttls: Partial<typeof CacheManager.DEFAULT_TTLs> = {}, debug: boolean = false) {
     // Merge provided TTLs with defaults
     this.ttls = { ...CacheManager.DEFAULT_TTLs, ...ttls };
+    this.debug = debug;
   }
 
   /**
@@ -129,11 +131,13 @@ export class CacheManager {
    * @param query The GraphQL query or REST cache key
    * @param value The value to cache
    * @param variables Variables for GraphQL query or cache type for REST
+   * @param skipCacheIfAuthError Whether to skip caching if this is an authentication error
    */
   public async set<T>(
     query: string, 
     value: T, 
-    variables?: Record<string, any> | keyof typeof CacheManager.DEFAULT_TTLs
+    variables?: Record<string, any> | keyof typeof CacheManager.DEFAULT_TTLs,
+    skipCacheIfAuthError: boolean = false
   ): Promise<void> {
     await this.init();
     
@@ -151,6 +155,14 @@ export class CacheManager {
       cacheType = this.getCacheTypeFromQuery(query);
     }
     
+    // Skip caching if this is an authentication error and skipCacheIfAuthError is true
+    if (skipCacheIfAuthError && this.isAuthenticationError(value)) {
+      if (this.debug) {
+        logger.debug(`Skipping cache for authentication error: ${key}`);
+      }
+      return;
+    }
+    
     const ttl = this.ttls[cacheType as keyof typeof CacheManager.DEFAULT_TTLs] || CacheManager.DEFAULT_TTLs.default;
     
     await nodePersist.setItem(key, {
@@ -159,6 +171,34 @@ export class CacheManager {
       type: cacheType,
       createdAt: Date.now()
     });
+  }
+
+  /**
+   * Check if a result contains authentication error information
+   */
+  private isAuthenticationError(value: any): boolean {
+    if (!value) return false;
+    
+    // Check for common authentication error patterns in GraphQL responses
+    if (value.errors) {
+      return value.errors.some((err: any) => 
+        err.message?.includes('unauthorized') || 
+        err.message?.includes('authentication') || 
+        err.message?.includes('permission') ||
+        err.message?.includes('invalid token')
+      );
+    }
+    
+    // Check for REST API error responses
+    if (value.message) {
+      const message = value.message.toLowerCase();
+      return message.includes('unauthorized') || 
+             message.includes('authentication') || 
+             message.includes('permission') ||
+             message.includes('invalid token');
+    }
+    
+    return false;
   }
 
   /**

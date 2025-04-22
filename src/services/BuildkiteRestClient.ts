@@ -37,7 +37,7 @@ export class BuildkiteRestClient {
     
     // Initialize cache if caching is enabled
     if (options?.caching !== false) {
-      this.cacheManager = new CacheManager(options?.cacheTTLs);
+      this.cacheManager = new CacheManager(options?.cacheTTLs, this.debug);
       // Initialize cache and set token hash (async, but we don't wait)
       this.initCache();
     }
@@ -145,6 +145,12 @@ export class BuildkiteRestClient {
         // If parsing fails, use the original error text
       }
       
+      // Check if this is an authentication error
+      const isAuthError = this.isAuthenticationError(response.status, errorMessage);
+      if (isAuthError && this.debug) {
+        logger.debug('Authentication error detected, not caching result');
+      }
+      
       throw new Error(errorMessage);
     }
 
@@ -152,7 +158,7 @@ export class BuildkiteRestClient {
     
     // Store in cache
     if (this.cacheManager) {
-      await this.cacheManager.set(cacheKey, result, cacheType as any);
+      await this.cacheManager.set(cacheKey, result, cacheType as any, true);
     }
     
     const endTime = process.hrtime.bigint();
@@ -162,6 +168,23 @@ export class BuildkiteRestClient {
     }
     
     return result;
+  }
+
+  /**
+   * Check if an error is an authentication error
+   */
+  private isAuthenticationError(status: number, message: string): boolean {
+    // Check for HTTP status codes that indicate auth issues
+    if (status === 401 || status === 403) {
+      return true;
+    }
+    
+    // Check error message for auth-related keywords
+    const lowerMessage = message.toLowerCase();
+    return lowerMessage.includes('unauthorized') || 
+           lowerMessage.includes('authentication') || 
+           lowerMessage.includes('permission') ||
+           lowerMessage.includes('invalid token');
   }
 
   /**
@@ -194,6 +217,15 @@ export class BuildkiteRestClient {
     }
     
     return builds;
+  }
+
+  public async hasBuildAccess(org: string): Promise<boolean> {
+    try {
+      await this.getBuilds(org, { per_page: '1' });
+      return true;
+    } catch (error) {
+      return false;
+    }
   }
   
   /**

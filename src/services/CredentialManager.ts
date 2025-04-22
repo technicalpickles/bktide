@@ -82,7 +82,7 @@ export class CredentialManager {
       const tokenToValidate = token || await this.getToken();
       if (!tokenToValidate) {
         logger.debug('No token provided for validation');
-        return { graphqlValid: false, restValid: false };
+        return { graphqlValid: false, buildAccessValid: false, orgAccessValid: false, valid: false };
       }
 
       // Create clients with the token
@@ -101,21 +101,34 @@ export class CredentialManager {
       }
       
       // Then check REST API
-      let restValid = false;
+      let orgAccessValid = false;
       try {
         // Try to get organizations as a simple REST API test
         await restClient.hasOrganizationAccess('buildkite');
         logger.debug('REST API token validation successful');
-        restValid = true;
+        orgAccessValid = true;
+      } catch (error) {
+        logger.debug('REST API token validation failed', error);
+      }
+
+      let buildAccessValid = false;
+      try {
+        // Try to get organizations as a simple REST API test
+        const orgs = await graphqlClient.getViewerOrganizationSlugs();
+        for (const org of orgs) {
+          await restClient.hasBuildAccess(org);
+        }
+        logger.debug('REST API token validation successful');
+        buildAccessValid = true;
       } catch (error) {
         logger.debug('REST API token validation failed', error);
       }
       
-      logger.debug(`Token validation results: GraphQL=${graphqlValid}, REST=${restValid}`);
-      return { graphqlValid, restValid };
+      logger.debug(`Token validation results: GraphQL=${graphqlValid}, REST=${orgAccessValid}`);
+      return { graphqlValid, buildAccessValid, orgAccessValid, valid: graphqlValid && buildAccessValid && orgAccessValid };
     } catch (error) {
       logger.debug('Token validation failed', error);
-      return { graphqlValid: false, restValid: false };
+      return { graphqlValid: false, buildAccessValid: false, orgAccessValid: false, valid: false };
     }
   }
 } 
