@@ -23,7 +23,7 @@ export class ListBuilds extends BaseCommand {
     
     const executeStartTime = process.hrtime.bigint();
     if (options.debug) {
-      logger.debug('[DEBUG] Starting ViewerBuildsCommandHandler execution');
+      logger.debug('Starting ViewerBuildsCommandHandler execution');
     }
     
     try {
@@ -155,7 +155,7 @@ export class ListBuilds extends BaseCommand {
       
       if (options.debug) {
         const executeDuration = Number(process.hrtime.bigint() - executeStartTime) / 1000000;
-        logger.debug(`[DEBUG] ViewerBuildsCommandHandler execution completed in ${executeDuration.toFixed(2)}ms`);
+        logger.debug(` ViewerBuildsCommandHandler execution completed in ${executeDuration.toFixed(2)}ms`);
       }
       
       return 0; // Success
