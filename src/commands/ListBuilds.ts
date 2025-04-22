@@ -3,6 +3,7 @@ import { getBuildFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
 import { Build } from '../types/index.js';
 import { logger } from '../services/logger.js';
+import { BuildFormatterOptions } from '../formatters/builds/Formatter.js';
 
 export interface ViewerBuildsOptions extends BaseCommandOptions {
   count?: string;
@@ -90,34 +91,33 @@ export class ListBuilds extends BaseCommand {
         }
       }
       
+      // Prepare formatter options
+      const formatterOptions: BuildFormatterOptions = {
+        debug: options.debug,
+        organizationsCount: orgs.length,
+        orgSpecified: !!options.org,
+        userName,
+        userEmail,
+        userId
+      };
+      
       // Handle the case where we have no builds due to access issues
       if (allBuilds.length === 0 && accessErrors.length > 0) {
+        formatterOptions.hasError = true;
+        formatterOptions.errorType = 'access';
+        formatterOptions.accessErrors = accessErrors;
+        
         if (options.org) {
-          // If org was specified, show the specific error
-          logger.error(`No builds found for ${userName} (${userEmail}) in organization ${options.org}. ${accessErrors[0]}`);
+          formatterOptions.errorMessage = `No builds found for ${userName} (${userEmail}) in organization ${options.org}. ${accessErrors[0]}`;
         } else {
-          // If no org was specified, suggest using --org
-          logger.error(`No builds found for ${userName} (${userEmail}). Try specifying an organization with --org to narrow your search.`);
-        }
-        return 1;
-      }
-      
-      // Handle the case where we have no builds but no errors (just empty results)
-      if (allBuilds.length === 0) {
-        if (options.org) {
-          logger.info(`No builds found for ${userName} (${userEmail}) in organization ${options.org}.`);
-        } else {
-          logger.info(`No builds found for ${userName} (${userEmail}). Try specifying an organization with --org to narrow your search.`);
+          formatterOptions.errorMessage = `No builds found for ${userName} (${userEmail}). Try specifying an organization with --org to narrow your search.`;
         }
         
-        // Special case handling for empty results with Alfred and JSON formatters
         const format = options.format || 'plain';
-        if (format === 'alfred') {
-          logger.console(JSON.stringify({ items: [] }));
-        } else if (format === 'json') {
-          logger.console(JSON.stringify([]));
-        }
-        return 0;
+        const formatter = getBuildFormatter(format);
+        const output = formatter.formatBuilds(allBuilds, formatterOptions);
+        logger.console(output);
+        return 1;
       }
       
       // Limit to the requested number of builds
@@ -144,33 +144,10 @@ export class ListBuilds extends BaseCommand {
         if (options.debug) {
           logger.debug(`Filtered to ${allBuilds.length} builds matching '${options.filter}'`);
         }
-        
-        // Handle case where filter returned no results
-        if (allBuilds.length === 0) {
-          logger.info(`No builds found matching filter '${options.filter}'.`);
-          
-          // Special case handling for empty results with Alfred and JSON formatters
-          const format = options.format || 'plain';
-          if (format === 'alfred') {
-            logger.console(JSON.stringify({ items: [] }));
-          } else if (format === 'json') {
-            logger.console(JSON.stringify([]));
-          }
-          return 0;
-        }
       }
       
       const format = options.format || 'plain';
       const formatter = getBuildFormatter(format);
-      const formatterOptions = { 
-        debug: options.debug, 
-        organizationsCount: orgs.length, 
-        orgSpecified: !!options.org,
-        userName,
-        userEmail,
-        userId
-      };
-      
       const output = formatter.formatBuilds(allBuilds, formatterOptions);
       logger.console(output);
       

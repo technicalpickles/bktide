@@ -1,11 +1,36 @@
-import { FormatterOptions } from '../BaseFormatter.js';
-import { BaseFormatter } from './Formatter.js';
+import { BaseFormatter, BuildFormatterOptions } from './Formatter.js';
 import { Build } from '../../types/index.js';
 
 export class JsonFormatter extends BaseFormatter {
   name = 'json';
   
-  formatBuilds(builds: Build[], _options?: FormatterOptions): string {
+  formatBuilds(builds: Build[], options?: BuildFormatterOptions): string {
+    // Handle error cases
+    if (options?.hasError) {
+      const errorResult = {
+        error: true,
+        errorType: options.errorType || 'unknown',
+        message: options.errorMessage || 'An error occurred',
+        accessErrors: options.accessErrors || []
+      };
+      
+      return JSON.stringify(errorResult, null, 2);
+    }
+    
+    // Handle empty results (no error, just no data)
+    if (builds.length === 0) {
+      const emptyResult = {
+        count: 0,
+        builds: [],
+        message: options?.userName 
+          ? `No builds found for ${options.userName}${options?.userEmail ? ` (${options.userEmail})` : ''}.`
+          : 'No builds found.'
+      };
+      
+      return JSON.stringify(emptyResult, null, 2);
+    }
+    
+    // Normal case with builds
     const result = {
       count: builds.length,
       builds: builds.map((build: Build) => ({

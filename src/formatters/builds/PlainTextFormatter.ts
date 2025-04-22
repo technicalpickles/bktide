@@ -1,11 +1,24 @@
-import { FormatterOptions } from '../BaseFormatter.js';
-import { BaseFormatter } from './Formatter.js';
+import { BaseFormatter, BuildFormatterOptions } from './Formatter.js';
 import { Build } from '../../types/index.js';
 
 export class PlainTextFormatter extends BaseFormatter {
   name = 'plain-text';
   
-  formatBuilds(builds: Build[], options?: FormatterOptions): string {
+  formatBuilds(builds: Build[], options?: BuildFormatterOptions): string {
+    // Handle error cases first
+    if (options?.hasError) {
+      if (options.errorType === 'access') {
+        return this.formatAccessError(options);
+      } else if (options.errorType === 'not_found') {
+        return this.formatNotFoundError(options);
+      } else if (options.errorType === 'api') {
+        return this.formatApiError(options);
+      } else {
+        return this.formatGenericError(options);
+      }
+    }
+    
+    // Handle empty results (no error, just no data)
     if (builds.length === 0) {
       let output = 'No builds found.';
       
@@ -66,5 +79,53 @@ export class PlainTextFormatter extends BaseFormatter {
     }
     
     return output;
+  }
+  
+  private formatAccessError(options?: BuildFormatterOptions): string {
+    let output = '';
+    
+    if (options?.userName) {
+      output = `No builds found for ${options.userName}`;
+      if (options?.userEmail || options?.userId) {
+        output += ` (${options.userEmail || options.userId})`;
+      }
+      output += '. ';
+    }
+    
+    if (options?.orgSpecified && options?.accessErrors && options.accessErrors.length > 0) {
+      output += options.accessErrors[0];
+    } else {
+      output += 'You don\'t have access to the specified organization(s).';
+    }
+    
+    return output;
+  }
+  
+  private formatNotFoundError(options?: BuildFormatterOptions): string {
+    let output = '';
+    
+    if (options?.userName) {
+      output = `No builds found for ${options.userName}`;
+      if (options?.userEmail || options?.userId) {
+        output += ` (${options.userEmail || options.userId})`;
+      }
+      output += '.';
+    } else {
+      output = 'No builds found.';
+    }
+    
+    if (!options?.orgSpecified) {
+      output += '\nTry specifying an organization with --org to narrow your search.';
+    }
+    
+    return output;
+  }
+  
+  private formatApiError(options?: BuildFormatterOptions): string {
+    return options?.errorMessage || 'An API error occurred while fetching builds.';
+  }
+  
+  private formatGenericError(options?: BuildFormatterOptions): string {
+    return options?.errorMessage || 'An error occurred while fetching builds.';
   }
 } 

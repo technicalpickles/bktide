@@ -111,62 +111,57 @@ export class BuildkiteRestClient {
       }
     }
 
-    try {
-      const startTime = process.hrtime.bigint();
-      if (this.debug) {
-        logger.debug(`🕒 Starting REST API request: GET ${endpoint}`);
-        logger.debug(`🕒 Request URL: ${url.toString()}`);
-        if (params) {
-          logger.debug(`🕒 Request params: ${JSON.stringify(params)}`);
-        }
+    const startTime = process.hrtime.bigint();
+    if (this.debug) {
+      logger.debug(`🕒 Starting REST API request: GET ${endpoint}`);
+      logger.debug(`🕒 Request URL: ${url.toString()}`);
+      if (params) {
+        logger.debug(`🕒 Request params: ${JSON.stringify(params)}`);
       }
-      
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `API request failed with status ${response.status}: ${errorText}`;
-        
-        // Try to parse the error as JSON for more details
-        try {
-          const errorJson = JSON.parse(errorText);
-          if (errorJson.message) {
-            errorMessage = `API request failed: ${errorJson.message}`;
-          }
-          if (errorJson.errors && Array.isArray(errorJson.errors)) {
-            errorMessage += `\nErrors: ${errorJson.errors.map((e: any) => e.message).join(', ')}`;
-          }
-        } catch (e) {
-          // If parsing fails, use the original error text
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      const result = await response.json() as T;
-      
-      // Store in cache
-      if (this.cacheManager) {
-        await this.cacheManager.set(cacheKey, result, cacheType as any);
-      }
-      
-      const endTime = process.hrtime.bigint();
-      const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
-      if (this.debug) {
-        logger.debug(`✅ REST API request completed: GET ${endpoint} (${duration.toFixed(2)}ms)`);
-      }
-      
-      return result;
-    } catch (error) {
-      logger.error('REST API request error:', error);
-      throw error;
     }
+    
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `API request failed with status ${response.status}: ${errorText}`;
+      
+      // Try to parse the error as JSON for more details
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.message) {
+          errorMessage = `API request failed: ${errorJson.message}`;
+        }
+        if (errorJson.errors && Array.isArray(errorJson.errors)) {
+          errorMessage += `\nErrors: ${errorJson.errors.map((e: any) => e.message).join(', ')}`;
+        }
+      } catch (e) {
+        // If parsing fails, use the original error text
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json() as T;
+    
+    // Store in cache
+    if (this.cacheManager) {
+      await this.cacheManager.set(cacheKey, result, cacheType as any);
+    }
+    
+    const endTime = process.hrtime.bigint();
+    const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
+    if (this.debug) {
+      logger.debug(`✅ REST API request completed: GET ${endpoint} (${duration.toFixed(2)}ms)`);
+    }
+    
+    return result;
   }
 
   /**

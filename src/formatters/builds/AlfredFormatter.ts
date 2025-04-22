@@ -1,11 +1,66 @@
-import { FormatterOptions } from '../BaseFormatter.js';
-import { BaseFormatter } from './Formatter.js';
+import { BaseFormatter, BuildFormatterOptions } from './Formatter.js';
 import { Build } from '../../types/index.js';
 
 export class AlfredFormatter extends BaseFormatter {
   name = 'alfred';
   
-  formatBuilds(builds: Build[], _options?: FormatterOptions): string {
+  formatBuilds(builds: Build[], options?: BuildFormatterOptions): string {
+    // Handle error cases
+    if (options?.hasError) {
+      let errorTitle = 'Error';
+      let errorSubtitle = options.errorMessage || 'An error occurred';
+      
+      if (options.errorType === 'access') {
+        errorTitle = 'Access Error';
+        if (options.accessErrors && options.accessErrors.length > 0) {
+          errorSubtitle = options.accessErrors[0];
+        } else {
+          errorSubtitle = 'You don\'t have access to the specified organization(s).';
+        }
+      } else if (options.errorType === 'not_found') {
+        errorTitle = 'No Builds Found';
+        if (options.userName) {
+          errorSubtitle = `No builds found for ${options.userName}${options.userEmail ? ` (${options.userEmail})` : ''}.`;
+        } else {
+          errorSubtitle = 'No builds found.';
+        }
+      }
+      
+      const errorItem = {
+        uid: 'error',
+        title: errorTitle,
+        subtitle: errorSubtitle,
+        icon: {
+          path: 'icons/error.png'
+        }
+      };
+      
+      return JSON.stringify({ items: [errorItem] }, null, 2);
+    }
+    
+    // Handle empty results (no error, just no data)
+    if (builds.length === 0) {
+      let emptyTitle = 'No Builds Found';
+      let emptySubtitle = options?.userName 
+        ? `No builds found for ${options.userName}${options?.userEmail ? ` (${options.userEmail})` : ''}.`
+        : 'No builds found.';
+      
+      if (!options?.orgSpecified) {
+        emptySubtitle += ' Try specifying an organization with --org.';
+      }
+      
+      const emptyItem = {
+        uid: 'empty',
+        title: emptyTitle,
+        subtitle: emptySubtitle,
+        icon: {
+          path: 'icons/empty.png'
+        }
+      };
+      
+      return JSON.stringify({ items: [emptyItem] }, null, 2);
+    }
+    
     // Format builds as Alfred-compatible JSON items
     const alfredItems = builds.map((build: Build) => {
       // Generate web URL for the build (if not already present)
