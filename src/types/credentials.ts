@@ -23,4 +23,34 @@ export interface TokenStatus {
   isValid: boolean;
   /** Detailed validation status for each API */
   validation: TokenValidationStatus;
+}
+
+/**
+ * Represents the result of checking a token's status
+ */
+export interface TokenCheckResult {
+  /** The token status information */
+  status: TokenStatus;
+  /** Any errors encountered during validation */
+  errors: unknown[];
+}
+
+/**
+ * Represents the result of checking or storing a token
+ */
+export interface TokenCheckOrStoreResult {
+  /** Whether a token was stored */
+  stored: boolean;
+  /** Any errors encountered during the process */
+  errors: unknown[];
+}
+
+/**
+ * Represents the result of storing a token
+ */
+export interface TokenStoreResult {
+  /** Whether the token was successfully stored */
+  success: boolean;
+  /** Any errors encountered during storage */
+  errors: unknown[];
 } 

@@ -39,10 +39,9 @@ export class CredentialManager {
    */
   async getToken(): Promise<string | undefined> {
     try {
-      const token = await this.entry.getPassword();
+      const token = this.entry.getPassword();
       return token || undefined;
     } catch (error) {
-      logger.debug('No token found in system keychain', error);
       return undefined;
     }
   }

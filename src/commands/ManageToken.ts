@@ -3,12 +3,13 @@ import { logger } from '../services/logger.js';
 import prompts from 'prompts';
 import { FormatterFactory, FormatterType } from '../formatters/FormatterFactory.js';
 import { TokenFormatter } from '../formatters/token/Formatter.js';
-import { TokenStatus, TokenValidationStatus } from '../types/credentials.js';
+import { TokenStatus, TokenValidationStatus, TokenCheckResult, TokenCheckOrStoreResult, TokenStoreResult } from '../types/credentials.js';
 
 export interface TokenOptions extends BaseCommandOptions {
   check?: boolean;
   store?: boolean;
   reset?: boolean;
+  token?: string;
 }
 
 export class ManageToken extends BaseCommand {
@@ -29,13 +30,30 @@ export class ManageToken extends BaseCommand {
       // we'll process them in this priority: store > reset > check
       
       if (options.store) {
-        await this.storeToken();
+        const { success, errors } = await this.storeToken();
+        if (success) {
+          return 0;
+        } else {
+          const formattedErrors = this.formatter.formatError('storing', errors);
+          logger.console(formattedErrors);
+          return 1;
+        }
       } else if (options.reset) {
         await this.resetToken();
       } else if (options.check) {
-        await this.checkToken();
+        const { errors } = await this.checkToken();
+        if (errors.length > 0) {
+          const formattedErrors = this.formatter.formatError('validating', errors);
+          logger.console(formattedErrors);
+          return 0;
+        }
       } else {
-        await this.checkOrStoreToken();
+        const { errors } = await this.checkOrStoreToken();
+        if (errors.length > 0) {
+          const formattedErrors = this.formatter.formatError('checking or storing', errors);
+          logger.console(formattedErrors);
+          return 0;
+        }
       }
       
       return 0; // Success
@@ -46,41 +64,60 @@ export class ManageToken extends BaseCommand {
     }
   }
 
-  private async storeToken(): Promise<void> {
+  private async storeToken(): Promise<TokenStoreResult> {
     try {
-      const response = await prompts({
-        type: 'password',
-        name: 'token',
-        message: 'Enter your Buildkite API token:',
-        validate: value => value.length > 0 ? true : 'Please enter a valid token'
-      });
-      
-      // Check if user cancelled the prompt (Ctrl+C)
-      if (!response.token) {
-        logger.info('Token storage cancelled');
-        return;
+      let tokenToStore: string | undefined;
+
+      // If token is provided in options, use it
+      if (this.options.token) {
+        tokenToStore = this.options.token;
+      } else {
+        // Otherwise prompt the user
+        const response = await prompts({
+          type: 'password',
+          name: 'token',
+          message: 'Enter your Buildkite API token:',
+          validate: value => value.length > 0 ? true : 'Please enter a valid token'
+        });
+        
+        // Check if user cancelled the prompt (Ctrl+C)
+        if (!response.token) {
+          return { success: false, errors: [new Error('Token storage cancelled')] };
+        }
+        
+        tokenToStore = response.token;
+      }
+
+      // Ensure we have a valid token before proceeding
+      if (!tokenToStore) {
+        return { success: false, errors: [new Error('No token provided')] };
       }
       
-      // Validate the token before storing it
-      logger.console('Validating token...');
-      
       // Validate the token using the CredentialManager
-      const validationResult = await BaseCommand.credentialManager.validateToken(response.token);
+      const validationResult = await BaseCommand.credentialManager.validateToken(tokenToStore);
       
       // Check if token is valid for both APIs
       if (!validationResult.valid) {
-        const validationError = this.formatter.formatTokenValidationError(validationResult);
-        logger.console(validationError);
-        return;
+        const validationErrors = []
+        if (!validationResult.graphqlValid) {
+          validationErrors.push(new Error('Invalid GraphQL token'));
+        }
+        if (!validationResult.buildAccessValid) {
+          validationErrors.push(new Error('Invalid Build Access token'));
+        }
+        if (!validationResult.orgAccessValid) {
+          validationErrors.push(new Error('Invalid Organization Access token'));
+        }
+        
+        return { success: false, errors: validationErrors };
       }
       
       // Store the token if it's valid
-      const success = await BaseCommand.credentialManager.saveToken(response.token);
-      const formattedResult = this.formatter.formatTokenStorageResult(success);
-      logger.console(formattedResult);
+      const success = await BaseCommand.credentialManager.saveToken(tokenToStore);
+      
+      return { success, errors: [] };
     } catch (error) {
-      const formattedError = this.formatter.formatError('storing', error);
-      logger.console(formattedError);
+      return { success: false, errors: [error] };
     }
   }
 
@@ -101,40 +138,43 @@ export class ManageToken extends BaseCommand {
     }
   }
 
-  private async checkOrStoreToken(): Promise<void> {
-    const hasToken = await this.checkToken();
-    if (!hasToken) {
-      await this.storeToken();
+  private async checkOrStoreToken(): Promise<TokenCheckOrStoreResult> {
+    const { status, errors } = await this.checkToken();
+    if (!status.hasToken || !status.isValid) {
+      const { success, errors: storeErrors } = await this.storeToken();
+      if (success) {
+        return { stored: true, errors: [] };
+      } else {
+        return { stored: false, errors: storeErrors };
+      }
     }
+    return { stored: false, errors };
   }
 
-  private async checkToken(): Promise<boolean> {
+  private async checkToken(): Promise<TokenCheckResult> {
     const hasToken = await BaseCommand.credentialManager.hasToken();
     let isValid = false;
     let validation: TokenValidationStatus = { graphqlValid: false, buildAccessValid: false, orgAccessValid: false, valid: false };
+    const errors: unknown[] = [];
 
     if (hasToken) {
-      try {
-        // Get the token for validation
-        const token = await BaseCommand.credentialManager.getToken();
-        if (!token) {
-          const tokenStatus: TokenStatus = {
-            hasToken: false,
-            isValid: false,
-            validation: { graphqlValid: false, buildAccessValid: false, orgAccessValid: false, valid: false }
-          };
-          const formattedResult = this.formatter.formatTokenStatus(tokenStatus);
-          logger.console(formattedResult);
-          return false;
-        }
+      // Get the token for validation
+      const token = await BaseCommand.credentialManager.getToken();
+      if (!token) {
+        const tokenStatus: TokenStatus = {
+          hasToken: false,
+          isValid: false,
+          validation: { graphqlValid: false, buildAccessValid: false, orgAccessValid: false, valid: false }
+        };
+        return { status: tokenStatus, errors };
+      }
 
-        // Validate the token using the CredentialManager
+      // Validate the token using the CredentialManager
+      try {
         validation = await BaseCommand.credentialManager.validateToken(token);
         isValid = validation.valid;
       } catch (error) {
-        const formattedError = this.formatter.formatError('validating', error);
-        logger.console(formattedError);
-        return false;
+        errors.push(error);
       }
     }
     
@@ -147,6 +187,6 @@ export class ManageToken extends BaseCommand {
     const formattedResult = this.formatter.formatTokenStatus(tokenStatus);
     logger.console(formattedResult);
     
-    return hasToken && isValid;
+    return { status: tokenStatus, errors };
   }
 } 

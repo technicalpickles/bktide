@@ -135,9 +135,6 @@ export class BuildkiteClient {
       
       return result;
     } catch (error) {
-      logger.error('GraphQL query error:', error);
-      
-      // Check if this is an authentication error
       const isAuthError = this.isAuthenticationError(error);
       if (isAuthError && this.debug) {
         logger.debug('Authentication error detected, not caching result');

@@ -10,51 +10,83 @@ export class AlfredFormatter extends BaseErrorFormatter implements ErrorFormatte
   name = 'alfred';
 
   /**
-   * Format an error for display in Alfred JSON format
+   * Format one or more errors for display in Alfred JSON format
    * 
-   * @param error The error to format
+   * @param errors The error(s) to format
    * @param options Formatting options
    * @returns Alfred JSON formatted error message
    */
-  formatError(error: unknown, options?: ErrorFormatterOptions): string {
-    const errorMessage = this.getErrorMessage(error);
-    const subtitle = this.getErrorSubtitle(error);
-    
-    // Create an Alfred JSON response with the error
-    const alfredResponse = {
-      items: [
-        {
-          uid: 'error',
-          title: `Error: ${errorMessage}`,
-          subtitle: subtitle,
-          arg: errorMessage,
-          icon: {
-            path: 'icons/error.png'
-          },
-          valid: true
+  formatError(errors: unknown | unknown[], options?: ErrorFormatterOptions): string {
+    const errorArray = Array.isArray(errors) ? errors : [errors];
+    const items = [];
+
+    for (const error of errorArray) {
+      // Add main error item
+      items.push({
+        uid: 'error',
+        title: `Error: ${this.getErrorMessage(error)}`,
+        subtitle: this.getErrorSubtitle(error),
+        arg: this.getErrorMessage(error),
+        icon: {
+          path: 'icons/error.png'
+        },
+        valid: true
+      });
+
+      // Add stack trace items if debug is enabled
+      if (options?.debug) {
+        const stack = this.getStackTrace(error);
+        if (stack) {
+          const stackItems = stack.split('\n').map((line, index) => ({
+            uid: `stack-${index}`,
+            title: line.trim(),
+            subtitle: 'Stack trace line',
+            arg: line,
+            icon: {
+              path: 'icons/stack.png'
+            },
+            valid: true
+          }));
+          items.push(...stackItems);
         }
-      ]
-    };
-    
-    // If debug is enabled, add additional error details
-    if (options?.debug) {
-      if (error instanceof Error && error.stack) {
-        const stackItems = error.stack.split('\n').map((line, index) => ({
-          uid: `stack-${index}`,
-          title: line.trim(),
-          subtitle: 'Stack trace line',
-          arg: line,
-          icon: {
-            path: 'icons/stack.png'
-          },
-          valid: true
-        }));
-        
-        alfredResponse.items.push(...stackItems);
+
+        // Add API errors if present
+        const apiErrors = this.getApiErrors(error);
+        if (apiErrors?.length) {
+          apiErrors.forEach((apiError, index) => {
+            items.push({
+              uid: `api-error-${index}`,
+              title: `API Error: ${apiError.message || 'Unknown error'}`,
+              subtitle: apiError.path ? `Path: ${apiError.path.join('.')}` : 'API Error',
+              arg: apiError.message || 'Unknown error',
+              icon: {
+                path: 'icons/api-error.png'
+              },
+              valid: true
+            });
+          });
+        }
+
+        // Add request details if available
+        const request = this.getRequestDetails(error);
+        if (request) {
+          items.push({
+            uid: 'request-details',
+            title: 'Request Details',
+            subtitle: `${request.method || 'Unknown'} ${request.url || 'Unknown URL'}`,
+            arg: `${request.method || 'Unknown'} ${request.url || 'Unknown URL'}`,
+            icon: {
+              path: 'icons/request.png'
+            },
+            valid: false
+          });
+        }
       }
-      
-      // Add system info
-      alfredResponse.items.push({
+    }
+
+    // Add system info if debug is enabled
+    if (options?.debug) {
+      items.push({
         uid: 'system-info',
         title: 'System Information',
         subtitle: `Node ${process.version} on ${process.platform} (${process.arch})`,
@@ -65,47 +97,24 @@ export class AlfredFormatter extends BaseErrorFormatter implements ErrorFormatte
         valid: false
       });
     }
-    
-    return JSON.stringify(alfredResponse);
+
+    return JSON.stringify({ items });
   }
-  
-  /**
-   * Get the primary error message from an error object
-   * @param error The error object
-   * @returns A string message
-   */
-  private getErrorMessage(error: unknown): string {
-    if (error instanceof Error) {
-      return error.message;
-    } else if (error && typeof error === 'object') {
-      const errorObj = error as Record<string, unknown>;
-      if (errorObj.message && typeof errorObj.message === 'string') {
-        return errorObj.message;
-      }
-      return 'Unknown object error';
-    }
-    return String(error);
-  }
-  
+
   /**
    * Get a subtitle for the error to display in Alfred
    * @param error The error object
    * @returns A subtitle string
    */
   private getErrorSubtitle(error: unknown): string {
-    if (error instanceof Error) {
-      return `${error.name} - Press Enter to copy error message`;
+    const errorName = this.getErrorName(error);
+    const apiErrors = this.getApiErrors(error);
+    
+    if (apiErrors?.length) {
+      const firstError = apiErrors[0];
+      return `API Error: ${firstError.message || 'Unknown error'}`;
     }
     
-    // For API errors, check for response errors
-    const apiError = error as any;
-    if (apiError?.response?.errors && Array.isArray(apiError.response.errors)) {
-      const firstError = apiError.response.errors[0];
-      if (firstError?.message) {
-        return `API Error: ${firstError.message}`;
-      }
-    }
-    
-    return 'Press Enter to copy error message';
+    return `${errorName} - Press Enter to copy error message`;
   }
 } 
