@@ -19,6 +19,34 @@
 				<false/>
 			</dict>
 		</array>
+		<key>4BC44B5B-F643-42F8-8F64-DA29D018C1EF</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>588D7C2A-85E3-4BA1-A9AC-54FC6DEB8BDA</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>588D7C2A-85E3-4BA1-A9AC-54FC6DEB8BDA</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>3B056C97-BEF6-4FA5-B9E6-F4F6A6DF89A9</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>21ABE388-8AF1-48BC-82C2-802AD2475B87</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 		<key>6CEA3061-E41E-4D9C-99CF-435E7A85AED6</key>
 		<array>
 			<dict>
@@ -174,6 +202,53 @@
 				<key>argumenttrimmode</key>
 				<integer>0</integer>
 				<key>argumenttype</key>
+				<integer>2</integer>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>queuedelaycustom</key>
+				<integer>3</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string></string>
+				<key>script</key>
+				<string>bin/alfred-entrypoint token --reset</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>subtext</key>
+				<string></string>
+				<key>title</key>
+				<string></string>
+				<key>type</key>
+				<integer>11</integer>
+				<key>withspace</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>3B056C97-BEF6-4FA5-B9E6-F4F6A6DF89A9</string>
+			<key>version</key>
+			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>alfredfiltersresults</key>
+				<true/>
+				<key>alfredfiltersresultsmatchmode</key>
+				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<true/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
 				<integer>1</integer>
 				<key>escaping</key>
 				<integer>102</integer>
@@ -190,7 +265,7 @@
 				<key>runningsubtext</key>
 				<string>Checking...</string>
 				<key>script</key>
-				<string>bin/alfred-entrypoint token "$@"</string>
+				<string>bin/alfred-entrypoint token --check "$@"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
@@ -214,33 +289,46 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>behaviour</key>
-				<integer>0</integer>
-				<key>fontmode</key>
-				<integer>0</integer>
-				<key>fontsizing</key>
-				<integer>0</integer>
-				<key>footertext</key>
-				<string></string>
-				<key>inputfile</key>
-				<string></string>
-				<key>inputtype</key>
-				<integer>0</integer>
-				<key>loadingtext</key>
-				<string></string>
-				<key>outputmode</key>
-				<integer>0</integer>
-				<key>scriptinput</key>
-				<integer>0</integer>
-				<key>spellchecking</key>
-				<integer>0</integer>
-				<key>stackview</key>
+				<key>conditions</key>
+				<array>
+					<dict>
+						<key>inputstring</key>
+						<string>{query}</string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>token:reset</string>
+						<key>outputlabel</key>
+						<string>Token Reset</string>
+						<key>uid</key>
+						<string>21ABE388-8AF1-48BC-82C2-802AD2475B87</string>
+					</dict>
+					<dict>
+						<key>inputstring</key>
+						<string></string>
+						<key>matchcasesensitive</key>
+						<false/>
+						<key>matchmode</key>
+						<integer>0</integer>
+						<key>matchstring</key>
+						<string>token:store</string>
+						<key>outputlabel</key>
+						<string>Token Store</string>
+						<key>uid</key>
+						<string>7425BD62-6376-4333-AD81-31FAC98605F6</string>
+					</dict>
+				</array>
+				<key>elselabel</key>
+				<string>nothing</string>
+				<key>hideelse</key>
 				<false/>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.userinterface.text</string>
+			<string>alfred.workflow.utility.conditional</string>
 			<key>uid</key>
-			<string>69C9DAC0-5A57-462C-98CB-173EDC3EF6CF</string>
+			<string>588D7C2A-85E3-4BA1-A9AC-54FC6DEB8BDA</string>
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
@@ -263,6 +351,13 @@
 			<key>ypos</key>
 			<real>155</real>
 		</dict>
+		<key>3B056C97-BEF6-4FA5-B9E6-F4F6A6DF89A9</key>
+		<dict>
+			<key>xpos</key>
+			<real>725</real>
+			<key>ypos</key>
+			<real>385</real>
+		</dict>
 		<key>4BC44B5B-F643-42F8-8F64-DA29D018C1EF</key>
 		<dict>
 			<key>xpos</key>
@@ -270,12 +365,12 @@
 			<key>ypos</key>
 			<real>415</real>
 		</dict>
-		<key>69C9DAC0-5A57-462C-98CB-173EDC3EF6CF</key>
+		<key>588D7C2A-85E3-4BA1-A9AC-54FC6DEB8BDA</key>
 		<dict>
 			<key>xpos</key>
-			<real>550</real>
+			<real>490</real>
 			<key>ypos</key>
-			<real>530</real>
+			<real>455</real>
 		</dict>
 		<key>6CEA3061-E41E-4D9C-99CF-435E7A85AED6</key>
 		<dict>

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+set -x
 
 workflow_dir="$(dirname "$0")/.."
 log_file="$HOME/.local/state/bktide/logs/alfred.log"
@@ -9,6 +10,8 @@ mkdir -p "$(dirname "$log_file")"
 export PATH="$HOME/.local/share/mise/shims:$PATH"
 
 command="$1"
+shift
+
 if [[ -z "$command" ]]; then
   echo "Usage: $0 <command> [filter]"
   exit 1
@@ -18,11 +21,5 @@ if [[ -z "$NODE_BIN" ]]; then
   export NODE_BIN=node
 fi
 
-filter="$2"
-args=(--format alfred)
-if [[ -n "$filter" ]]; then
-  args+=(--filter "$filter")
-fi
-
-echo "Running command: $NODE_BIN $workflow_dir/dist/index.js $command" "${args[@]}" >> "$log_file"
-"$NODE_BIN" "$workflow_dir/dist/index.js" "$command" "${args[@]}" 2>&1 | tee -a "$log_file"
+echo "Running command: $NODE_BIN $workflow_dir/dist/index.js $command" "$@" >> "$log_file"
+"$NODE_BIN" "$workflow_dir/dist/index.js" "$command" --format alfred "$@" 2>&1 | tee -a "$log_file"

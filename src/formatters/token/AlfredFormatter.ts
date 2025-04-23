@@ -74,9 +74,13 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
         icon: {
           path: orgIcon
         },
-        valid: false, // to indicate if you can select it
-        arg: status.validation.orgAccessValid ? 'token:rest:org:valid' : 'token:rest:org:invalid'
+        valid: false, // not selectable
       });
+
+      items.push(this.buildStoreItem());
+      items.push(this.buildResetItem());
+    } else {
+      items.push(this.buildStoreItem());
     }
     
     return JSON.stringify({ items });
@@ -272,5 +276,27 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
 
   private getIcon(valid: boolean): string {
     return valid ? 'icons/passed.png' : 'icons/failed.png';
+  }
+
+  private buildStoreItem(): any {
+    return {
+      title: 'Update Token',
+      subtitle: 'Update the token in the keychain',
+      icon: {
+        path: 'icons/update.png'
+      },
+      arg: 'token:store'
+    };
+  }
+
+  private buildResetItem(): any {
+    return {
+      title: 'Delete Token',
+      subtitle: 'Delete the token from the keychain',
+      icon: {
+        path: 'icons/delete.png'
+      },
+      arg: 'token:reset'
+    };
   }
 } 
