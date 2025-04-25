@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -e
+
+workflow_dir="$(dirname "$0")/.."
+log_file="$HOME/.local/state/bktide/logs/entrypoint.log"
+mkdir -p "$(dirname "$log_file")"
+
+export PATH="$HOME/.local/share/mise/shims:$PATH"
+
+if [[ -z "$NODE_BIN" ]]; then
+  export NODE_BIN=node
+fi
+
+args=("$workflow_dir/dist/index.js" "$@")
+echo "Running command: $NODE_BIN ${args[*]}" >> "$log_file"
+"$NODE_BIN" "${args[@]}" 2>&1 | tee -a "$log_file"

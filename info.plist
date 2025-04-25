@@ -422,6 +422,8 @@
 			<dict>
 				<key>argumenttype</key>
 				<integer>0</integer>
+				<key>keyword</key>
+				<string>bkts</string>
 				<key>subtext</key>
 				<string></string>
 				<key>text</key>
@@ -487,7 +489,7 @@
 			<key>xpos</key>
 			<real>270</real>
 			<key>ypos</key>
-			<real>415</real>
+			<real>440</real>
 		</dict>
 		<key>588D7C2A-85E3-4BA1-A9AC-54FC6DEB8BDA</key>
 		<dict>
