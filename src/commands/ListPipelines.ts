@@ -26,8 +26,7 @@ export class ListPipelines extends BaseCommand {
           const orgs = await this.client.getViewerOrganizationSlugs();
           await this.listPipelines(orgs, options);
         } catch (error) {
-          logger.error('Error fetching organizations:', error);
-          throw new Error('Failed to determine your organizations. Please specify an organization with --org');
+          throw new Error('Failed to determine your organizations', { cause: error });
         }
       } else {
         await this.listPipelines([org], options);
@@ -96,7 +95,7 @@ export class ListPipelines extends BaseCommand {
           }
         }
       } catch (error) {
-        throw new Error(`Error fetching pipelines for organization ${org}: ${error}`);
+        throw new Error(`Error fetching pipelines for organization ${org}`, { cause: error });
       }
     }
     

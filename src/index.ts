@@ -100,7 +100,6 @@ const createCommandHandler = (CommandClass: CommandConstructor) => {
         token: options.token,
         debug: options.debug,
         format: options.format,
-        saveToken: options.saveToken
       });
       
       // Pass command-specific options if available

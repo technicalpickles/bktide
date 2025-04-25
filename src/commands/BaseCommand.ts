@@ -12,7 +12,6 @@ export interface BaseCommandOptions {
   format?: string;
   noCache?: boolean;
   token?: string;
-  saveToken?: boolean;
 }
 
 // Extended Error interface for API and GraphQL errors
@@ -53,15 +52,6 @@ export abstract class BaseCommand {
         token: this.token ? `${this.token.substring(0, 4)}...${this.token.substring(this.token.length - 4)} (${this.token.length} chars)` : 'Not provided'
       });
     }
-    
-    // If saveToken option is specified, save the token to the keyring
-    if (options?.saveToken && this.token) {
-      this.saveToken(this.token).catch(err => {
-        logger.error('Failed to save token to keyring', err);
-      });
-    }
-
-    // this.initialized = true; // Client is initialized in constructor
   }
 
   get client(): BuildkiteClient {
@@ -114,12 +104,7 @@ export abstract class BaseCommand {
   static get requiresToken(): boolean {
     return true;
   }
-
-  // Save the token to the keyring
-  protected async saveToken(token: string): Promise<boolean> {
-    return BaseCommand.credentialManager.saveToken(token);
-  }
-
+  
   protected async ensureInitialized(): Promise<void> {
     // No additional initialization needed
     return Promise.resolve();
@@ -167,10 +152,6 @@ export abstract class BaseCommand {
   static async getToken(options: any): Promise<string | undefined> {
     // First check if token is provided directly in options
     if (options.token) {
-      if (options.saveToken) {
-        await this.credentialManager.saveToken(options.token);
-        logger.info('Token saved to system keychain');
-      }
       return options.token;
     }
     
@@ -188,10 +169,6 @@ export abstract class BaseCommand {
     // Finally fall back to environment variable
     const envToken = process.env.BK_TOKEN;
     if (envToken) {
-      if (options.saveToken) {
-        await this.credentialManager.saveToken(envToken);
-        logger.info('Environment token saved to system keychain');
-      }
       return envToken;
     }
     

@@ -248,7 +248,6 @@ export class BuildkiteClient {
       
       return slugs;
     } catch (error) {
-      logger.error('Error fetching viewer organizations:', error);
       throw new Error('Failed to determine your organizations', { cause: error });
     }
   }
