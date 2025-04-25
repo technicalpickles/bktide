@@ -165,7 +165,7 @@
 				<key>runningsubtext</key>
 				<string>Fetching...</string>
 				<key>script</key>
-				<string>bin/alfred-entrypoint builds "$@"</string>
+				<string>bin/alfred-entrypoint builds --filter "$*"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
@@ -258,7 +258,7 @@
 				<key>runningsubtext</key>
 				<string>Fetching...</string>
 				<key>script</key>
-				<string>bin/alfred-entrypoint pipelines "$@"</string>
+				<string>bin/alfred-entrypoint pipelines --filter "$*"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
@@ -514,9 +514,9 @@
 		<key>23FFFF40-EAC3-4E31-884E-643D969B7AB7</key>
 		<dict>
 			<key>xpos</key>
-			<real>575</real>
+			<real>805</real>
 			<key>ypos</key>
-			<real>155</real>
+			<real>65</real>
 		</dict>
 		<key>2BF360A3-5D18-4185-9CF0-97B1D2B2F6BA</key>
 		<dict>
