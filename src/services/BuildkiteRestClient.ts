@@ -13,6 +13,12 @@ export interface BuildkiteRestClientOptions {
   debug?: boolean;
 }
 
+export interface RateLimitInfo {
+  remaining: number;
+  limit: number;
+  reset: number;
+}
+
 /**
  * BuildkiteRestClient provides methods to interact with the Buildkite REST API
  */
@@ -21,6 +27,7 @@ export class BuildkiteRestClient {
   private baseUrl: string = 'https://api.buildkite.com/v2';
   private cacheManager: CacheManager | null = null;
   private debug: boolean = false;
+  private rateLimitInfo: RateLimitInfo | null = null;
 
   /**
    * Create a new BuildkiteRestClient
@@ -99,15 +106,15 @@ export class BuildkiteRestClient {
     // Generate cache key
     const cacheKey = this.generateCacheKey(endpoint, params);
     const cacheType = this.getCacheTypeFromEndpoint(endpoint);
-
-    // Check cache first
+    
+    // Check cache first if enabled
     if (this.cacheManager) {
-      const cachedResult = await this.cacheManager.get<T>(cacheKey);
-      if (cachedResult) {
+      const cached = await this.cacheManager.get(cacheKey, cacheType as any);
+      if (cached) {
         if (this.debug) {
           logger.debug(`✅ Served from cache: REST ${endpoint}`);
         }
-        return cachedResult;
+        return cached as T;
       }
     }
 
@@ -120,54 +127,71 @@ export class BuildkiteRestClient {
       }
     }
     
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    try {
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = `API request failed with status ${response.status}: ${errorText}`;
-      
-      // Try to parse the error as JSON for more details
-      try {
-        const errorJson = JSON.parse(errorText);
-        if (errorJson.message) {
-          errorMessage = `API request failed: ${errorJson.message}`;
+      // Update rate limit info from headers
+      this.rateLimitInfo = {
+        remaining: parseInt(response.headers.get('RateLimit-Remaining') || '0'),
+        limit: parseInt(response.headers.get('RateLimit-Limit') || '0'),
+        reset: parseInt(response.headers.get('RateLimit-Reset') || '0'),
+      };
+
+      if (this.debug) {
+        logger.debug('Rate limit info:', this.rateLimitInfo);
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `API request failed with status ${response.status}: ${errorText}`;
+        
+        // Try to parse the error as JSON for more details
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.message) {
+            errorMessage = `API request failed: ${errorJson.message}`;
+          }
+          if (errorJson.errors && Array.isArray(errorJson.errors)) {
+            errorMessage += `\nErrors: ${errorJson.errors.map((e: any) => e.message).join(', ')}`;
+          }
+        } catch (e) {
+          // If parsing fails, use the original error text
         }
-        if (errorJson.errors && Array.isArray(errorJson.errors)) {
-          errorMessage += `\nErrors: ${errorJson.errors.map((e: any) => e.message).join(', ')}`;
+        
+        // Check if this is an authentication error
+        const isAuthError = this.isAuthenticationError(response.status, errorMessage);
+        if (isAuthError && this.debug) {
+          logger.debug('Authentication error detected, not caching result');
         }
-      } catch (e) {
-        // If parsing fails, use the original error text
+        
+        throw new Error(errorMessage);
       }
       
-      // Check if this is an authentication error
-      const isAuthError = this.isAuthenticationError(response.status, errorMessage);
-      if (isAuthError && this.debug) {
-        logger.debug('Authentication error detected, not caching result');
+      const data = await response.json() as T;
+      
+      // Cache the response if caching is enabled
+      if (this.cacheManager) {
+        await this.cacheManager.set(cacheKey, data, cacheType as any);
       }
       
-      throw new Error(errorMessage);
+      const endTime = process.hrtime.bigint();
+      const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
+      if (this.debug) {
+        logger.debug(`✅ REST API request completed: GET ${endpoint} (${duration.toFixed(2)}ms)`);
+      }
+      
+      return data;
+    } catch (error: unknown) {
+      if (this.debug) {
+        logger.error('Error in get request:', error);
+      }
+      throw error;
     }
-
-    const result = await response.json() as T;
-    
-    // Store in cache
-    if (this.cacheManager) {
-      await this.cacheManager.set(cacheKey, result, cacheType as any, true);
-    }
-    
-    const endTime = process.hrtime.bigint();
-    const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
-    if (this.debug) {
-      logger.debug(`✅ REST API request completed: GET ${endpoint} (${duration.toFixed(2)}ms)`);
-    }
-    
-    return result;
   }
 
   /**
@@ -185,6 +209,14 @@ export class BuildkiteRestClient {
            lowerMessage.includes('authentication') || 
            lowerMessage.includes('permission') ||
            lowerMessage.includes('invalid token');
+  }
+
+  /**
+   * Get the current rate limit information
+   * @returns Current rate limit information or null if not available
+   */
+  public getRateLimitInfo(): RateLimitInfo | null {
+    return this.rateLimitInfo;
   }
 
   /**

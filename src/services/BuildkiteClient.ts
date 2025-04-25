@@ -36,6 +36,12 @@ export interface BuildkiteClientOptions {
   }>;
 }
 
+export interface RateLimitInfo {
+  remaining: number;
+  limit: number;
+  reset: number;
+}
+
 /**
  * BuildkiteClient provides methods to interact with the Buildkite GraphQL API
  */
@@ -45,6 +51,7 @@ export class BuildkiteClient {
   private baseUrl: string = 'https://graphql.buildkite.com/v1';
   private cacheManager: CacheManager | null = null;
   private debug: boolean = false;
+  private rateLimitInfo: RateLimitInfo | null = null;
   /**
    * Create a new BuildkiteClient
    * @param token Your Buildkite API token
@@ -120,11 +127,23 @@ export class BuildkiteClient {
         }
       }
       
-      const result = await this.client.request<T>(query, variables);
+      const response = await this.client.request<T>(query, variables);
       
+      // Update rate limit info from headers
+      const headers = (this.client as any).headers as Headers;
+      this.rateLimitInfo = {
+        remaining: parseInt(headers.get('RateLimit-Remaining') || '0'),
+        limit: parseInt(headers.get('RateLimit-Limit') || '0'),
+        reset: parseInt(headers.get('RateLimit-Reset') || '0'),
+      };
+
+      if (this.debug) {
+        logger.debug('Rate limit info:', this.rateLimitInfo);
+      }
+
       // Store result in cache if caching is enabled
       if (this.cacheManager) {
-        await this.cacheManager.set(query, result, variables, true);
+        await this.cacheManager.set(query, response, variables);
       }
       
       const endTime = process.hrtime.bigint();
@@ -133,13 +152,16 @@ export class BuildkiteClient {
         logger.debug(`✅ GraphQL query completed: ${operationName} (${duration.toFixed(2)}ms)`);
       }
       
-      return result;
-    } catch (error) {
-      const isAuthError = this.isAuthenticationError(error);
+      return response;
+    } catch (error: unknown) {
+      const isAuthError = this.isAuthenticationError(error as any);
       if (isAuthError && this.debug) {
         logger.debug('Authentication error detected, not caching result');
       }
       
+      if (this.debug) {
+        logger.error('Error in GraphQL query:', error);
+      }
       throw error;
     }
   }
@@ -506,5 +528,13 @@ export class BuildkiteClient {
     }
 
     return result;
+  }
+
+  /**
+   * Get the current rate limit information
+   * @returns Current rate limit information or null if not available
+   */
+  public getRateLimitInfo(): RateLimitInfo | null {
+    return this.rateLimitInfo;
   }
 }
