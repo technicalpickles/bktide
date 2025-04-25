@@ -359,7 +359,7 @@
 				<key>subtext</key>
 				<string></string>
 				<key>title</key>
-				<string>Buildkite Token</string>
+				<string>Check Buildkite Token</string>
 				<key>type</key>
 				<integer>11</integer>
 				<key>withspace</key>
