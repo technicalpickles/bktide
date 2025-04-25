@@ -36,7 +36,7 @@
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>3B056C97-BEF6-4FA5-B9E6-F4F6A6DF89A9</string>
+				<string>B2329A6F-0D3F-4D1D-BB55-4BDFDC312C47</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -59,19 +59,6 @@
 				<false/>
 			</dict>
 		</array>
-		<key>5E9A303A-C9A9-4F0D-A431-B77AF9C1E805</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>9E696492-A214-4FB5-9E9B-950B197DB889</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
 		<key>6CEA3061-E41E-4D9C-99CF-435E7A85AED6</key>
 		<array>
 			<dict>
@@ -89,7 +76,48 @@
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>5E9A303A-C9A9-4F0D-A431-B77AF9C1E805</string>
+				<string>E7CED95B-DC0B-4A2E-ADBF-329A6389F597</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>7D93BD50-1A05-4990-ABE6-14FA8A7645B3</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>2BF360A3-5D18-4185-9CF0-97B1D2B2F6BA</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>sourceoutputuid</key>
+				<string>_button1</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>B2329A6F-0D3F-4D1D-BB55-4BDFDC312C47</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>C75A726B-1639-42C3-A91A-D8BDB79AF3B4</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>E7CED95B-DC0B-4A2E-ADBF-329A6389F597</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>7D93BD50-1A05-4990-ABE6-14FA8A7645B3</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -125,7 +153,7 @@
 				<key>escaping</key>
 				<integer>102</integer>
 				<key>keyword</key>
-				<string>builds</string>
+				<string>bkb</string>
 				<key>queuedelaycustom</key>
 				<integer>3</integer>
 				<key>queuedelayimmediatelyinitially</key>
@@ -182,6 +210,29 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>bin/alfred-entrypoint token --reset</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>11</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>C75A726B-1639-42C3-A91A-D8BDB79AF3B4</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
 				<key>alfredfiltersresults</key>
 				<false/>
 				<key>alfredfiltersresultsmatchmode</key>
@@ -195,7 +246,7 @@
 				<key>escaping</key>
 				<integer>102</integer>
 				<key>keyword</key>
-				<string>pipelines</string>
+				<string>bkp</string>
 				<key>queuedelaycustom</key>
 				<integer>3</integer>
 				<key>queuedelayimmediatelyinitially</key>
@@ -231,49 +282,46 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>alfredfiltersresults</key>
-				<false/>
-				<key>alfredfiltersresultsmatchmode</key>
-				<integer>0</integer>
-				<key>argumenttreatemptyqueryasnil</key>
-				<true/>
-				<key>argumenttrimmode</key>
-				<integer>0</integer>
 				<key>argumenttype</key>
-				<integer>2</integer>
+				<integer>0</integer>
+				<key>keyword</key>
+				<string>bktr</string>
+				<key>subtext</key>
+				<string></string>
+				<key>text</key>
+				<string>Reset Buildkite Token</string>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.keyword</string>
+			<key>uid</key>
+			<string>B2329A6F-0D3F-4D1D-BB55-4BDFDC312C47</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
 				<key>escaping</key>
 				<integer>102</integer>
-				<key>queuedelaycustom</key>
-				<integer>3</integer>
-				<key>queuedelayimmediatelyinitially</key>
-				<true/>
-				<key>queuedelaymode</key>
-				<integer>0</integer>
-				<key>queuemode</key>
-				<integer>1</integer>
-				<key>runningsubtext</key>
-				<string></string>
 				<key>script</key>
-				<string>bin/alfred-entrypoint token --reset</string>
+				<string>bin/alfred-entrypoint token --store --token "{var:token}"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
 				<string></string>
-				<key>subtext</key>
-				<string></string>
-				<key>title</key>
-				<string></string>
 				<key>type</key>
-				<integer>11</integer>
-				<key>withspace</key>
-				<false/>
+				<integer>0</integer>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.input.scriptfilter</string>
+			<string>alfred.workflow.action.script</string>
 			<key>uid</key>
-			<string>3B056C97-BEF6-4FA5-B9E6-F4F6A6DF89A9</string>
+			<string>2BF360A3-5D18-4185-9CF0-97B1D2B2F6BA</string>
 			<key>version</key>
-			<integer>3</integer>
+			<integer>2</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -291,7 +339,7 @@
 				<key>escaping</key>
 				<integer>102</integer>
 				<key>keyword</key>
-				<string>bktoken</string>
+				<string>bkt</string>
 				<key>queuedelaycustom</key>
 				<integer>3</integer>
 				<key>queuedelayimmediatelyinitially</key>
@@ -373,53 +421,6 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>alfredfiltersresults</key>
-				<true/>
-				<key>alfredfiltersresultsmatchmode</key>
-				<integer>0</integer>
-				<key>argumenttreatemptyqueryasnil</key>
-				<true/>
-				<key>argumenttrimmode</key>
-				<integer>0</integer>
-				<key>argumenttype</key>
-				<integer>2</integer>
-				<key>escaping</key>
-				<integer>102</integer>
-				<key>queuedelaycustom</key>
-				<integer>3</integer>
-				<key>queuedelayimmediatelyinitially</key>
-				<true/>
-				<key>queuedelaymode</key>
-				<integer>0</integer>
-				<key>queuemode</key>
-				<integer>1</integer>
-				<key>runningsubtext</key>
-				<string></string>
-				<key>script</key>
-				<string>bin/alfred-entrypoint token --store --token "{var:token}"</string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string></string>
-				<key>subtext</key>
-				<string></string>
-				<key>title</key>
-				<string></string>
-				<key>type</key>
-				<integer>11</integer>
-				<key>withspace</key>
-				<false/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.input.scriptfilter</string>
-			<key>uid</key>
-			<string>9E696492-A214-4FB5-9E9B-950B197DB889</string>
-			<key>version</key>
-			<integer>3</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
 				<key>argumenttype</key>
 				<integer>0</integer>
 				<key>keyword</key>
@@ -427,7 +428,7 @@
 				<key>subtext</key>
 				<string></string>
 				<key>text</key>
-				<string>Enter Buildkite Token</string>
+				<string>Update Buildkite Token</string>
 				<key>withspace</key>
 				<true/>
 			</dict>
@@ -441,6 +442,27 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>button1</key>
+				<string>Ok</string>
+				<key>button2</key>
+				<string>Cancel</string>
+				<key>button3</key>
+				<string></string>
+				<key>description</key>
+				<string>This will take a moment to validate. Use `bkt` to check its status</string>
+				<key>title</key>
+				<string>Storing Token...</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.dialog</string>
+			<key>uid</key>
+			<string>7D93BD50-1A05-4990-ABE6-14FA8A7645B3</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
 				<key>argument</key>
 				<string></string>
 				<key>passthroughargument</key>
@@ -448,13 +470,32 @@
 				<key>variables</key>
 				<dict>
 					<key>token</key>
-					<string>$query</string>
+					<string>{query}</string>
 				</dict>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.utility.argument</string>
 			<key>uid</key>
-			<string>5E9A303A-C9A9-4F0D-A431-B77AF9C1E805</string>
+			<string>E7CED95B-DC0B-4A2E-ADBF-329A6389F597</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>inputstring</key>
+				<string></string>
+				<key>matchcasesensitive</key>
+				<true/>
+				<key>matchmode</key>
+				<integer>0</integer>
+				<key>matchstring</key>
+				<string></string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.filter</string>
+			<key>uid</key>
+			<string>C4AA8AF0-E750-4984-A4B4-490D5500DC20</string>
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
@@ -477,12 +518,12 @@
 			<key>ypos</key>
 			<real>155</real>
 		</dict>
-		<key>3B056C97-BEF6-4FA5-B9E6-F4F6A6DF89A9</key>
+		<key>2BF360A3-5D18-4185-9CF0-97B1D2B2F6BA</key>
 		<dict>
 			<key>xpos</key>
-			<real>740</real>
+			<real>1090</real>
 			<key>ypos</key>
-			<real>265</real>
+			<real>395</real>
 		</dict>
 		<key>4BC44B5B-F643-42F8-8F64-DA29D018C1EF</key>
 		<dict>
@@ -498,13 +539,6 @@
 			<key>ypos</key>
 			<real>455</real>
 		</dict>
-		<key>5E9A303A-C9A9-4F0D-A431-B77AF9C1E805</key>
-		<dict>
-			<key>xpos</key>
-			<real>875</real>
-			<key>ypos</key>
-			<real>495</real>
-		</dict>
 		<key>6CEA3061-E41E-4D9C-99CF-435E7A85AED6</key>
 		<dict>
 			<key>xpos</key>
@@ -515,16 +549,44 @@
 		<key>720903FA-DE68-4819-B753-505F8392B54A</key>
 		<dict>
 			<key>xpos</key>
-			<real>690</real>
+			<real>680</real>
 			<key>ypos</key>
-			<real>470</real>
+			<real>455</real>
 		</dict>
-		<key>9E696492-A214-4FB5-9E9B-950B197DB889</key>
+		<key>7D93BD50-1A05-4990-ABE6-14FA8A7645B3</key>
 		<dict>
 			<key>xpos</key>
-			<real>975</real>
+			<real>965</real>
 			<key>ypos</key>
-			<real>465</real>
+			<real>500</real>
+		</dict>
+		<key>B2329A6F-0D3F-4D1D-BB55-4BDFDC312C47</key>
+		<dict>
+			<key>xpos</key>
+			<real>670</real>
+			<key>ypos</key>
+			<real>285</real>
+		</dict>
+		<key>C4AA8AF0-E750-4984-A4B4-490D5500DC20</key>
+		<dict>
+			<key>xpos</key>
+			<real>710</real>
+			<key>ypos</key>
+			<real>690</real>
+		</dict>
+		<key>C75A726B-1639-42C3-A91A-D8BDB79AF3B4</key>
+		<dict>
+			<key>xpos</key>
+			<real>925</real>
+			<key>ypos</key>
+			<real>215</real>
+		</dict>
+		<key>E7CED95B-DC0B-4A2E-ADBF-329A6389F597</key>
+		<dict>
+			<key>xpos</key>
+			<real>870</real>
+			<key>ypos</key>
+			<real>500</real>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>

@@ -61,15 +61,28 @@ export interface TokenFormatter extends BaseFormatterInterface {
   ): string;
 
   /**
-   * Format general error message
+   * Format error message(s)
    * @param operation The operation that failed (e.g., 'storing', 'resetting', 'validating')
-   * @param error The error that occurred
+   * @param error The error that occurred, or an array of errors
    * @param options Formatting options
-   * @returns Formatted error message
+   * @returns Formatted error message(s)
    */
   formatError(
     operation: string,
-    error: unknown,
+    error: unknown | unknown[],
+    options?: TokenFormatterOptions
+  ): string;
+
+  /**
+   * Format authentication error message(s)
+   * @param operation The authentication operation that failed (e.g., 'storing', 'validating')
+   * @param error The authentication error that occurred, or an array of errors
+   * @param options Formatting options
+   * @returns Formatted authentication error message(s)
+   */
+  formatAuthErrors(
+    operation: string,
+    error: unknown | unknown[],
     options?: TokenFormatterOptions
   ): string;
 }
@@ -101,7 +114,13 @@ export abstract class BaseTokenFormatter implements TokenFormatter {
 
   abstract formatError(
     operation: string,
-    error: unknown,
+    error: unknown | unknown[],
+    options?: TokenFormatterOptions
+  ): string;
+
+  abstract formatAuthErrors(
+    operation: string,
+    error: unknown | unknown[],
     options?: TokenFormatterOptions
   ): string;
   

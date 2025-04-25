@@ -76,11 +76,6 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
         },
         valid: false, // not selectable
       });
-
-      items.push(this.buildStoreItem());
-      items.push(this.buildResetItem());
-    } else {
-      items.push(this.buildStoreItem());
     }
     
     return JSON.stringify({ items });
@@ -196,31 +191,60 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
   }
 
   /**
-   * Format general error message for Alfred
+   * Format error message(s) for Alfred
    * 
    * @param operation The operation that failed (e.g., 'storing', 'resetting', 'validating')
-   * @param error The error that occurred
-   * @returns Formatted error message for Alfred
+   * @param error The error that occurred, or an array of errors
+   * @returns Formatted error message(s) for Alfred
    */
   formatError(
     operation: string,
-    error: unknown
+    error: unknown | unknown[]
   ): string {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const message = `Error ${operation} token: ${errorMessage}`;
-    
-    return JSON.stringify({
-      items: [
-        {
-          title: message,
-          subtitle: 'An error occurred while managing your token',
-          icon: {
-            path: this.getIcon(false)
-          },
-          arg: `token:error:${operation}`
-        }
-      ]
+    const errors = Array.isArray(error) ? error : [error];
+    const items = errors.map(error => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const message = `Error ${operation} token: ${errorMessage}`;
+      
+      return {
+        title: message,
+        subtitle: 'An error occurred while managing your token',
+        icon: {
+          path: this.getIcon(false)
+        },
+        arg: `token:error:${operation}`
+      };
     });
+    
+    return JSON.stringify({ items });
+  }
+
+  /**
+   * Format authentication error message(s) for Alfred
+   * 
+   * @param operation The authentication operation that failed (e.g., 'storing', 'validating')
+   * @param error The authentication error that occurred, or an array of errors
+   * @returns Formatted authentication error message(s) for Alfred
+   */
+  formatAuthErrors(
+    _operation: string,
+    error: unknown | unknown[]
+  ): string {
+    const errors = Array.isArray(error) ? error : [error];
+    const items = errors.map(error => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      return {
+        title: errorMessage,
+        icon: {
+          path: this.getIcon(false)
+        },
+        valid: false,
+
+      };
+    });
+    
+    return JSON.stringify({ items });
   }
 
   /**
@@ -276,27 +300,5 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
 
   private getIcon(valid: boolean): string {
     return valid ? 'icons/passed.png' : 'icons/failed.png';
-  }
-
-  private buildStoreItem(): any {
-    return {
-      title: 'Update Token',
-      subtitle: 'Update the token in the keychain',
-      icon: {
-        path: 'icons/update.png'
-      },
-      arg: 'token:store'
-    };
-  }
-
-  private buildResetItem(): any {
-    return {
-      title: 'Delete Token',
-      subtitle: 'Delete the token from the keychain',
-      icon: {
-        path: 'icons/delete.png'
-      },
-      arg: 'token:reset'
-    };
   }
 } 

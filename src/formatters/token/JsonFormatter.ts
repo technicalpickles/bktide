@@ -94,24 +94,75 @@ export class JsonFormatter extends BaseTokenFormatter implements TokenFormatter 
   }
 
   /**
-   * Format general error message as JSON
+   * Format error message(s) as JSON
    * 
    * @param operation The operation that failed (e.g., 'storing', 'resetting', 'validating')
-   * @param error The error that occurred
-   * @returns Formatted error message as JSON string
+   * @param error The error that occurred, or an array of errors
+   * @returns Formatted error message(s) as JSON string
    */
   formatError(
     operation: string,
-    error: unknown
+    error: unknown | unknown[]
   ): string {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorObject = {
-      operation,
-      error: errorMessage,
-      message: `Error ${operation} token: ${errorMessage}`
-    };
+    const errors = Array.isArray(error) ? error : [error];
+    const errorObjects = errors.map(error => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        operation,
+        error: errorMessage,
+        message: `Error ${operation} token: ${errorMessage}`
+      };
+    });
 
-    return JSON.stringify(errorObject, null, 2);
+    return JSON.stringify(errorObjects, null, 2);
+  }
+
+  /**
+   * Format authentication error message(s) as JSON
+   * 
+   * @param operation The authentication operation that failed (e.g., 'storing', 'validating')
+   * @param error The authentication error that occurred, or an array of errors
+   * @returns Formatted authentication error message(s) as JSON string
+   */
+  formatAuthErrors(
+    operation: string,
+    error: unknown | unknown[]
+  ): string {
+    const errors = Array.isArray(error) ? error : [error];
+    const errorObjects = errors.map(error => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        operation,
+        error: errorMessage,
+        message: `Authentication error ${operation} token: ${errorMessage}`,
+        suggestion: 'Please check your token permissions and try again'
+      };
+    });
+
+    return JSON.stringify(errorObjects, null, 2);
+  }
+
+  /**
+   * Format multiple error messages as JSON
+   * 
+   * @param operation The operation that failed (e.g., 'storing', 'resetting', 'validating')
+   * @param errors Array of errors that occurred
+   * @returns Formatted error messages as JSON string
+   */
+  formatErrors(
+    operation: string,
+    errors: unknown[]
+  ): string {
+    const errorObjects = errors.map(error => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        operation,
+        error: errorMessage,
+        message: `Error ${operation} token: ${errorMessage}`
+      };
+    });
+
+    return JSON.stringify(errorObjects, null, 2);
   }
 
   /**

@@ -114,17 +114,55 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
   }
 
   /**
-   * Format general error message in plain text
+   * Format error message(s) in plain text
    * 
    * @param operation The operation that failed (e.g., 'storing', 'resetting', 'validating')
-   * @param error The error that occurred
-   * @returns Formatted error message
+   * @param error The error that occurred, or an array of errors
+   * @returns Formatted error message(s)
    */
   formatError(
     operation: string,
-    error: unknown
+    error: unknown | unknown[]
   ): string {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return `Error ${operation} token: ${errorMessage}`;
+    const errors = Array.isArray(error) ? error : [error];
+    return errors.map(error => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return `Error ${operation} token: ${errorMessage}`;
+    }).join('\n');
+  }
+
+  /**
+   * Format authentication error message(s) in plain text
+   * 
+   * @param operation The authentication operation that failed (e.g., 'storing', 'validating')
+   * @param error The authentication error that occurred, or an array of errors
+   * @returns Formatted authentication error message(s)
+   */
+  formatAuthErrors(
+    operation: string,
+    error: unknown | unknown[]
+  ): string {
+    const errors = Array.isArray(error) ? error : [error];
+    return errors.map(error => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return `Authentication error ${operation} token: ${errorMessage}\nPlease check your token permissions and try again`;
+    }).join('\n\n');
+  }
+
+  /**
+   * Format multiple error messages in plain text
+   * 
+   * @param operation The operation that failed (e.g., 'storing', 'resetting', 'validating')
+   * @param errors Array of errors that occurred
+   * @returns Formatted error messages
+   */
+  formatErrors(
+    operation: string,
+    errors: unknown[]
+  ): string {
+    return errors.map(error => {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return `Error ${operation} token: ${errorMessage}`;
+    }).join('\n');
   }
 } 

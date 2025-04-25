@@ -34,7 +34,7 @@ export class ManageToken extends BaseCommand {
         if (success) {
           return 0;
         } else {
-          const formattedErrors = this.formatter.formatError('storing', errors);
+          const formattedErrors = this.formatter.formatAuthErrors('storing', errors);
           logger.console(formattedErrors);
           return 1;
         }
@@ -43,14 +43,14 @@ export class ManageToken extends BaseCommand {
       } else if (options.check) {
         const { errors } = await this.checkToken();
         if (errors.length > 0) {
-          const formattedErrors = this.formatter.formatError('validating', errors);
+          const formattedErrors = this.formatter.formatAuthErrors('validating', errors);
           logger.console(formattedErrors);
           return 0;
         }
       } else {
         const { errors } = await this.checkOrStoreToken();
         if (errors.length > 0) {
-          const formattedErrors = this.formatter.formatError('checking or storing', errors);
+          const formattedErrors = this.formatter.formatAuthErrors('checking or storing', errors);
           logger.console(formattedErrors);
           return 0;
         }
@@ -100,13 +100,13 @@ export class ManageToken extends BaseCommand {
       if (!validationResult.valid) {
         const validationErrors = []
         if (!validationResult.graphqlValid) {
-          validationErrors.push(new Error('Invalid GraphQL token'));
+          validationErrors.push(new Error('Invalid for GraphQL endpoints'));
         }
         if (!validationResult.buildAccessValid) {
-          validationErrors.push(new Error('Invalid Build Access token'));
+          validationErrors.push(new Error('Invalid for Build REST endpoints'));
         }
         if (!validationResult.orgAccessValid) {
-          validationErrors.push(new Error('Invalid Organization Access token'));
+          validationErrors.push(new Error('Invalid for Organization REST endpoints'));
         }
         
         return { success: false, errors: validationErrors };
