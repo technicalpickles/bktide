@@ -1,10 +1,17 @@
-import { BaseTokenFormatter, TokenFormatter } from './Formatter.js';
 import { TokenStatus, TokenValidationStatus } from '../../types/credentials.js';
+import { BaseTokenFormatter } from './Formatter.js';
+
+interface AlfredItem {
+  title: string;
+  subtitle: string;
+  icon: string;
+  arg: string;
+}
 
 /**
  * Alfred formatter for tokens
  */
-export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatter {
+export class AlfredFormatter extends BaseTokenFormatter {
   name = 'alfred';
 
   /**
@@ -14,70 +21,7 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
    * @returns Formatted token status message for Alfred
    */
   formatTokenStatus(status: TokenStatus): string {
-    const items = [];
-    
-    items.push({
-      title: "Keychain",
-      subtitle: status.hasToken ? 'Token exists in keychain' : 'No token found',
-      icon: {
-        path: this.getIcon(status.hasToken)
-      },
-      valid: false,
-      arg: status.hasToken ? 'token:exists' : 'token:missing'
-    });
-    
-    // Add GraphQL API status item
-    if (status.hasToken) {
-      const graphqlIcon = this.getIcon(status.validation.graphqlValid);
-      const graphqlTitle = 'GraphQL API';
-      const graphqlSubtitle = status.validation.graphqlValid 
-        ? 'Token has GraphQL API access' 
-        : 'Token lacks GraphQL API access';
-      
-      items.push({
-        title: graphqlTitle,
-        subtitle: graphqlSubtitle,
-        icon: {
-          path: graphqlIcon
-        },
-        valid: false, // to indicate if you can select it
-        arg: status.validation.graphqlValid ? 'token:graphql:valid' : 'token:graphql:invalid'
-      });
-      
-      // Add Builds REST API status item
-      const buildsIcon = this.getIcon(status.validation.buildAccessValid);
-      const buildsTitle = 'Builds REST API';
-      const buildsSubtitle = status.validation.buildAccessValid 
-        ? 'Token has Builds REST API access' 
-        : 'Token lacks Builds REST API access';
-      
-      items.push({
-        title: buildsTitle,
-        subtitle: buildsSubtitle,
-        icon: {
-          path: buildsIcon
-        },
-        valid: false, // to indicate if you can select it
-        arg: status.validation.buildAccessValid ? 'token:rest:builds:valid' : 'token:rest:builds:invalid'
-      });
-
-      // Add Organization REST API status item
-      const orgIcon = this.getIcon(status.validation.orgAccessValid);
-      const orgTitle = 'Organization REST API';
-      const orgSubtitle = status.validation.orgAccessValid 
-        ? 'Token has Organization REST API access' 
-        : 'Token lacks Organization REST API access';
-      
-      items.push({
-        title: orgTitle,
-        subtitle: orgSubtitle,
-        icon: {
-          path: orgIcon
-        },
-        valid: false, // not selectable
-      });
-    }
-    
+    const items = this.formatTokenStatusAsItems(status);
     return JSON.stringify({ items });
   }
 
@@ -88,24 +32,13 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
    * @returns Formatted token storage result message for Alfred
    */
   formatTokenStorageResult(success: boolean): string {
-    const message = success 
-      ? 'Token successfully stored in system keychain' 
-      : 'Failed to store token';
-    
-    const icon = success ? 'checkmark' : 'xmark';
-    
-    return JSON.stringify({
-      items: [
-        {
-          title: message,
-          subtitle: success ? 'Token is now available for use' : 'Please try again',
-          icon: {
-            path: icon
-          },
-          arg: success ? 'token:stored' : 'token:store-failed'
-        }
-      ]
-    });
+    const items: AlfredItem[] = [{
+      title: success ? 'Token Stored Successfully' : 'Failed to Store Token',
+      subtitle: success ? 'Token was saved to system keychain' : 'Could not save token to system keychain',
+      icon: this.getIcon(success),
+      arg: success ? 'token:stored' : 'token:store-failed'
+    }];
+    return JSON.stringify({ items });
   }
 
   /**
@@ -116,23 +49,17 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
    * @returns Formatted token reset result message for Alfred
    */
   formatTokenResetResult(success: boolean, hadToken: boolean): string {
-    const message = this.getResetMessage(success, hadToken);
-    const icon = this.getIcon(success && hadToken);
-    
-    return JSON.stringify({
-      items: [
-        {
-          title: message,
-          subtitle: hadToken 
-            ? (success ? 'Token has been removed' : 'Token could not be removed') 
-            : 'No token was found',
-          icon: {
-            path: icon
-          },
-          arg: success ? 'token:reset' : 'token:reset-failed'
-        }
-      ]
-    });
+    const items: AlfredItem[] = [{
+      title: success ? 'Token Reset Successfully' : 'Failed to Reset Token',
+      subtitle: success 
+        ? hadToken 
+          ? 'Token was removed from system keychain' 
+          : 'No token was present to reset'
+        : 'Could not remove token from system keychain',
+      icon: this.getIcon(success),
+      arg: success ? 'token:reset' : 'token:reset-failed'
+    }];
+    return JSON.stringify({ items });
   }
 
   /**
@@ -141,24 +68,9 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
    * @param validation The validation status for each API
    * @returns Formatted token validation error message for Alfred
    */
-  formatTokenValidationError(
-    validation: TokenValidationStatus
-  ): string {
-    const message = this.getValidationErrorMessage(validation);
-    const icon = this.getIcon(false);
-    
-    return JSON.stringify({
-      items: [
-        {
-          title: message,
-          subtitle: 'Please ensure your token has the necessary permissions for both APIs',
-          icon: {
-            path: icon
-          },
-          arg: 'token:invalid'
-        }
-      ]
-    });
+  formatTokenValidationError(validation: TokenValidationStatus): string {
+    const items = this.formatTokenValidationStatusAsItems(validation);
+    return JSON.stringify({ items });
   }
 
   /**
@@ -167,27 +79,9 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
    * @param validation The validation status for each API
    * @returns Formatted token validation status message for Alfred
    */
-  formatTokenValidationStatus(
-    validation: TokenValidationStatus
-  ): string {
-    const message = this.getValidationStatusMessage(validation);
-    const isValid = validation.valid;
-    const icon = this.getIcon(isValid);
-    
-    return JSON.stringify({
-      items: [
-        {
-          title: message,
-          subtitle: isValid 
-            ? 'Token is valid for all operations' 
-            : 'Token has limited functionality',
-          icon: {
-            path: icon
-          },
-          arg: isValid ? 'token:valid' : 'token:partially-valid'
-        }
-      ]
-    });
+  formatTokenValidationStatus(validation: TokenValidationStatus): string {
+    const items = this.formatTokenValidationStatusAsItems(validation);
+    return JSON.stringify({ items });
   }
 
   /**
@@ -197,25 +91,14 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
    * @param error The error that occurred, or an array of errors
    * @returns Formatted error message(s) for Alfred
    */
-  formatError(
-    operation: string,
-    error: unknown | unknown[]
-  ): string {
+  formatError(operation: string, error: unknown | unknown[]): string {
     const errors = Array.isArray(error) ? error : [error];
-    const items = errors.map(error => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const message = `Error ${operation} token: ${errorMessage}`;
-      
-      return {
-        title: message,
-        subtitle: 'An error occurred while managing your token',
-        icon: {
-          path: this.getIcon(false)
-        },
-        arg: `token:error:${operation}`
-      };
-    });
-    
+    const items: AlfredItem[] = errors.map(err => ({
+      title: `Error during ${operation}`,
+      subtitle: err instanceof Error ? err.message : String(err),
+      icon: this.getIcon(false),
+      arg: `error:${operation}`
+    }));
     return JSON.stringify({ items });
   }
 
@@ -226,79 +109,103 @@ export class AlfredFormatter extends BaseTokenFormatter implements TokenFormatte
    * @param error The authentication error that occurred, or an array of errors
    * @returns Formatted authentication error message(s) for Alfred
    */
-  formatAuthErrors(
-    _operation: string,
-    error: unknown | unknown[]
-  ): string {
+  formatAuthErrors(operation: string, error: unknown | unknown[]): string {
     const errors = Array.isArray(error) ? error : [error];
-    const items = errors.map(error => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      
-      return {
-        title: errorMessage,
-        icon: {
-          path: this.getIcon(false)
-        },
-        valid: false,
-
-      };
-    });
-    
+    const items: AlfredItem[] = errors.map(err => ({
+      title: `Authentication Error during ${operation}`,
+      subtitle: err instanceof Error ? err.message : String(err),
+      icon: this.getIcon(false),
+      arg: `auth-error:${operation}`
+    }));
     return JSON.stringify({ items });
   }
 
-  /**
-   * Get a human-readable reset message based on reset result
-   */
-  private getResetMessage(success: boolean, hadToken: boolean): string {
-    if (!hadToken) {
-      return 'No token found in system keychain';
-    }
-
-    if (success) {
-      return 'Token successfully deleted from system keychain';
-    } else {
-      return 'Failed to delete token';
-    }
+  private getIcon(isValid: boolean): string {
+    return isValid ? '✅' : '❌';
   }
 
-  /**
-   * Get a human-readable validation error message
-   */
-  private getValidationErrorMessage(validation: TokenValidationStatus): string {
-    const invalidApis = [];
-    if (!validation.graphqlValid) invalidApis.push('GraphQL');
-    if (!validation.buildAccessValid) invalidApis.push('Builds REST');
-    if (!validation.orgAccessValid) invalidApis.push('Organization REST');
+  private formatTokenStatusAsItems(status: TokenStatus): AlfredItem[] {
+    const items: AlfredItem[] = [];
+    
+    // Add token status item
+    items.push({
+      title: `Token Status: ${status.hasToken ? 'Present' : 'Not Present'}`,
+      subtitle: status.hasToken ? 'Token is stored in system keychain' : 'No token found in system keychain',
+      icon: this.getIcon(status.hasToken),
+      arg: status.hasToken ? 'token:present' : 'token:not-present'
+    });
 
-    if (invalidApis.length === 0) {
-      return 'Token is valid for all APIs';
+    if (status.hasToken) {
+      // Add overall validity item
+      items.push({
+        title: `Valid: ${status.isValid ? 'Yes' : 'No'}`,
+        subtitle: status.isValid ? 'Token is valid for all required APIs' : 'Token has limited access',
+        icon: this.getIcon(status.isValid),
+        arg: status.isValid ? 'token:valid' : 'token:invalid'
+      });
+
+      if (status.validation.canListOrganizations) {
+        // Add organization status items
+        Object.entries(status.validation.organizations).forEach(([org, orgStatus]) => {
+          const isValid = orgStatus.graphql && orgStatus.builds && orgStatus.organizations;
+          const invalidApis = [];
+          if (!orgStatus.graphql) invalidApis.push('GraphQL');
+          if (!orgStatus.builds) invalidApis.push('Builds');
+          if (!orgStatus.organizations) invalidApis.push('Organizations');
+          
+          items.push({
+            title: `Organization: ${org}`,
+            subtitle: isValid 
+              ? 'Full access to all APIs'
+              : `Limited access: ${invalidApis.join(', ')}`,
+            icon: this.getIcon(isValid),
+            arg: isValid ? `org:${org}:valid` : `org:${org}:invalid`
+          });
+        });
+      } else {
+        items.push({
+          title: 'Cannot list organizations',
+          subtitle: 'Token may be invalid or lacks necessary permissions',
+          icon: this.getIcon(false),
+          arg: 'token:no-org-access'
+        });
+      }
     }
 
-    return `Token is invalid for ${invalidApis.join(', ')} API${invalidApis.length > 1 ? 's' : ''}`;
+    return items;
   }
 
-  /**
-   * Get a human-readable validation status message
-   */
-  private getValidationStatusMessage(validation: TokenValidationStatus): string {
-    const validApis = [];
-    if (validation.graphqlValid) validApis.push('GraphQL');
-    if (validation.buildAccessValid) validApis.push('Builds REST');
-    if (validation.orgAccessValid) validApis.push('Organization REST');
+  private formatTokenValidationStatusAsItems(validation: TokenValidationStatus): AlfredItem[] {
+    const items: AlfredItem[] = [];
 
-    if (validApis.length === 0) {
-      return 'Token is invalid for all APIs';
+    if (!validation.canListOrganizations) {
+      items.push({
+        title: 'Cannot list organizations',
+        subtitle: 'Token may be invalid or lacks necessary permissions',
+        icon: this.getIcon(false),
+        arg: 'token:no-org-access'
+      });
+      return items;
     }
 
-    if (validApis.length === 3) {
-      return 'Token is valid for all APIs';
-    }
+    // Add organization status items
+    Object.entries(validation.organizations).forEach(([org, orgStatus]) => {
+      const isValid = orgStatus.graphql && orgStatus.builds && orgStatus.organizations;
+      const invalidApis = [];
+      if (!orgStatus.graphql) invalidApis.push('GraphQL');
+      if (!orgStatus.builds) invalidApis.push('Builds');
+      if (!orgStatus.organizations) invalidApis.push('Organizations');
+      
+      items.push({
+        title: `Organization: ${org}`,
+        subtitle: isValid 
+          ? 'Full access to all APIs'
+          : `Limited access: ${invalidApis.join(', ')}`,
+        icon: this.getIcon(isValid),
+        arg: isValid ? `org:${org}:valid` : `org:${org}:invalid`
+      });
+    });
 
-    return `Token is valid for ${validApis.join(', ')} API${validApis.length > 1 ? 's' : ''}`;
-  }
-
-  private getIcon(valid: boolean): string {
-    return valid ? 'icons/passed.png' : 'icons/failed.png';
+    return items;
   }
 } 

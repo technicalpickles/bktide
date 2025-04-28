@@ -177,16 +177,19 @@ export class JsonFormatter extends BaseTokenFormatter implements TokenFormatter 
       return 'Token is valid for GraphQL and both REST APIs';
     }
 
-    const validApis = [];
-    if (status.validation.graphqlValid) validApis.push('GraphQL');
-    if (status.validation.buildAccessValid) validApis.push('Builds REST');
-    if (status.validation.orgAccessValid) validApis.push('Organization REST');
-
-    if (validApis.length === 0) {
-      return 'Token is invalid for all APIs';
+    if (!status.validation.canListOrganizations) {
+      return 'Token is invalid or does not have access to list organizations';
     }
 
-    return `Token is valid for ${validApis.join(', ')} API${validApis.length > 1 ? 's' : ''}`;
+    const validOrgs = Object.entries(status.validation.organizations)
+      .filter(([_, status]) => status.graphql && status.builds && status.organizations)
+      .map(([org]) => org);
+
+    if (validOrgs.length === 0) {
+      return 'Token has no valid organizations';
+    }
+
+    return `Token is valid for organizations: ${validOrgs.join(', ')}`;
   }
 
   /**
@@ -208,35 +211,37 @@ export class JsonFormatter extends BaseTokenFormatter implements TokenFormatter 
    * Get a human-readable validation error message
    */
   private getValidationErrorMessage(validation: TokenValidationStatus): string {
-    const invalidApis = [];
-    if (!validation.graphqlValid) invalidApis.push('GraphQL');
-    if (!validation.buildAccessValid) invalidApis.push('Builds REST');
-    if (!validation.orgAccessValid) invalidApis.push('Organization REST');
-
-    if (invalidApis.length === 0) {
-      return 'Token is valid for all APIs';
+    if (validation.canListOrganizations) {
+      const invalidOrgs = Object.entries(validation.organizations)
+        .filter(([_, status]) => !status.graphql || !status.builds || !status.organizations)
+        .map(([org, status]) => {
+          const invalidApis = [];
+          if (!status.graphql) invalidApis.push('GraphQL');
+          if (!status.builds) invalidApis.push('Builds');
+          if (!status.organizations) invalidApis.push('Organizations');
+          return `${org} (${invalidApis.join(', ')})`;
+        });
+      return `Token has limited access in some organizations: ${invalidOrgs.join(', ')}`;
     }
-
-    return `Token is invalid for ${invalidApis.join(', ')} API${invalidApis.length > 1 ? 's' : ''}`;
+    return 'Token is invalid or does not have access to list organizations';
   }
 
   /**
    * Get a human-readable validation status message
    */
   private getValidationStatusMessage(validation: TokenValidationStatus): string {
-    const validApis = [];
-    if (validation.graphqlValid) validApis.push('GraphQL');
-    if (validation.buildAccessValid) validApis.push('Builds REST');
-    if (validation.orgAccessValid) validApis.push('Organization REST');
-
-    if (validApis.length === 0) {
-      return 'Token is invalid for all APIs';
+    if (!validation.canListOrganizations) {
+      return 'Token is invalid or does not have access to list organizations';
     }
 
-    if (validApis.length === 3) {
-      return 'Token is valid for all APIs';
+    const validOrgs = Object.entries(validation.organizations)
+      .filter(([_, status]) => status.graphql && status.builds && status.organizations)
+      .map(([org]) => org);
+
+    if (validOrgs.length === 0) {
+      return 'Token has no valid organizations';
     }
 
-    return `Token is valid for ${validApis.join(', ')} API${validApis.length > 1 ? 's' : ''}`;
+    return `Token is valid for organizations: ${validOrgs.join(', ')}`;
   }
 } 

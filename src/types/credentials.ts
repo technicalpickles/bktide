@@ -1,16 +1,22 @@
 /**
  * Represents the validation status of a Buildkite API token
  */
+export interface OrganizationValidationStatus {
+  /** Whether the token is valid for the GraphQL API for this organization */
+  graphql: boolean;
+  /** Whether the token is valid for the REST API to access builds in this organization */
+  builds: boolean;
+  /** Whether the token is valid for the REST API to access organization details */
+  organizations: boolean;
+}
+
 export interface TokenValidationStatus {
   /** Combined status of all validation checks */
   valid: boolean;
-
-  /** Whether the token is valid for the GraphQL API */
-  graphqlValid: boolean;
-  /** Whether the token is valid for the REST API to access a build */
-  buildAccessValid: boolean;
-  /** Whether the token is valid for the REST API to access an organization */
-  orgAccessValid: boolean;
+  /** Whether the token can access the GraphQL API to list organizations */
+  canListOrganizations: boolean;
+  /** Validation status for each organization */
+  organizations: Record<string, OrganizationValidationStatus>;
 }
 
 /**

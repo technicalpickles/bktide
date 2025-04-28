@@ -2,7 +2,7 @@ import { Entry } from '@napi-rs/keyring';
 import { logger } from './logger.js';
 import { BuildkiteClient } from './BuildkiteClient.js';
 import { BuildkiteRestClient } from './BuildkiteRestClient.js';
-import { TokenValidationStatus } from '../types/credentials.js';
+import { TokenValidationStatus, OrganizationValidationStatus } from '../types/credentials.js';
 
 const SERVICE_NAME = 'bktide';
 const ACCOUNT_KEY = 'default';
@@ -81,53 +81,84 @@ export class CredentialManager {
       const tokenToValidate = token || await this.getToken();
       if (!tokenToValidate) {
         logger.debug('No token provided for validation');
-        return { graphqlValid: false, buildAccessValid: false, orgAccessValid: false, valid: false };
+        return { 
+          valid: false, 
+          canListOrganizations: false,
+          organizations: {} 
+        };
       }
 
       // Create clients with the token
       const graphqlClient = new BuildkiteClient(tokenToValidate, { debug: false });
       const restClient = new BuildkiteRestClient(tokenToValidate, { debug: false });
       
-      // Try to make simple API calls that require authentication
-      // First check GraphQL API
-      let graphqlValid = false;
+      // First check if we can list organizations
+      let orgSlugs: string[] = [];
       try {
-        await graphqlClient.getViewer();
-        logger.debug('GraphQL API token validation successful');
-        graphqlValid = true;
+        orgSlugs = await graphqlClient.getViewerOrganizationSlugs();
+        logger.debug('Successfully retrieved organization slugs');
       } catch (error) {
-        logger.debug('GraphQL API token validation failed', error);
-      }
-      
-      // Then check REST API
-      let orgAccessValid = false;
-      try {
-        // Try to get organizations as a simple REST API test
-        await restClient.hasOrganizationAccess('buildkite');
-        logger.debug('REST API token validation successful');
-        orgAccessValid = true;
-      } catch (error) {
-        logger.debug('REST API token validation failed', error);
+        logger.debug('Failed to retrieve organization slugs', error);
+        return { 
+          valid: false, 
+          canListOrganizations: false,
+          organizations: {} 
+        };
       }
 
-      let buildAccessValid = false;
-      try {
-        // Try to get organizations as a simple REST API test
-        const orgs = await graphqlClient.getViewerOrganizationSlugs();
-        for (const org of orgs) {
-          await restClient.hasBuildAccess(org);
+      const organizations: Record<string, OrganizationValidationStatus> = {};
+      let allValid = true;
+
+      // Validate each organization
+      for (const orgSlug of orgSlugs) {
+        const orgStatus: OrganizationValidationStatus = {
+          graphql: false,
+          builds: false,
+          organizations: false
+        };
+
+        try {
+          // Check GraphQL access
+          await graphqlClient.getViewer();
+          orgStatus.graphql = true;
+        } catch (error) {
+          logger.debug(`GraphQL validation failed for organization ${orgSlug}`, error);
+          allValid = false;
         }
-        logger.debug('REST API token validation successful');
-        buildAccessValid = true;
-      } catch (error) {
-        logger.debug('REST API token validation failed', error);
+
+        try {
+          // Check build access
+          await restClient.hasBuildAccess(orgSlug);
+          orgStatus.builds = true;
+        } catch (error) {
+          logger.debug(`Build access validation failed for organization ${orgSlug}`, error);
+          allValid = false;
+        }
+
+        try {
+          // Check organization access
+          await restClient.hasOrganizationAccess(orgSlug);
+          orgStatus.organizations = true;
+        } catch (error) {
+          logger.debug(`Organization access validation failed for organization ${orgSlug}`, error);
+          allValid = false;
+        }
+
+        organizations[orgSlug] = orgStatus;
       }
-      
-      logger.debug(`Token validation results: GraphQL=${graphqlValid}, REST=${orgAccessValid}`);
-      return { graphqlValid, buildAccessValid, orgAccessValid, valid: graphqlValid && buildAccessValid && orgAccessValid };
+
+      return {
+        valid: allValid,
+        canListOrganizations: true,
+        organizations
+      };
     } catch (error) {
       logger.debug('Token validation failed', error);
-      return { graphqlValid: false, buildAccessValid: false, orgAccessValid: false, valid: false };
+      return { 
+        valid: false, 
+        canListOrganizations: false,
+        organizations: {} 
+      };
     }
   }
-} 
+}

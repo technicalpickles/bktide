@@ -96,20 +96,21 @@ export class ManageToken extends BaseCommand {
       // Validate the token using the CredentialManager
       const validationResult = await BaseCommand.credentialManager.validateToken(tokenToStore);
       
-      // Check if token is valid for both APIs
+      if (!validationResult.canListOrganizations) {
+        throw new Error('Token is invalid or does not have access to list organizations');
+      }
+
       if (!validationResult.valid) {
-        const validationErrors = []
-        if (!validationResult.graphqlValid) {
-          validationErrors.push(new Error('Invalid for GraphQL endpoints'));
-        }
-        if (!validationResult.buildAccessValid) {
-          validationErrors.push(new Error('Invalid for Build REST endpoints'));
-        }
-        if (!validationResult.orgAccessValid) {
-          validationErrors.push(new Error('Invalid for Organization REST endpoints'));
-        }
-        
-        return { success: false, errors: validationErrors };
+        const invalidOrgs = Object.entries(validationResult.organizations)
+          .filter(([_, status]) => !status.graphql || !status.builds || !status.organizations)
+          .map(([org, status]) => {
+            const invalidApis = [];
+            if (!status.graphql) invalidApis.push('GraphQL');
+            if (!status.builds) invalidApis.push('Builds');
+            if (!status.organizations) invalidApis.push('Organizations');
+            return `${org} (${invalidApis.join(', ')})`;
+          });
+        throw new Error(`Token has limited access in some organizations: ${invalidOrgs.join(', ')}`);
       }
       
       // Store the token if it's valid
@@ -154,7 +155,11 @@ export class ManageToken extends BaseCommand {
   private async checkToken(): Promise<TokenCheckResult> {
     const hasToken = await BaseCommand.credentialManager.hasToken();
     let isValid = false;
-    let validation: TokenValidationStatus = { graphqlValid: false, buildAccessValid: false, orgAccessValid: false, valid: false };
+    let validation: TokenValidationStatus = { 
+      valid: false, 
+      canListOrganizations: false,
+      organizations: {} 
+    };
     const errors: unknown[] = [];
 
     if (hasToken) {
@@ -164,7 +169,11 @@ export class ManageToken extends BaseCommand {
         const tokenStatus: TokenStatus = {
           hasToken: false,
           isValid: false,
-          validation: { graphqlValid: false, buildAccessValid: false, orgAccessValid: false, valid: false }
+          validation: { 
+            valid: false, 
+            canListOrganizations: false,
+            organizations: {} 
+          }
         };
         return { status: tokenStatus, errors };
       }

@@ -14,24 +14,41 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
    * @returns Formatted token status message
    */
   formatTokenStatus(status: TokenStatus): string {
-    if (!status.hasToken) {
-      return 'No token found in system keychain';
+    const lines: string[] = [];
+    lines.push(`Token Status: ${status.hasToken ? 'Present' : 'Not Present'}`);
+    
+    if (status.hasToken) {
+      lines.push(`Valid: ${status.isValid ? 'Yes' : 'No'}`);
+      
+      if (status.validation.canListOrganizations) {
+        const validOrgs = Object.entries(status.validation.organizations)
+          .filter(([_, status]) => status.graphql && status.builds && status.organizations)
+          .map(([org]) => org);
+        
+        if (validOrgs.length > 0) {
+          lines.push('Valid Organizations:');
+          validOrgs.forEach(org => lines.push(`  - ${org}`));
+        }
+
+        const invalidOrgs = Object.entries(status.validation.organizations)
+          .filter(([_, status]) => !status.graphql || !status.builds || !status.organizations);
+        
+        if (invalidOrgs.length > 0) {
+          lines.push('Organizations with Limited Access:');
+          invalidOrgs.forEach(([org, status]) => {
+            const invalidApis = [];
+            if (!status.graphql) invalidApis.push('GraphQL');
+            if (!status.builds) invalidApis.push('Builds');
+            if (!status.organizations) invalidApis.push('Organizations');
+            lines.push(`  - ${org} (${invalidApis.join(', ')})`);
+          });
+        }
+      } else {
+        lines.push('Cannot list organizations - token may be invalid');
+      }
     }
-
-    if (status.isValid) {
-      return 'Token is valid for GraphQL and both REST APIs';
-    }
-
-    const validApis = [];
-    if (status.validation.graphqlValid) validApis.push('GraphQL');
-    if (status.validation.buildAccessValid) validApis.push('Builds REST');
-    if (status.validation.orgAccessValid) validApis.push('Organization REST');
-
-    if (validApis.length === 0) {
-      return 'Token is invalid for all APIs';
-    }
-
-    return `Token is valid for ${validApis.join(', ')} API${validApis.length > 1 ? 's' : ''}`;
+    
+    return lines.join('\n');
   }
 
   /**
@@ -76,16 +93,25 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
   formatTokenValidationError(
     validation: TokenValidationStatus
   ): string {
-    const invalidApis = [];
-    if (!validation.graphqlValid) invalidApis.push('GraphQL');
-    if (!validation.buildAccessValid) invalidApis.push('Builds REST');
-    if (!validation.orgAccessValid) invalidApis.push('Organization REST');
-
-    if (invalidApis.length === 0) {
-      return 'Token is valid for all APIs';
+    if (!validation.canListOrganizations) {
+      return 'Token is invalid or does not have access to list organizations';
     }
 
-    return `Token is invalid for ${invalidApis.join(', ')} API${invalidApis.length > 1 ? 's' : ''}`;
+    const invalidOrgs = Object.entries(validation.organizations)
+      .filter(([_, status]) => !status.graphql || !status.builds || !status.organizations)
+      .map(([org, status]) => {
+        const invalidApis = [];
+        if (!status.graphql) invalidApis.push('GraphQL');
+        if (!status.builds) invalidApis.push('Builds');
+        if (!status.organizations) invalidApis.push('Organizations');
+        return `${org} (${invalidApis.join(', ')})`;
+      });
+
+    if (invalidOrgs.length === 0) {
+      return 'Token is valid for all organizations';
+    }
+
+    return `Token has limited access in some organizations: ${invalidOrgs.join(', ')}`;
   }
 
   /**
@@ -94,23 +120,36 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
    * @param validation The validation status for each API
    * @returns Formatted token validation status message
    */
-  formatTokenValidationStatus(
-    validation: TokenValidationStatus
-  ): string {
-    const validApis = [];
-    if (validation.graphqlValid) validApis.push('GraphQL');
-    if (validation.buildAccessValid) validApis.push('Builds REST');
-    if (validation.orgAccessValid) validApis.push('Organization REST');
-
-    if (validApis.length === 0) {
-      return 'Token is invalid for all APIs';
+  formatTokenValidationStatus(validation: TokenValidationStatus): string {
+    if (!validation.canListOrganizations) {
+      return 'Token is invalid or does not have access to list organizations';
     }
 
-    if (validApis.length === 3) {
-      return 'Token is valid for all APIs';
+    const lines: string[] = [];
+    const validOrgs = Object.entries(validation.organizations)
+      .filter(([_, status]) => status.graphql && status.builds && status.organizations)
+      .map(([org]) => org);
+    
+    if (validOrgs.length > 0) {
+      lines.push('Valid Organizations:');
+      validOrgs.forEach(org => lines.push(`  - ${org}`));
     }
 
-    return `Token is valid for ${validApis.join(', ')} API${validApis.length > 1 ? 's' : ''}`;
+    const invalidOrgs = Object.entries(validation.organizations)
+      .filter(([_, status]) => !status.graphql || !status.builds || !status.organizations);
+    
+    if (invalidOrgs.length > 0) {
+      lines.push('Organizations with Limited Access:');
+      invalidOrgs.forEach(([org, status]) => {
+        const invalidApis = [];
+        if (!status.graphql) invalidApis.push('GraphQL');
+        if (!status.builds) invalidApis.push('Builds');
+        if (!status.organizations) invalidApis.push('Organizations');
+        lines.push(`  - ${org} (${invalidApis.join(', ')})`);
+      });
+    }
+
+    return lines.join('\n');
   }
 
   /**
