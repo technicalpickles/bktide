@@ -181,7 +181,7 @@ export class ManageToken extends BaseCommand {
       // Validate the token using the CredentialManager
       try {
         validation = await BaseCommand.credentialManager.validateToken(token);
-        isValid = validation.valid;
+        isValid = validation.valid && validation.canListOrganizations;
       } catch (error) {
         errors.push(error);
       }

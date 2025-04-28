@@ -113,38 +113,35 @@ export abstract class BaseCommand {
   protected handleError(error: any, debug: boolean = false): void {
     // Only log the error message and stack trace
     if (error instanceof Error) {
-      logger.error(`${error.message}`);
-      
-      // Always print the stack trace for proper debugging
-      if (error.stack) {
-        logger.error(error.stack);
-      }
+      logger.error(error, 'Error occurred');
       
       // If it's a GraphQL error or API error, show more details
       const apiError = error as ApiError;
       if (apiError.response?.errors) {
         apiError.response.errors.forEach((gqlError, index) => {
-          logger.error(`GraphQL Error ${index + 1}: ${gqlError.message}`);
-          if (gqlError.path) logger.error(`Path: ${gqlError.path.join('.')}`);
+          logger.error({ path: gqlError.path }, `GraphQL Error ${index + 1}: ${gqlError.message}`);
         });
       }
       
       // Show request details if available and in debug mode
       if (debug && apiError.request) {
-        logger.debug('Request Details:');
-        logger.debug(`URL: ${apiError.request.url || 'N/A'}`);
-        logger.debug(`Method: ${apiError.request.method || 'N/A'}`);
+        logger.debug({ 
+          url: apiError.request.url,
+          method: apiError.request.method 
+        }, 'Request Details');
       }
     } else if (typeof error === 'object') {
-      logger.error(JSON.stringify(error, null, 2));
+      logger.error({ error }, 'Unknown error occurred');
     } else {
-      logger.error(`An unknown error occurred: ${error}`);
+      logger.error({ error }, 'Unknown error occurred');
     }
     
     if (debug) {
-      logger.debug(`Timestamp: ${new Date().toISOString()}`);
-      logger.debug(`Node Version: ${process.version}`);
-      logger.debug(`Platform: ${process.platform} (${process.arch})`);
+      logger.debug({ 
+        timestamp: new Date().toISOString(),
+        nodeVersion: process.version,
+        platform: `${process.platform} (${process.arch})`
+      }, 'Debug Information');
     }
   }
 

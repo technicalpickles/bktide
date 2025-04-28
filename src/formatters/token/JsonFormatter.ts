@@ -174,7 +174,10 @@ export class JsonFormatter extends BaseTokenFormatter implements TokenFormatter 
     }
 
     if (status.isValid) {
-      return 'Token is valid for GraphQL and both REST APIs';
+      const validOrgs = Object.entries(status.validation.organizations)
+        .filter(([_, status]) => status.graphql && status.builds && status.organizations)
+        .map(([org]) => org);
+      return `Token is valid for organizations: ${validOrgs.join(', ')}`;
     }
 
     if (!status.validation.canListOrganizations) {

@@ -87,7 +87,7 @@ export class ListBuilds extends BaseCommand {
           allBuilds = allBuilds.concat(builds);
         } catch (error) {
           // Log unexpected errors but continue processing other orgs
-          logger.error(`Error fetching builds for org ${org}: ${error instanceof Error ? error.message : String(error)}`);
+          logger.error(error, `Error fetching builds for org ${org}`);
         }
       }
       

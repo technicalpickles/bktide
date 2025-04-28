@@ -25,7 +25,8 @@ export const logger = pino(
             useOnlyCustomProps: true,
             sync: true,
             minimumLevel: 'console',
-            ignore: 'level,time,pid,hostname'
+            ignore: 'level,time,pid,hostname',
+            errorProps: 'err,error,stack'
           }
         },
         {
@@ -36,6 +37,7 @@ export const logger = pino(
             sync: true,
             translateTime: 'HH:MM:ss.l',
             ignore: 'time,pid,hostname',
+            errorProps: 'err,error,stack'
           }
         },
         // JSON file output
@@ -51,6 +53,9 @@ export const logger = pino(
       ],
       dedupe: true
     },
+    serializers: {
+      err: pino.stdSerializers.err
+    }
   }
 );
 

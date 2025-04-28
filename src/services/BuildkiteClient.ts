@@ -256,6 +256,9 @@ export class BuildkiteClient {
       const organizations = this.processOrganizationsResponse(data);
       
       if (organizations.length === 0) {
+        if (this.debug) {
+          logger.debug('No organizations found in response', { data });
+        }
         return []
       }
       
@@ -270,6 +273,12 @@ export class BuildkiteClient {
       
       return slugs;
     } catch (error) {
+      if (this.debug) {
+        logger.debug('GraphQL query failed', {
+          error: error instanceof Error ? error.message : String(error),
+          details: error instanceof Error ? error : undefined
+        });
+      }
       throw new Error('Failed to determine your organizations', { cause: error });
     }
   }

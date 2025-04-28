@@ -98,7 +98,10 @@ export class CredentialManager {
         orgSlugs = await graphqlClient.getViewerOrganizationSlugs();
         logger.debug('Successfully retrieved organization slugs');
       } catch (error) {
-        logger.debug('Failed to retrieve organization slugs', error);
+        logger.debug('Failed to retrieve organization slugs', {
+          error: error instanceof Error ? error.message : String(error),
+          cause: error instanceof Error && error.cause ? error.cause : undefined
+        });
         return { 
           valid: false, 
           canListOrganizations: false,

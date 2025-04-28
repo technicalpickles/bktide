@@ -37,10 +37,9 @@ export function initializeErrorHandling(): void {
  */
 export function logError(error: unknown): void {
   if (error instanceof Error) {
-    logger.error('❌ Error occurred:');
-    logger.error(error.stack || error.message);
+    logger.error(error, 'Error occurred');
   } else {
-    logger.error('Unknown error:', error);
+    logger.error({ error }, 'Unknown error occurred');
   }
 }
 
@@ -58,13 +57,10 @@ export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
       return await fn(...args);
     } catch (error) {
       if (error instanceof Error) {
-        // Log the error with its stack trace
-        console.error('\x1b[31m%s\x1b[0m', '❌ Error occurred:');
-        console.error('\x1b[31m%s\x1b[0m', error.stack || error.message);
+        logger.error(error, 'Error occurred');
       } else {
-        console.error('\x1b[31m%s\x1b[0m', 'Unknown error:', error);
+        logger.error({ error }, 'Unknown error occurred');
       }
-      // Re-throw to let the caller handle it
       throw error;
     }
   };
