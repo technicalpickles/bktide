@@ -1,5 +1,5 @@
 /**
- * CLI Error Handler - Provides improved error display for CLI applications
+ * CLI Error Handler - Provides error display for CLI applications
  */
 
 import { logger } from '../services/logger.js';
@@ -21,6 +21,37 @@ export function setErrorFormat(format: string): void {
   } else {
     logger.warn(`Unknown format '${format}', error output format remains as ${globalErrorFormat}`);
   }
+}
+
+/**
+ * Display a formatted error message
+ * 
+ * @param error The error to display
+ * @param debug Whether to include debug information
+ * @param format Output format (plain, json, alfred), defaults to global setting
+ */
+export function displayCLIError(
+  error: unknown, 
+  debug = false, 
+  format?: string
+): void {
+  // Use provided format or fall back to global format
+  const outputFormat = format || globalErrorFormat;
+  
+  // Get the appropriate formatter based on format
+  const formatter = FormatterFactory.getFormatter(FormatterType.ERROR, outputFormat) as ErrorFormatter;
+  
+  // Format the error using the selected formatter
+  const formattedError = formatter.formatError(error, { debug });
+  
+  // Print the formatted output
+  if (outputFormat === 'plain') {
+    logger.error(formattedError);
+  } else {
+    logger.console(formattedError);
+  }
+  
+  process.exit(1);
 }
 
 /**
@@ -140,44 +171,6 @@ export function formatErrorForCLI(error: unknown, debug = false): string {
 }
 
 /**
- * Display a formatted error message using the specified output format
- * 
- * @param error The error to display
- * @param debug Whether to include debug information
- * @param format Output format (plain, json, alfred), defaults to global setting
- * @param exitOnError Whether to exit the process after displaying the error
- */
-export function displayCLIError(
-  error: unknown, 
-  debug = false, 
-  format?: string,
-  exitOnError = !debug
-): void {
-  // Use provided format or fall back to global format
-  const outputFormat = format || globalErrorFormat;
-  
-  // Get the appropriate formatter based on format
-  const formatter = FormatterFactory.getFormatter(FormatterType.ERROR, outputFormat) as ErrorFormatter;
-  
-  // Format the error using the selected formatter
-  const formattedError = formatter.formatError(error, { debug, exitOnError });
-  
-  // Print the formatted output to the console
-  if (outputFormat === 'plain') {
-    // For plain text, print directly to stderr
-    logger.error(formattedError);
-  } else {
-    // For structured formats like JSON or Alfred, print to stdout
-    logger.console(formattedError);
-  }
-  
-  // Exit with error code if requested
-  if (exitOnError) {
-    process.exit(1);
-  }
-}
-
-/**
  * Wraps a function with CLI error handling
  * 
  * @param fn The function to wrap
@@ -189,7 +182,6 @@ export function withCLIErrorHandling<T extends (...args: any[]) => Promise<any>>
   options: {
     debugMode?: boolean;
     format?: string;
-    exitOnError?: boolean;
   } = {}
 ): (...args: Parameters<T>) => Promise<ReturnType<T>> {
   return async function(...args: Parameters<T>): Promise<ReturnType<T>> {
@@ -199,8 +191,7 @@ export function withCLIErrorHandling<T extends (...args: any[]) => Promise<any>>
       displayCLIError(
         error, 
         options.debugMode || false, 
-        options.format, // Pass undefined if not specified to use global format
-        options.exitOnError !== undefined ? options.exitOnError : !options.debugMode
+        options.format
       );
       process.exit(1);
     }

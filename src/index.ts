@@ -259,36 +259,28 @@ program
 
 program
   .command('boom')
-  .description('Test error handling with different formats')
+  .description('Test error handling')
   .option('--type <type>', 'Type of error to throw (basic, api, object)', 'basic')
+  .option('--format <format>', 'Output format (plain, json, alfred)', 'plain')
   .action((options) => {
     switch (options.type) {
       case 'api':
-        // Simulate an API error
         const apiError = new Error('API request failed');
         (apiError as any).response = {
           errors: [
-            { message: 'Invalid token', path: ['viewer'], locations: [{ line: 1, column: 10 }] },
-            { message: 'Permission denied', path: ['viewer', 'organizations'] }
+            { message: 'Invalid token', path: ['viewer'] }
           ]
-        };
-        (apiError as any).request = {
-          url: 'https://graphql.buildkite.com/v1',
-          method: 'POST'
         };
         throw apiError;
         
       case 'object':
-        // Throw a non-Error object
         throw {
           message: 'This is not an Error instance',
-          code: 'CUSTOM_ERROR',
-          timestamp: new Date().toISOString()
+          code: 'CUSTOM_ERROR'
         };
         
       case 'basic':
       default:
-        // Simple error
         throw new Error('Boom! This is a test error');
     }
   });
