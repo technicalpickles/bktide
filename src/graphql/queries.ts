@@ -133,7 +133,7 @@ export const GET_BUILD_ANNOTATIONS = gql`
             context
             style
             body {
-              text
+              html
             }
           }
         }

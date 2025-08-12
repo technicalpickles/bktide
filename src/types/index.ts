@@ -75,7 +75,7 @@ export interface Annotation {
   context: string;
   style: string;
   body: {
-    text: string;
+    html: string;
   };
 }
 

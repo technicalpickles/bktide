@@ -8,7 +8,10 @@ export class ListAnnotations extends BaseCommand {
   static requiresToken = true;
 
   async execute(options: any): Promise<number> {
-    logger.info('ListAnnotations command executed');
+    if (options.debug) {
+      logger.debug('Starting ListAnnotations command execution');
+    }
+    
     
     if (!options.buildArg) {
       logger.error('Build reference is required');
@@ -20,7 +23,9 @@ export class ListAnnotations extends BaseCommand {
       await this.ensureInitialized();
       
       const buildRef = parseBuildRef(options.buildArg);
-      logger.info('Parsed build reference:', buildRef);
+      if (options.debug) {
+        logger.debug('Parsed build reference:', buildRef);
+      }
       
       // Fetch annotations from the GraphQL API
       const buildSlug = `${buildRef.org}/${buildRef.pipeline}/${buildRef.number}`;

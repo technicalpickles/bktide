@@ -1,5 +1,6 @@
 import { BaseFormatter, AnnotationFormatterOptions } from './Formatter.js';
 import { Annotation } from '../../types/index.js';
+import { formatAnnotationBody } from '../../utils/textFormatter.js';
 
 export class PlainTextFormatter extends BaseFormatter {
   name = 'PlainText';
@@ -26,7 +27,17 @@ export class PlainTextFormatter extends BaseFormatter {
       lines.push(`Annotation ${index + 1}:`);
       lines.push(`  Context: ${annotation.context}`);
       lines.push(`  Style: ${annotation.style}`);
-      lines.push(`  Body: ${annotation.body.text}`);
+      
+      // Format the body HTML with proper HTML/markdown handling
+      const formattedBody = formatAnnotationBody(annotation.body.html);
+      
+      // Indent the formatted body properly
+      const indentedBody = formattedBody
+        .split('\n')
+        .map(line => `  ${line}`)
+        .join('\n');
+      
+      lines.push(`  Body: ${indentedBody}`);
     });
 
     return lines.join('\n');
