@@ -8,6 +8,8 @@ export interface AnnotationFormatterOptions extends FormatterOptions {
   errorMessage?: string;
   errorType?: 'access' | 'not_found' | 'api' | 'unknown';
   accessErrors?: string[];
+  // Filtering information
+  contextFilter?: string;
 }
 
 export interface AnnotationFormatter extends BaseFormatterInterface {

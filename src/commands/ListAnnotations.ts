@@ -27,7 +27,19 @@ export class ListAnnotations extends BaseCommand {
       const result = await this.client.getBuildAnnotations(buildSlug);
       
       // Extract annotations from the GraphQL response
-      const annotations: Annotation[] = result.build?.annotations?.edges?.map((edge: any) => edge.node) || [];
+      let annotations: Annotation[] = result.build?.annotations?.edges?.map((edge: any) => edge.node) || [];
+      
+      // Filter by context if specified
+      if (options.context) {
+        const contextFilter = options.context.toLowerCase();
+        annotations = annotations.filter(annotation => 
+          annotation.context.toLowerCase() === contextFilter
+        );
+        
+        if (options.debug) {
+          logger.debug(`Filtered annotations by context '${options.context}': ${annotations.length} found`);
+        }
+      }
       
       // Get the appropriate formatter
       const formatter = FormatterFactory.getFormatter(
@@ -37,7 +49,8 @@ export class ListAnnotations extends BaseCommand {
       
       // Format and output the results
       const output = formatter.formatAnnotations(annotations, {
-        debug: options.debug
+        debug: options.debug,
+        contextFilter: options.context
       });
       
       console.log(output);

@@ -15,7 +15,8 @@ export class JsonFormatter extends BaseFormatter {
 
     const result = {
       annotations: annotations || [],
-      count: annotations ? annotations.length : 0
+      count: annotations ? annotations.length : 0,
+      ...(options?.contextFilter && { contextFilter: options.contextFilter })
     };
 
     return JSON.stringify(result, null, 2);

@@ -207,6 +207,7 @@ program
       
       if (mergedOptions.debug) {
         logger.debug('Annotations build arg:', cmd.mergedOptions.buildArg);
+        logger.debug('Annotations context filter:', mergedOptions.context);
       }
     }
     
@@ -271,6 +272,7 @@ program
   .command('annotations')
   .description('Show annotations for a build')
   .argument('<build>', 'Build reference (org/pipeline/number or @https://buildkite.com/org/pipeline/builds/number)')
+  .option('--context <context>', 'Filter annotations by context (e.g., rspec, build-resources)')
   .action(createCommandHandler(ListAnnotations));
 
 program

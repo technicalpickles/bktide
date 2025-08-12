@@ -86,11 +86,17 @@ The build reference can be specified in two formats:
 
 Additional options:
 ```bash
+# Filter by context
+npm run dev -- annotations gusto/zenpayroll/1287418 --context rspec
+
 # Output in JSON format
 npm run dev -- annotations gusto/zenpayroll/1287418 --format json
 
 # Output in plain text format (default)
 npm run dev -- annotations https://buildkite.com/gusto/zenpayroll/builds/1287418 --format plain
+
+# Combine filtering and formatting
+npm run dev -- annotations gusto/zenpayroll/1287418 --context build-resources --format json
 ```
 
 ## API Token

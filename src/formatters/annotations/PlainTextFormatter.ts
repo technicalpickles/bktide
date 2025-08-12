@@ -10,6 +10,9 @@ export class PlainTextFormatter extends BaseFormatter {
     }
 
     if (!annotations || annotations.length === 0) {
+      if (options?.contextFilter) {
+        return `No annotations found for this build with context '${options.contextFilter}'.`;
+      }
       return 'No annotations found for this build.';
     }
 
