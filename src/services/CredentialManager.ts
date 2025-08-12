@@ -89,13 +89,13 @@ export class CredentialManager {
       }
 
       // Create clients with the token
-      const graphqlClient = new BuildkiteClient(tokenToValidate, { debug: false });
+      const graphqlClient = new BuildkiteClient(tokenToValidate, { debug: false, caching: false });
       const restClient = new BuildkiteRestClient(tokenToValidate, { debug: false });
       
       // First check if we can list organizations
       let orgSlugs: string[] = [];
       try {
-        orgSlugs = await graphqlClient.getViewerOrganizationSlugs();
+        orgSlugs = await graphqlClient.getOrganizations().then(orgs => orgs.map(org => org.slug));
         logger.debug('Successfully retrieved organization slugs');
       } catch (error) {
         logger.debug('Failed to retrieve organization slugs', {
