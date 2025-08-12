@@ -251,6 +251,31 @@ export class BuildkiteRestClient {
     return builds;
   }
 
+  /**
+   * Get annotations for a specific build
+   * @param org Organization slug
+   * @param pipeline Pipeline slug
+   * @param number Build number
+   * @returns List of annotations
+   */
+  public async getBuildAnnotations(org: string, pipeline: string, number: number): Promise<any[]> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${number}/annotations`;
+    const startTime = process.hrtime.bigint();
+    if (this.debug) {
+      logger.debug(`🕒 Fetching annotations for build: ${org}/${pipeline}/${number}`);
+    }
+    
+    const annotations = await this.get<any[]>(endpoint);
+    
+    const endTime = process.hrtime.bigint();
+    const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
+    if (this.debug) {
+      logger.debug(`✅ Retrieved ${annotations.length} annotations for ${org}/${pipeline}/${number} (${duration.toFixed(2)}ms)`);
+    }
+    
+    return annotations;
+  }
+
   public async hasBuildAccess(org: string): Promise<boolean> {
     try {
       await this.getBuilds(org, { per_page: '1' });

@@ -5,6 +5,7 @@ import { ViewerFormatter, getViewerFormatter } from './viewer/index.js';
 import { OrganizationFormatter, getOrganizationFormatter } from './organizations/index.js';
 import { FormatterFactory, FormatterType } from './FormatterFactory.js';
 import { ErrorFormatter, ErrorFormatterOptions, getErrorFormatter } from './errors/index.js';
+import { AnnotationFormatter, getAnnotationFormatter } from './annotations/index.js';
 
 export { 
   FormatterOptions,
@@ -19,6 +20,8 @@ export {
   ErrorFormatter,
   ErrorFormatterOptions,
   getErrorFormatter,
+  AnnotationFormatter,
+  getAnnotationFormatter,
   FormatterFactory,
   FormatterType
 }; 

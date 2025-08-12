@@ -8,7 +8,8 @@ import {
   ListOrganizations,
   ListBuilds,
   ListPipelines,
-  ManageToken
+  ManageToken,
+  ListAnnotations
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
@@ -200,6 +201,14 @@ program
         logger.debug('Build options:', cmd.buildOptions);
       }
     }
+    else if (commandName === 'annotations') {
+      // Attach the build argument to options
+      cmd.mergedOptions.buildArg = cmd.args?.[0];
+      
+      if (mergedOptions.debug) {
+        logger.debug('Annotations build arg:', cmd.mergedOptions.buildArg);
+      }
+    }
     
     if (mergedOptions.debug) {
       logger.debug(`Executing command: ${commandName}`);
@@ -256,6 +265,13 @@ program
   .option('--store', 'Store a token in the system keychain')
   .option('--reset', 'Delete the stored token from system keychain')
   .action(createCommandHandler(ManageToken));
+
+// Add annotations command
+program
+  .command('annotations')
+  .description('Show annotations for a build')
+  .argument('<build>', 'Build reference (org/pipeline/number or @https://buildkite.com/org/pipeline/builds/number)')
+  .action(createCommandHandler(ListAnnotations));
 
 program
   .command('boom')

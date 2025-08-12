@@ -5,6 +5,7 @@ import { getViewerFormatter } from './viewer/index.js';
 import { getOrganizationFormatter } from './organizations/index.js';
 import { getErrorFormatter } from './errors/index.js';
 import { getTokenFormatter } from './token/index.js';
+import { getAnnotationFormatter } from './annotations/index.js';
 
 export enum FormatterType {
   PIPELINE = 'pipeline',
@@ -12,13 +13,14 @@ export enum FormatterType {
   VIEWER = 'viewer',
   ORGANIZATION = 'organization',
   ERROR = 'error',
-  TOKEN = 'token'
+  TOKEN = 'token',
+  ANNOTATION = 'annotation'
 }
 
 export class FormatterFactory {
   /**
    * Get the appropriate formatter based on the type and format
-   * @param type The formatter type ('pipeline', 'build', 'viewer', 'organization', 'error', 'token')
+   * @param type The formatter type ('pipeline', 'build', 'viewer', 'organization', 'error', 'token', 'annotation')
    * @param format The format to use ('plain', 'json', 'alfred')
    * @returns The appropriate formatter instance
    */
@@ -39,6 +41,8 @@ export class FormatterFactory {
         return getErrorFormatter(normalizedFormat);
       case FormatterType.TOKEN:
         return getTokenFormatter(normalizedFormat);
+      case FormatterType.ANNOTATION:
+        return getAnnotationFormatter(normalizedFormat);
       default:
         throw new Error(`Unknown formatter type: ${type}`);
     }

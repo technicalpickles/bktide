@@ -70,6 +70,16 @@ export interface Build {
   organization?: BuildOrganization;
 }
 
+// Annotation types
+export interface Annotation {
+  id: string;
+  context: string;
+  style: string;
+  body_html: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // GraphQL API response structure types
 export interface GraphQLEdge<T> {
   node: T;

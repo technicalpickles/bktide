@@ -74,6 +74,25 @@ npm run dev -- builds --json
 npm run dev -- builds --alfred
 ```
 
+### Show Build Annotations
+
+```bash
+npm run dev -- annotations <build>
+```
+
+The build reference can be specified in two formats:
+- **Slug format**: `org/pipeline/number` (e.g., `gusto/zenpayroll/1287418`)
+- **URL format**: `@https://buildkite.com/org/pipeline/builds/number` or `https://buildkite.com/org/pipeline/builds/number`
+
+Additional options:
+```bash
+# Output in JSON format
+npm run dev -- annotations gusto/zenpayroll/1287418 --format json
+
+# Output in plain text format (default)
+npm run dev -- annotations https://buildkite.com/gusto/zenpayroll/builds/1287418 --format plain
+```
+
 ## API Token
 
 You'll need a Buildkite API token with GraphQL scopes. Create one at:
