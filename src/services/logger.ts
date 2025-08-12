@@ -16,7 +16,7 @@ export const logger = pino(
     },
     transport: {
       targets: [
-        // Regular console output
+        // Direct console output (no pretty formatting)
         {
           target: 'pino-pretty',
           level: 'console',
@@ -26,9 +26,10 @@ export const logger = pino(
             sync: true,
             minimumLevel: 'console',
             ignore: 'level,time,pid,hostname',
-            errorProps: 'err,error,stack'
+            errorProps: 'err,error,stack,message,code,details'
           }
         },
+        // Debug output with pretty formatting
         {
           target: 'pino-pretty',
           level: 'trace',
@@ -37,10 +38,11 @@ export const logger = pino(
             sync: true,
             translateTime: 'HH:MM:ss.l',
             ignore: 'time,pid,hostname',
-            errorProps: 'err,error,stack'
+            errorProps: 'err,error,stack,message,code,details',
+            messageFormat: '{msg}'
           }
         },
-        // JSON file output
+        // JSON file output for detailed logging
         {
           target: 'pino/file',
           level: 'trace',
@@ -54,7 +56,10 @@ export const logger = pino(
       dedupe: true
     },
     serializers: {
-      err: pino.stdSerializers.err
+      err: pino.stdSerializers.err,
+      error: pino.stdSerializers.err,
+      stack: (stack: string) => stack,
+      details: (details: any) => details
     }
   }
 );

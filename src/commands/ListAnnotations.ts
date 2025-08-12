@@ -58,7 +58,7 @@ export class ListAnnotations extends BaseCommand {
         contextFilter: options.context
       });
       
-      console.log(output);
+      logger.console(output);
       
       return 0;
     } catch (error) {
@@ -77,7 +77,7 @@ export class ListAnnotations extends BaseCommand {
         debug: options.debug
       });
       
-      console.log(errorOutput);
+      logger.console(errorOutput);
       return 1;
     }
   }

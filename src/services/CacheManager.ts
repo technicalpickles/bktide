@@ -32,7 +32,16 @@ export class CacheManager {
   public async init(): Promise<void> {
     if (this.initialized) return;
     
+    if (this.debug) {
+      logger.debug('CacheManager.init - starting initialization');
+      logger.debug('CacheManager.init - nodePersist:', { type: typeof nodePersist });
+    }
+    
     const storageDir = XDGPaths.getAppCacheDir('bktide');
+    
+    if (this.debug) {
+      logger.debug('CacheManager.init - storageDir:', { storageDir });
+    }
     
     await nodePersist.init({
       dir: storageDir,
@@ -44,6 +53,10 @@ export class CacheManager {
     });
     
     this.initialized = true;
+    
+    if (this.debug) {
+      logger.debug('CacheManager.init - initialization complete');
+    }
   }
 
   /**
@@ -109,6 +122,12 @@ export class CacheManager {
     const key = query.startsWith('REST:') ? query : this.generateCacheKey(query, variables);
     
     try {
+      // Add debug logging to see what's happening
+      if (this.debug) {
+        logger.debug('CacheManager.get - nodePersist:', { type: typeof nodePersist });
+        logger.debug('CacheManager.get - key:', { key });
+      }
+      
       const entry = await nodePersist.getItem(key);
       
       if (!entry) return null;
@@ -121,6 +140,9 @@ export class CacheManager {
       
       return entry.value as T;
     } catch (error) {
+      if (this.debug) {
+        logger.debug('CacheManager.get error:', { error });
+      }
       logger.debug(`Cache miss or error for key ${key}:`, error);
       return null;
     }

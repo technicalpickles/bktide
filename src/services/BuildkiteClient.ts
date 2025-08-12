@@ -83,9 +83,16 @@ export class BuildkiteClient {
 
     // Initialize cache if caching is enabled
     if (options?.caching !== false) {
+      if (this.debug) {
+        logger.debug('BuildkiteClient constructor - creating CacheManager');
+      }
       this.cacheManager = new CacheManager(options?.cacheTTLs, this.debug);
       // Initialize cache and set token hash (async, but we don't wait)
       this.initCache();
+    } else {
+      if (this.debug) {
+        logger.debug('BuildkiteClient constructor - caching disabled');
+      }
     }
   }
 
@@ -118,6 +125,9 @@ export class BuildkiteClient {
       
       // Check if result is in cache
       if (this.cacheManager) {
+              if (this.debug) {
+        logger.debug('query() - cacheManager exists, checking cache');
+      }
         const cachedResult = await this.cacheManager.get<T>(query, variables);
         
         if (cachedResult) {
@@ -126,20 +136,18 @@ export class BuildkiteClient {
           }
           return cachedResult;
         }
+      } else {
+        if (this.debug) {
+          logger.debug('query() - cacheManager is null/undefined');
+        }
       }
       
       const response = await this.client.request<T>(query, variables);
       
-      // Update rate limit info from headers
-      const headers = (this.client as any).headers as Headers;
-      this.rateLimitInfo = {
-        remaining: parseInt(headers.get('RateLimit-Remaining') || '0'),
-        limit: parseInt(headers.get('RateLimit-Limit') || '0'),
-        reset: parseInt(headers.get('RateLimit-Reset') || '0'),
-      };
-
+      // Note: Rate limit info extraction is not available with graphql-request
+      // as headers are not exposed. This would require using a different client.
       if (this.debug) {
-        logger.debug('Rate limit info:', this.rateLimitInfo);
+        logger.debug('GraphQL request completed successfully');
       }
 
       // Store result in cache if caching is enabled
@@ -162,6 +170,37 @@ export class BuildkiteClient {
       
       if (this.debug) {
         logger.error('Error in GraphQL query:', error);
+        
+
+        
+        // Log raw error information
+        logger.debug('Raw error object:', { 
+          error, 
+          type: typeof error, 
+          constructor: error?.constructor?.name,
+          keys: error && typeof error === 'object' ? Object.keys(error) : undefined
+        });
+        
+        // Log more detailed error information
+        if (error instanceof Error && 'response' in error) {
+          const response = (error as any).response;
+          logger.debug('GraphQL error details:', {
+            status: response?.status,
+            statusText: response?.statusText,
+            errors: response?.errors,
+            data: response?.data,
+            headers: response?.headers ? Object.fromEntries(response.headers.entries()) : undefined
+          });
+        }
+        
+        // Also log the error message and stack trace
+        if (error instanceof Error) {
+          logger.debug('Error message:', { message: error.message });
+          logger.debug('Error stack:', { stack: error.stack });
+          logger.debug('Error constructor:', { constructor: error.constructor.name });
+        } else {
+          logger.debug('Non-Error object:', { error, type: typeof error });
+        }
       }
       throw error;
     }
@@ -251,10 +290,33 @@ export class BuildkiteClient {
       }
       
       // Get the organizations using our query
+      if (this.debug) {
+        logger.debug('About to call this.query with GET_ORGANIZATIONS');
+      }
       const data = await this.query<GetOrganizationsQuery>(GET_ORGANIZATIONS.toString());
+      if (this.debug) {
+        logger.debug('Successfully got data from this.query');
+      }
+      
+      if (this.debug) {
+        logger.debug('Raw GraphQL response for organizations:', {
+          hasData: !!data,
+          hasViewer: !!data?.viewer,
+          hasOrganizations: !!data?.viewer?.organizations,
+          hasEdges: !!data?.viewer?.organizations?.edges,
+          edgesLength: data?.viewer?.organizations?.edges?.length || 0
+        });
+      }
       
       // Use our helper method to process the response
       const organizations = this.processOrganizationsResponse(data);
+      
+      if (this.debug) {
+        logger.debug('Processed organizations:', {
+          count: organizations.length,
+          organizations: organizations.map(org => ({ id: org.id, name: org.name, slug: org.slug }))
+        });
+      }
       
       if (organizations.length === 0) {
         if (this.debug) {
@@ -278,6 +340,25 @@ export class BuildkiteClient {
         logger.debug('GraphQL query failed', {
           error: error instanceof Error ? error.message : String(error),
           details: error instanceof Error ? error : undefined
+        });
+        
+        // Log more detailed error information
+        if (error instanceof Error && 'response' in error) {
+          const response = (error as any).response;
+          logger.debug('GraphQL error response:', {
+            status: response?.status,
+            statusText: response?.statusText,
+            errors: response?.errors,
+            data: response?.data
+          });
+        }
+        
+        // Log detailed error information
+        logger.debug('Error in getViewerOrganizationSlugs:', {
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorType: error?.constructor?.name,
+          hasResponse: error instanceof Error && 'response' in error,
+          response: error instanceof Error && 'response' in error ? (error as any).response : undefined
         });
       }
       throw new Error('Failed to determine your organizations', { cause: error });
