@@ -136,26 +136,20 @@ export class BuildkiteClient {
           }
           return cachedResult;
         }
-      } else {
-        if (this.debug) {
-          logger.debug('query() - cacheManager is null/undefined');
-        }
       }
       
       const response = await this.client.request<T>(query, variables);
       
-      // Optionally get rate limit info if debug is enabled
+      // Update rate limit info from headers
+      const headers = (this.client as any).headers as Headers;
+      this.rateLimitInfo = {
+        remaining: parseInt(headers.get('RateLimit-Remaining') || '0'),
+        limit: parseInt(headers.get('RateLimit-Limit') || '0'),
+        reset: parseInt(headers.get('RateLimit-Reset') || '0'),
+      };
+
       if (this.debug) {
-        try {
-          const rateLimitInfo = await this.fetchRateLimitInfo(query, variables);
-          if (rateLimitInfo) {
-            this.rateLimitInfo = rateLimitInfo;
-            logger.debug('Rate limit info:', rateLimitInfo);
-          }
-        } catch (error) {
-          // Don't fail the main request if rate limit info fails
-          logger.debug('Failed to get rate limit info:', { error });
-        }
+        logger.debug('Rate limit info:', this.rateLimitInfo);
       }
 
       // Store result in cache if caching is enabled
@@ -388,41 +382,6 @@ export class BuildkiteClient {
   public async invalidateCache(type: string): Promise<void> {
     if (this.cacheManager) {
       await this.cacheManager.invalidateType(type);
-    }
-  }
-
-  /**
-   * Get rate limit information from a GraphQL query
-   * @param query The GraphQL query to execute
-   * @param variables Variables for the query
-   * @returns Rate limit information if available
-   */
-  public async fetchRateLimitInfo<T = unknown, V extends Record<string, any> = Record<string, any>>(
-    query: string,
-    variables?: V
-  ): Promise<RateLimitInfo | null> {
-    try {
-      const response = await this.client.rawRequest<T>(query, variables);
-      
-      // Extract rate limit info from headers
-      const rateLimitRemaining = response.headers.get('RateLimit-Remaining');
-      const rateLimitLimit = response.headers.get('RateLimit-Limit');
-      const rateLimitReset = response.headers.get('RateLimit-Reset');
-      
-      if (rateLimitRemaining && rateLimitLimit) {
-        return {
-          remaining: parseInt(rateLimitRemaining),
-          limit: parseInt(rateLimitLimit),
-          reset: rateLimitReset ? parseInt(rateLimitReset) : 0,
-        };
-      }
-      
-      return null;
-    } catch (error) {
-      if (this.debug) {
-        logger.debug('Failed to get rate limit info:', { error });
-      }
-      return null;
     }
   }
 
