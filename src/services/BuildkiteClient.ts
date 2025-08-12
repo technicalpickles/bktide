@@ -6,7 +6,8 @@ import {
   GET_ORGANIZATIONS, 
   GET_PIPELINES, 
   GET_BUILDS, 
-  GET_VIEWER_BUILDS 
+  GET_VIEWER_BUILDS,
+  GET_BUILD_ANNOTATIONS
 } from '../graphql/queries.js';
 // Import generated types
 import { 
@@ -545,5 +546,47 @@ export class BuildkiteClient {
    */
   public getRateLimitInfo(): RateLimitInfo | null {
     return this.rateLimitInfo;
+  }
+
+  /**
+   * Get annotations for a build with type safety
+   * @param buildSlug The build slug (e.g., "org/pipeline/number")
+   * @returns The build annotations data
+   */
+  public async getBuildAnnotations(buildSlug: string): Promise<any> {
+    const variables = {
+      buildSlug,
+    };
+
+    if (this.debug) {
+      logger.debug(`🕒 Starting GraphQL query: GetBuildAnnotations for ${buildSlug}`);
+    }
+
+    // Check if result is in cache
+    if (this.cacheManager) {
+      const cachedResult = await this.cacheManager.get<any>(GET_BUILD_ANNOTATIONS.toString(), variables);
+      if (cachedResult) {
+        if (this.debug) {
+          logger.debug(`✅ Served from cache: GetBuildAnnotations`);
+        }
+        return cachedResult;
+      }
+    }
+
+    const startTime = process.hrtime.bigint();
+    const result = await this.client.request<any>(GET_BUILD_ANNOTATIONS.toString(), variables);
+
+    // Store result in cache if caching is enabled
+    if (this.cacheManager) {
+      await this.cacheManager.set(GET_BUILD_ANNOTATIONS.toString(), result, variables);
+    }
+
+    const endTime = process.hrtime.bigint();
+    const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
+    if (this.debug) {
+      logger.debug(`✅ GraphQL query completed: GetBuildAnnotations (${duration.toFixed(2)}ms)`);
+    }
+
+    return result;
   }
 }

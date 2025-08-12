@@ -2,6 +2,7 @@ import { BaseCommand } from './BaseCommand.js';
 import { logger } from '../services/logger.js';
 import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
+import { Annotation } from '../types/index.js';
 
 export class ListAnnotations extends BaseCommand {
   static requiresToken = true;
@@ -21,12 +22,12 @@ export class ListAnnotations extends BaseCommand {
       const buildRef = parseBuildRef(options.buildArg);
       logger.info('Parsed build reference:', buildRef);
       
-      // Fetch annotations from the REST API
-      const annotations = await this.restClient.getBuildAnnotations(
-        buildRef.org,
-        buildRef.pipeline,
-        buildRef.number
-      );
+      // Fetch annotations from the GraphQL API
+      const buildSlug = `${buildRef.org}/${buildRef.pipeline}/${buildRef.number}`;
+      const result = await this.client.getBuildAnnotations(buildSlug);
+      
+      // Extract annotations from the GraphQL response
+      const annotations: Annotation[] = result.build?.annotations?.edges?.map((edge: any) => edge.node) || [];
       
       // Get the appropriate formatter
       const formatter = FormatterFactory.getFormatter(

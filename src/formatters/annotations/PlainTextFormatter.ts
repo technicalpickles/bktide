@@ -23,9 +23,7 @@ export class PlainTextFormatter extends BaseFormatter {
       lines.push(`Annotation ${index + 1}:`);
       lines.push(`  Context: ${annotation.context}`);
       lines.push(`  Style: ${annotation.style}`);
-      lines.push(`  Created: ${annotation.created_at}`);
-      lines.push(`  Updated: ${annotation.updated_at}`);
-      lines.push(`  Body: ${annotation.body_html}`);
+      lines.push(`  Body: ${annotation.body.text}`);
     });
 
     return lines.join('\n');

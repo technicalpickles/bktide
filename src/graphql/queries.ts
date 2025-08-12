@@ -122,4 +122,22 @@ export const GET_VIEWER_BUILDS = gql`
       }
     }
   }
+`;
+
+export const GET_BUILD_ANNOTATIONS = gql`
+  query GetBuildAnnotations($buildSlug: ID!) {
+    build(slug: $buildSlug) {
+      annotations(first: 100) {
+        edges {
+          node {
+            context
+            style
+            body {
+              text
+            }
+          }
+        }
+      }
+    }
+  }
 `; 
