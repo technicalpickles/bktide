@@ -18,6 +18,16 @@
 				<key>vitoclose</key>
 				<false/>
 			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>B4CDF934-55BC-4C72-A270-C0C0BF8F7F98</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string>Copy to Clipboard</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
 		</array>
 		<key>4BC44B5B-F643-42F8-8F64-DA29D018C1EF</key>
 		<array>
@@ -68,6 +78,16 @@
 				<integer>0</integer>
 				<key>modifiersubtext</key>
 				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>B4CDF934-55BC-4C72-A270-C0C0BF8F7F98</string>
+				<key>modifiers</key>
+				<integer>1048576</integer>
+				<key>modifiersubtext</key>
+				<string>Copy to Clipboard</string>
 				<key>vitoclose</key>
 				<false/>
 			</dict>
@@ -206,6 +226,25 @@
 			<string>23FFFF40-EAC3-4E31-884E-643D969B7AB7</string>
 			<key>version</key>
 			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>autopaste</key>
+				<false/>
+				<key>clipboardtext</key>
+				<string>{query}</string>
+				<key>ignoredynamicplaceholders</key>
+				<false/>
+				<key>transient</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.clipboard</string>
+			<key>uid</key>
+			<string>B4CDF934-55BC-4C72-A270-C0C0BF8F7F98</string>
+			<key>version</key>
+			<integer>3</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -507,16 +546,16 @@
 		<key>0D03084F-A535-4B27-9590-958ACE71058D</key>
 		<dict>
 			<key>xpos</key>
-			<real>355</real>
+			<real>360</real>
 			<key>ypos</key>
-			<real>250</real>
+			<real>280</real>
 		</dict>
 		<key>23FFFF40-EAC3-4E31-884E-643D969B7AB7</key>
 		<dict>
 			<key>xpos</key>
-			<real>805</real>
+			<real>830</real>
 			<key>ypos</key>
-			<real>65</real>
+			<real>95</real>
 		</dict>
 		<key>2BF360A3-5D18-4185-9CF0-97B1D2B2F6BA</key>
 		<dict>
@@ -566,6 +605,13 @@
 			<real>670</real>
 			<key>ypos</key>
 			<real>285</real>
+		</dict>
+		<key>B4CDF934-55BC-4C72-A270-C0C0BF8F7F98</key>
+		<dict>
+			<key>xpos</key>
+			<real>535</real>
+			<key>ypos</key>
+			<real>115</real>
 		</dict>
 		<key>C4AA8AF0-E750-4984-A4B4-490D5500DC20</key>
 		<dict>
