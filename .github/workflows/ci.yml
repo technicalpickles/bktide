@@ -195,7 +195,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-12, macos-13, macos-14]  # Test on different macOS versions
+        os: [macos-latest]  # Test on different macOS versions
         
     steps:
       - name: Checkout code
