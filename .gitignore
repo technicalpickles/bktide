@@ -1,6 +1,10 @@
 # Dependency directories
 node_modules/
 
+# Alfred workflow files
+# https://www.alfredapp.com/help/workflows/workflow-configuration/
+prefs.plist
+
 # Build output
 dist/
 
