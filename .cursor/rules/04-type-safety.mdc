@@ -1,0 +1,247 @@
+---
+description: TypeScript standards and type safety requirements
+alwaysApply: true
+---
+
+# Type Safety Standards
+
+## TypeScript Configuration
+Ensure `tsconfig.json` maintains strict settings:
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true
+  }
+}
+```
+
+## GraphQL Type Generation
+
+### Workflow for New Queries
+1. Add query to `src/graphql/queries.ts`
+2. Run `npm run codegen` immediately
+3. Import generated types from `src/graphql/generated/`
+4. Use generated types in your implementation
+
+### Using Generated Types
+```typescript
+// ✅ Good - Use generated types
+import { GetBuildsQuery, Build } from '../graphql/generated/graphql.js';
+
+async getBuilds(): Promise<Build[]> {
+  const data = await this.query<GetBuildsQuery>(GET_BUILDS);
+  return data.viewer.builds.edges.map(edge => edge.node);
+}
+
+// ❌ Bad - Manual type definition
+async getBuilds(): Promise<any[]> {
+  const data = await this.query(GET_BUILDS);
+  return data.viewer.builds.edges;
+}
+```
+
+## Avoiding `any` Types
+
+### Common Anti-patterns to Avoid
+```typescript
+// ❌ Bad - Using any
+} catch (error: any) {
+  console.log(error.message);
+}
+
+// ✅ Good - Proper error handling
+} catch (error) {
+  if (error instanceof Error) {
+    logger.error(error.message);
+  } else {
+    logger.error('Unknown error', { error });
+  }
+}
+
+// ❌ Bad - Any for options
+function processData(options: any) {
+  // ...
+}
+
+// ✅ Good - Defined interface
+interface ProcessOptions {
+  format?: string;
+  debug?: boolean;
+}
+function processData(options: ProcessOptions) {
+  // ...
+}
+```
+
+## Type Guards and Narrowing
+
+### Creating Type Guards
+```typescript
+// Type guard for API errors
+function isApiError(error: unknown): error is ApiError {
+  return (
+    error instanceof Error &&
+    'response' in error &&
+    typeof (error as any).response === 'object'
+  );
+}
+
+// Type guard for GraphQL errors
+function hasGraphQLErrors(response: unknown): response is GraphQLErrorResponse {
+  return (
+    typeof response === 'object' &&
+    response !== null &&
+    'errors' in response &&
+    Array.isArray((response as any).errors)
+  );
+}
+
+// Usage
+if (isApiError(error)) {
+  // error.response is now typed
+  logger.error('API Error:', error.response.status);
+}
+```
+
+## Optional Chaining and Nullish Coalescing
+
+### Safe Property Access
+```typescript
+// ✅ Good - Optional chaining
+const buildNumber = data?.build?.number;
+const annotations = data?.build?.annotations?.edges ?? [];
+
+// ❌ Bad - Unsafe access
+const buildNumber = data.build.number; // Could throw
+const annotations = data.build.annotations.edges || []; // Falsy issue
+```
+
+## Interface Definitions
+
+### Command Options Pattern
+```typescript
+// Base interface for all commands
+export interface BaseCommandOptions {
+  debug?: boolean;
+  format?: string;
+  token?: string;
+  noCache?: boolean;
+}
+
+// Extend for specific commands
+export interface ListBuildsOptions extends BaseCommandOptions {
+  org?: string;
+  pipeline?: string;
+  branch?: string;
+  state?: BuildState;
+  count?: number;
+}
+```
+
+### API Response Types
+```typescript
+// Define clear response types
+export interface BuildAnnotation {
+  id: string;
+  context: string;
+  style: 'info' | 'warning' | 'error' | 'success';
+  bodyHtml: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Paginated responses
+export interface PaginatedResponse<T> {
+  edges: Array<{ node: T }>;
+  pageInfo: {
+    hasNextPage: boolean;
+    endCursor: string | null;
+  };
+}
+```
+
+## Enum Usage
+
+### Define Enums for Fixed Values
+```typescript
+export enum BuildState {
+  RUNNING = 'RUNNING',
+  PASSED = 'PASSED',
+  FAILED = 'FAILED',
+  CANCELED = 'CANCELED',
+  BLOCKED = 'BLOCKED',
+  SCHEDULED = 'SCHEDULED'
+}
+
+export enum FormatterType {
+  BUILD = 'BUILD',
+  PIPELINE = 'PIPELINE',
+  ORGANIZATION = 'ORGANIZATION',
+  ANNOTATION = 'ANNOTATION',
+  ERROR = 'ERROR'
+}
+```
+
+## Type Assertions
+
+### When Type Assertions are Acceptable
+```typescript
+// ✅ OK - After validation
+if (typeof input === 'string' && input.length > 0) {
+  const validated = input as ValidatedString;
+}
+
+// ✅ OK - With external libraries lacking types
+const result = externalLib.process(data) as ProcessedData;
+
+// ❌ Bad - Bypassing type safety
+const data = someValue as any as DesiredType;
+```
+
+## Generic Types
+
+### Using Generics Effectively
+```typescript
+// Generic formatter interface
+export interface Formatter<T> {
+  format(data: T): string;
+  formatError(action: string, error: unknown): string;
+}
+
+// Generic cache method
+async getOrSet<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  ttl?: number
+): Promise<T> {
+  const cached = await this.get<T>(key);
+  if (cached) return cached;
+  
+  const fresh = await fetcher();
+  await this.set(key, fresh, ttl);
+  return fresh;
+}
+```
+
+## Type Documentation
+
+### JSDoc for Complex Types
+```typescript
+/**
+ * Parses a build reference in various formats
+ * @param input - Build reference as slug or URL
+ * @returns Parsed components
+ * @throws {Error} If input format is invalid
+ * @example
+ * parseBuildRef('org/pipeline/123')
+ * parseBuildRef('@https://buildkite.com/org/pipeline/builds/123')
+ */
+export function parseBuildRef(input: string): BuildReference {
+  // Implementation
+}
+```

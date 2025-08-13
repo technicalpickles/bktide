@@ -1,0 +1,297 @@
+---
+description: Error handling, debugging, and logging patterns
+alwaysApply: true
+---
+
+# Error Handling & Debugging
+
+## Error Handling Strategy
+
+### Command-Level Error Handling
+```typescript
+export class MyCommand extends BaseCommand {
+  async execute(options: MyCommandOptions): Promise<number> {
+    try {
+      await this.ensureInitialized();
+      
+      // Command logic
+      const result = await this.performAction();
+      
+      // Format and output
+      const formatter = this.getFormatter(FormatterType.MY_TYPE, options);
+      const output = formatter.format(result);
+      logger.console(output);
+      
+      return 0; // Success
+    } catch (error) {
+      // Use built-in error handler
+      this.handleError(error, options.debug);
+      
+      // Or use formatter for consistent error display
+      const formatter = this.getFormatter(FormatterType.ERROR, options);
+      const output = formatter.formatError('executing command', error);
+      logger.console(output);
+      
+      return 1; // Error
+    }
+  }
+}
+```
+
+### Error Message Guidelines
+```typescript
+// ✅ Good - User-friendly with context
+throw new Error(`Build ${buildNumber} not found in ${org}/${pipeline}`);
+
+// ✅ Good - Actionable error message
+throw new Error('Authentication failed. Please run "bktide token --store" to set your token.');
+
+// ❌ Bad - Generic or technical
+throw new Error('Error');
+throw new Error('ENOENT');
+```
+
+### GraphQL Error Handling
+```typescript
+catch (error) {
+  // Check for GraphQL-specific errors
+  if (error.response?.errors) {
+    const gqlErrors = error.response.errors;
+    
+    // Log each GraphQL error
+    gqlErrors.forEach((gqlError, index) => {
+      logger.error(`GraphQL Error ${index + 1}: ${gqlError.message}`);
+      
+      if (gqlError.path) {
+        logger.debug(`  Path: ${gqlError.path.join('.')}`);
+      }
+      
+      if (gqlError.extensions?.code) {
+        logger.debug(`  Code: ${gqlError.extensions.code}`);
+      }
+    });
+    
+    // Provide user-friendly message
+    if (gqlErrors.some(e => e.extensions?.code === 'UNAUTHENTICATED')) {
+      throw new Error('Authentication failed. Your token may be invalid or expired.');
+    }
+    
+    throw new Error(`GraphQL query failed: ${gqlErrors[0].message}`);
+  }
+  
+  // Re-throw if not a GraphQL error
+  throw error;
+}
+```
+
+## Debug Logging
+
+### Logging Levels and Usage
+```typescript
+// logger methods and when to use them:
+
+// DEBUG - Development information, only shown with --debug flag
+logger.debug('Cache hit', { key, ttl });
+logger.debug('GraphQL query', { operation, variables });
+
+// INFO - Important user-facing information
+logger.info('Successfully stored token');
+logger.info(`Found ${count} builds`);
+
+// WARN - Warning conditions that don't stop execution
+logger.warn('Rate limit approaching', { remaining: 10 });
+logger.warn('Cache initialization failed, continuing without cache');
+
+// ERROR - Error conditions
+logger.error('Failed to fetch builds', { error: error.message });
+logger.error(error, 'Unhandled error occurred');
+
+// CONSOLE - Final output to user (not logged, just displayed)
+logger.console(formattedOutput);
+```
+
+### Debug Mode Implementation
+```typescript
+// Always check debug flag for verbose output
+if (this.debug || options.debug) {
+  logger.debug('Starting operation', {
+    operation: 'getBuilds',
+    parameters: { org, pipeline, count },
+    timestamp: new Date().toISOString()
+  });
+}
+
+// Time operations in debug mode
+const startTime = Date.now();
+const result = await this.performOperation();
+
+if (this.debug) {
+  const duration = Date.now() - startTime;
+  logger.debug(`Operation completed in ${duration}ms`);
+}
+```
+
+### Structured Logging
+```typescript
+// ✅ Good - Structured with context
+logger.debug('API request', {
+  method: 'GET',
+  url: endpoint,
+  headers: { 'Authorization': 'Bearer xxx...' },
+  params
+});
+
+// ❌ Bad - Unstructured string concatenation  
+logger.debug('API request: GET ' + endpoint + ' with params: ' + JSON.stringify(params));
+```
+
+## Error Recovery
+
+### Fallback Strategies
+```typescript
+// Fallback for formatter failures
+try {
+  const formatted = htmlToText(annotation.bodyHtml, {
+    wordwrap: 80,
+    preserveNewlines: true
+  });
+  return formatted;
+} catch (error) {
+  logger.debug('HTML to text conversion failed, using raw HTML', { error });
+  // Fallback to raw HTML
+  return annotation.bodyHtml;
+}
+
+// Fallback for cache failures
+try {
+  await this.cacheManager.init();
+} catch (error) {
+  logger.warn('Cache initialization failed, continuing without cache', { error });
+  this.cacheManager = null; // Disable caching
+}
+```
+
+### Retry Logic
+```typescript
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      
+      // Don't retry auth errors
+      if (isAuthenticationError(error)) {
+        throw error;
+      }
+      
+      // Exponential backoff for rate limits
+      if (isRateLimitError(error)) {
+        const delay = Math.pow(2, i) * 1000;
+        logger.debug(`Rate limited, retrying in ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      // Don't retry on last attempt
+      if (i === maxRetries - 1) {
+        throw error;
+      }
+    }
+  }
+  
+  throw lastError;
+}
+```
+
+## Error Formatting
+
+### Consistent Error Display
+```typescript
+export class PlainTextErrorFormatter {
+  formatError(action: string, error: unknown): string {
+    const lines: string[] = [];
+    
+    lines.push(`❌ Error ${action}`);
+    lines.push('');
+    
+    if (error instanceof Error) {
+      lines.push(`Message: ${error.message}`);
+      
+      if (this.options.debug && error.stack) {
+        lines.push('');
+        lines.push('Stack trace:');
+        lines.push(error.stack);
+      }
+    } else {
+      lines.push(`Error: ${String(error)}`);
+    }
+    
+    lines.push('');
+    lines.push('💡 Tips:');
+    lines.push('  • Use --debug flag for more details');
+    lines.push('  • Check your token with: bktide token --check');
+    lines.push('  • Clear cache with: --clear-cache');
+    
+    return lines.join('\n');
+  }
+}
+```
+
+## Debugging Tools
+
+### Source Maps
+```bash
+# For better stack traces during development
+npm run dev:compiled  # Compiles with source maps
+npm run dev:sourcemap # Direct ts-node with source maps
+```
+
+### Debug Helper Functions
+```typescript
+// Helper to log object state
+function debugObject(label: string, obj: unknown): void {
+  if (!debug) return;
+  
+  logger.debug(label, {
+    type: typeof obj,
+    constructor: obj?.constructor?.name,
+    keys: obj && typeof obj === 'object' ? Object.keys(obj) : undefined,
+    value: obj
+  });
+}
+
+// Helper to log API responses
+function debugResponse(response: Response): void {
+  if (!debug) return;
+  
+  logger.debug('API Response', {
+    status: response.status,
+    statusText: response.statusText,
+    headers: Object.fromEntries(response.headers.entries()),
+    url: response.url
+  });
+}
+```
+
+## Testing Error Conditions
+
+### Always Test Error Paths
+```bash
+# Test with invalid token
+BUILDKITE_API_TOKEN=invalid npm run start -- builds --debug
+
+# Test with missing arguments
+npm run start -- annotations --debug
+
+# Test with invalid input format
+npm run start -- annotations "not-a-valid-ref" --debug
+
+# Test network failures (disconnect network)
+npm run start -- orgs --debug
+```

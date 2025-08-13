@@ -1,0 +1,229 @@
+---
+description: GraphQL and REST API integration patterns and best practices
+alwaysApply: true
+---
+
+# API Integration Guidelines
+
+## GraphQL vs REST Decision Tree
+1. **Use GraphQL when:**
+   - Fetching viewer/user information
+   - Getting organization data
+   - Retrieving pipeline configurations
+   - Fetching build annotations
+   - Need selective field fetching
+
+2. **Use REST when:**
+   - GraphQL endpoint is missing
+   - Need response headers (rate limits)
+   - Dealing with legacy endpoints
+   - Binary data or file downloads
+
+## GraphQL Client Usage
+
+### Query Definition
+```typescript
+// src/graphql/queries.ts
+import { gql } from 'graphql-request';
+
+export const GET_BUILD_ANNOTATIONS = gql`
+  query GetBuildAnnotations($buildSlug: ID!) {
+    build(slug: $buildSlug) {
+      id
+      number
+      annotations(first: 100) {
+        edges {
+          node {
+            id
+            context
+            style
+            bodyHtml  # Always prefer html over text fields
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    }
+  }
+`;
+```
+
+### Client Method Pattern
+```typescript
+// src/services/BuildkiteClient.ts
+async getMyData(param: string): Promise<MyDataResult> {
+  if (this.debug) {
+    logger.debug('Fetching my data', { param });
+  }
+  
+  const variables = { param };
+  
+  // Use request() for standard data fetching
+  const data = await this.query<GetMyDataQuery>(
+    GET_MY_DATA.toString(),
+    variables
+  );
+  
+  return this.processMyDataResponse(data);
+}
+
+// For rate limit monitoring, use rawRequest()
+async getWithRateLimit(): Promise<DataWithHeaders> {
+  const { data, headers } = await this.client.rawRequest<Query>(
+    QUERY.toString(),
+    variables
+  );
+  
+  // Extract rate limit info
+  this.updateRateLimitInfo(headers);
+  
+  return { data, rateLimit: this.rateLimitInfo };
+}
+```
+
+### GraphQL Codegen
+```bash
+# After adding new queries:
+npm run codegen
+
+# This generates types in src/graphql/generated/
+# Use these types for type safety:
+import { GetBuildsQuery } from '../graphql/generated/graphql.js';
+```
+
+## REST Client Usage
+
+### REST Method Pattern
+```typescript
+// src/services/BuildkiteRestClient.ts
+async getBuildAnnotations(
+  org: string,
+  pipeline: string,
+  buildNumber: number
+): Promise<Annotation[]> {
+  const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/annotations`;
+  
+  // Use the generic get method for caching/rate limiting
+  return this.get<Annotation[]>(endpoint);
+}
+```
+
+## Error Handling
+
+### GraphQL Errors
+```typescript
+try {
+  const data = await this.client.request(query);
+} catch (error) {
+  // Check for GraphQL-specific errors
+  if (error.response?.errors) {
+    error.response.errors.forEach(gqlError => {
+      logger.error(`GraphQL Error: ${gqlError.message}`);
+      if (gqlError.path) {
+        logger.error(`Path: ${gqlError.path.join('.')}`);
+      }
+    });
+  }
+  
+  // Check for auth errors
+  if (this.isAuthenticationError(error)) {
+    throw new Error('Authentication failed. Please check your token.');
+  }
+  
+  throw error;
+}
+```
+
+### REST Errors
+```typescript
+try {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('Authentication failed');
+    }
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded');
+    }
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+} catch (error) {
+  // Handle network errors
+  if (error.code === 'ECONNREFUSED') {
+    throw new Error('Cannot connect to Buildkite API');
+  }
+  throw error;
+}
+```
+
+## Rate Limiting
+
+### Monitor Rate Limits
+```typescript
+private updateRateLimitInfo(headers: Headers): void {
+  const remaining = headers.get('x-ratelimit-remaining');
+  const limit = headers.get('x-ratelimit-limit');
+  const reset = headers.get('x-ratelimit-reset');
+  
+  if (remaining && limit && reset) {
+    this.rateLimitInfo = {
+      remaining: parseInt(remaining),
+      limit: parseInt(limit),
+      reset: parseInt(reset)
+    };
+    
+    if (this.debug) {
+      logger.debug('Rate limit status', this.rateLimitInfo);
+    }
+    
+    // Warn if approaching limit
+    if (this.rateLimitInfo.remaining < 10) {
+      logger.warn(`Rate limit warning: ${remaining} requests remaining`);
+    }
+  }
+}
+```
+
+## Caching Strategy for API Calls
+
+### Cache Keys
+```typescript
+// Generate consistent cache keys
+const cacheKey = `graphql:${operationName}:${JSON.stringify(variables)}`;
+
+// For REST
+const cacheKey = `rest:${endpoint}:${JSON.stringify(params)}`;
+```
+
+### Cache TTLs
+```typescript
+// Different TTLs for different data types
+const TTLs = {
+  viewer: 3600 * 1000,      // 1 hour - user data rarely changes
+  organizations: 3600 * 1000, // 1 hour - org structure stable
+  pipelines: 60 * 1000,     // 1 minute - pipelines change occasionally
+  builds: 30 * 1000,        // 30 seconds - builds change frequently
+  annotations: 60 * 1000,   // 1 minute - annotations relatively stable
+};
+```
+
+## Authentication Patterns
+
+### Token Validation
+```typescript
+// When validating tokens, disable caching
+const client = new BuildkiteClient(token, { 
+  caching: false,  // Disable cache for validation
+  debug: options.debug 
+});
+
+try {
+  const orgs = await client.getOrganizations();
+  if (orgs.length === 0) {
+    return { valid: false, reason: 'No organizations accessible' };
+  }
+  return { valid: true, organizations: orgs };
+} catch (error) {
+  return { valid: false, reason: error.message };
+}
+```

@@ -1,0 +1,158 @@
+---
+description: File structure, naming conventions, and code organization patterns
+alwaysApply: true
+---
+
+# Code Organization
+
+## Directory Structure
+```
+src/
+├── commands/           # Command implementations
+│   ├── BaseCommand.ts  # Base class all commands extend
+│   ├── index.ts        # Export all commands
+│   └── *.ts           # Individual command files
+├── formatters/         # Output formatting
+│   ├── <entity>/      # Per-entity formatters
+│   │   ├── Formatter.ts           # Interface definition
+│   │   ├── PlainTextFormatter.ts  # Human-readable output
+│   │   ├── JsonFormatter.ts       # JSON output
+│   │   └── AlfredFormatter.ts     # Alfred workflow output
+│   └── FormatterFactory.ts        # Factory for formatter creation
+├── graphql/           
+│   ├── queries.ts      # All GraphQL query definitions
+│   └── generated/      # Codegen output (don't edit)
+├── services/          
+│   ├── BuildkiteClient.ts      # GraphQL API client
+│   ├── BuildkiteRestClient.ts  # REST API client
+│   ├── CacheManager.ts         # Cache handling
+│   ├── CredentialManager.ts    # Token management
+│   └── logger.ts               # Logging configuration
+├── types/             
+│   └── index.ts        # TypeScript type definitions
+└── utils/             
+    ├── parseBuildRef.ts         # Parse build references
+    ├── textFormatter.ts         # Text formatting utilities
+    └── errorUtils.ts           # Error handling utilities
+```
+
+## Command Implementation Pattern
+```typescript
+// src/commands/MyCommand.ts
+import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
+
+export interface MyCommandOptions extends BaseCommandOptions {
+  // Add command-specific options
+}
+
+export class MyCommand extends BaseCommand {
+  static requiresToken = true; // or false if no auth needed
+
+  async execute(options: MyCommandOptions): Promise<number> {
+    try {
+      // Ensure initialization
+      await this.ensureInitialized();
+      
+      // Command logic here
+      
+      return 0; // Success
+    } catch (error) {
+      this.handleError(error, options.debug);
+      return 1; // Error
+    }
+  }
+}
+```
+
+## Formatter Implementation Pattern
+```typescript
+// src/formatters/myentity/PlainTextFormatter.ts
+import { BaseFormatter } from '../BaseFormatter.js';
+import { MyEntity } from '../../types/index.js';
+
+export class PlainTextFormatter extends BaseFormatter {
+  formatEntities(entities: MyEntity[]): string {
+    if (entities.length === 0) {
+      return 'No entities found';
+    }
+    // Format logic
+    return formatted;
+  }
+  
+  formatError(action: string, error: any): string {
+    return `Error ${action}: ${error.message}`;
+  }
+}
+```
+
+## Adding New GraphQL Queries
+```typescript
+// src/graphql/queries.ts
+export const GET_MY_DATA = gql`
+  query GetMyData($param: String!) {
+    myData(param: $param) {
+      id
+      name
+      # Always prefer html over text fields
+      bodyHtml
+    }
+  }
+`;
+```
+
+## Utility Functions Pattern
+```typescript
+// src/utils/myParser.ts
+export function parseMyInput(input: string): ParsedResult {
+  // Validation and parsing logic
+  // Throw clear errors for invalid input
+  return parsed;
+}
+```
+
+## Import Conventions
+- Use `.js` extension in imports (even for .ts files)
+- Use relative imports within the same module
+- Group imports: external → services → types → utils → local
+
+```typescript
+// External dependencies
+import { Command } from 'commander';
+
+// Services
+import { BuildkiteClient } from '../services/BuildkiteClient.js';
+import { logger } from '../services/logger.js';
+
+// Types
+import { Build, Pipeline } from '../types/index.js';
+
+// Utils
+import { parseBuildRef } from '../utils/parseBuildRef.js';
+
+// Local
+import { BaseCommand } from './BaseCommand.js';
+```
+
+## Naming Conventions
+- **Files**: PascalCase for classes, camelCase for utilities
+- **Commands**: PascalCase (e.g., `ListBuilds`, `ManageToken`)
+- **Variables**: camelCase
+- **Constants**: UPPER_SNAKE_CASE
+- **Interfaces**: PascalCase with 'I' prefix optional
+- **Types**: PascalCase
+
+## Export Patterns
+```typescript
+// Always maintain src/commands/index.ts exports
+export { BaseCommand } from './BaseCommand.js';
+export { ListBuilds } from './ListBuilds.js';
+// ... all other commands
+
+// Always maintain src/formatters/index.ts exports  
+export { FormatterFactory, FormatterType } from './FormatterFactory.js';
+// ... formatter types
+
+// Always maintain src/types/index.ts for shared types
+export interface Build { /* ... */ }
+export interface Pipeline { /* ... */ }
+```

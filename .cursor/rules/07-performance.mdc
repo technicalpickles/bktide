@@ -1,0 +1,344 @@
+---
+description: Performance optimization, caching strategies, and resource management
+alwaysApply: true
+---
+
+# Performance & Caching
+
+## Caching Strategy
+
+### Cache TTL Guidelines
+```typescript
+// Use appropriate TTLs based on data volatility
+const DEFAULT_TTLs = {
+  viewer: 3600 * 1000,      // 1 hour - user data rarely changes
+  organizations: 3600 * 1000, // 1 hour - org structure is stable
+  pipelines: 60 * 1000,     // 1 minute - pipelines change occasionally  
+  builds: 30 * 1000,        // 30 seconds - builds change frequently
+  annotations: 60 * 1000,   // 1 minute - annotations are relatively stable
+  default: 30 * 1000        // 30 seconds fallback
+};
+```
+
+### Cache Key Generation
+```typescript
+// Consistent cache key format
+function generateCacheKey(
+  type: 'graphql' | 'rest',
+  operation: string,
+  params: Record<string, any>
+): string {
+  // Sort params for consistency
+  const sortedParams = Object.keys(params)
+    .sort()
+    .reduce((acc, key) => {
+      acc[key] = params[key];
+      return acc;
+    }, {});
+  
+  return `${type}:${operation}:${JSON.stringify(sortedParams)}`;
+}
+```
+
+### Cache Initialization
+```typescript
+// Handle cache initialization gracefully
+export class BuildkiteClient {
+  private cacheManager: CacheManager | null = null;
+  
+  constructor(token: string, options?: BuildkiteClientOptions) {
+    // Don't block on cache init
+    if (options?.caching !== false) {
+      this.cacheManager = new CacheManager(options?.cacheTTLs, this.debug);
+      this.initCache(); // Async, non-blocking
+    }
+  }
+  
+  private async initCache(): Promise<void> {
+    try {
+      if (this.cacheManager) {
+        await this.cacheManager.init();
+        await this.cacheManager.setTokenHash(this.token);
+      }
+    } catch (error) {
+      logger.warn('Cache initialization failed, continuing without cache', { error });
+      this.cacheManager = null;
+    }
+  }
+}
+```
+
+### Cache Usage Patterns
+```typescript
+// Check cache before expensive operations
+async query<T>(query: string, variables?: any): Promise<T> {
+  const cacheKey = this.generateCacheKey('graphql', query, variables);
+  
+  // Try cache first
+  if (this.cacheManager) {
+    const cached = await this.cacheManager.get<T>(cacheKey);
+    if (cached) {
+      if (this.debug) {
+        logger.debug('Cache hit', { key: cacheKey });
+      }
+      return cached;
+    }
+  }
+  
+  // Fetch from API
+  const startTime = Date.now();
+  const result = await this.client.request<T>(query, variables);
+  
+  if (this.debug) {
+    const duration = Date.now() - startTime;
+    logger.debug(`GraphQL query completed in ${duration}ms`);
+  }
+  
+  // Cache the result
+  if (this.cacheManager && !this.isAuthenticationError(result)) {
+    const ttl = this.getTTLForOperation(query);
+    await this.cacheManager.set(cacheKey, result, ttl);
+  }
+  
+  return result;
+}
+```
+
+### When to Disable Caching
+```typescript
+// Disable caching for:
+// 1. Token validation
+const client = new BuildkiteClient(token, { caching: false });
+
+// 2. Real-time monitoring
+const client = new BuildkiteClient(token, { 
+  caching: true,
+  cacheTTLs: { builds: 0 } // Disable build caching
+});
+
+// 3. Debugging cache issues
+npm run start -- builds --no-cache --debug
+```
+
+## Async Operation Management
+
+### Initialization Patterns
+```typescript
+// Use factory pattern for async initialization
+export class BuildkiteClientFactory {
+  static async create(
+    token: string,
+    options?: BuildkiteClientOptions
+  ): Promise<BuildkiteClient> {
+    const client = new BuildkiteClient(token, options);
+    await client.initialize(); // Ensure everything is ready
+    return client;
+  }
+}
+
+// Or use ready state pattern
+export class BuildkiteClient {
+  private ready: Promise<void>;
+  
+  constructor(token: string, options?: BuildkiteClientOptions) {
+    this.ready = this.initialize();
+  }
+  
+  private async initialize(): Promise<void> {
+    await this.cacheManager?.init();
+    // Other async setup
+  }
+  
+  async query<T>(query: string): Promise<T> {
+    await this.ready; // Ensure initialized
+    // Perform query
+  }
+}
+```
+
+### Parallel Operations
+```typescript
+// Execute independent operations in parallel
+async getFullBuildInfo(buildRef: string): Promise<BuildInfo> {
+  const [build, annotations, artifacts, jobs] = await Promise.all([
+    this.getBuild(buildRef),
+    this.getBuildAnnotations(buildRef),
+    this.getBuildArtifacts(buildRef),
+    this.getBuildJobs(buildRef)
+  ]);
+  
+  return { build, annotations, artifacts, jobs };
+}
+```
+
+## Rate Limiting Management
+
+### Rate Limit Monitoring
+```typescript
+export class RateLimitManager {
+  private remaining: number = Infinity;
+  private reset: number = 0;
+  
+  updateFromHeaders(headers: Headers): void {
+    const remaining = headers.get('x-ratelimit-remaining');
+    const reset = headers.get('x-ratelimit-reset');
+    
+    if (remaining) this.remaining = parseInt(remaining);
+    if (reset) this.reset = parseInt(reset) * 1000;
+    
+    // Warn when approaching limit
+    if (this.remaining < 10) {
+      logger.warn(`Rate limit warning: ${this.remaining} requests remaining`);
+    }
+    
+    // Log in debug mode
+    if (debug) {
+      logger.debug('Rate limit status', {
+        remaining: this.remaining,
+        resetIn: Math.max(0, this.reset - Date.now()) / 1000 + 's'
+      });
+    }
+  }
+  
+  async waitIfNeeded(): Promise<void> {
+    if (this.remaining <= 1 && this.reset > Date.now()) {
+      const delay = this.reset - Date.now();
+      logger.info(`Rate limited, waiting ${delay}ms`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+```
+
+### Batch Operations
+```typescript
+// Batch multiple queries into one request
+const BATCH_QUERY = gql`
+  query BatchQuery($org: String!) {
+    organization(slug: $org) {
+      pipelines(first: 50) { ... }
+      members(first: 100) { ... }
+      teams(first: 50) { ... }
+    }
+  }
+`;
+
+// Instead of 3 separate queries, use one batched query
+```
+
+## Memory Management
+
+### Stream Large Datasets
+```typescript
+// For large result sets, process in chunks
+async* streamBuilds(
+  org: string,
+  pipeline: string
+): AsyncGenerator<Build[]> {
+  let cursor: string | null = null;
+  let hasNext = true;
+  
+  while (hasNext) {
+    const response = await this.getBuilds({
+      org,
+      pipeline,
+      first: 50,
+      after: cursor
+    });
+    
+    yield response.edges.map(e => e.node);
+    
+    cursor = response.pageInfo.endCursor;
+    hasNext = response.pageInfo.hasNextPage;
+  }
+}
+
+// Usage
+for await (const builds of streamBuilds(org, pipeline)) {
+  processBatch(builds);
+}
+```
+
+### Clear Unused Cache
+```typescript
+// Implement cache cleanup
+export class CacheManager {
+  async cleanup(): Promise<void> {
+    const now = Date.now();
+    const keys = await this.getAllKeys();
+    
+    for (const key of keys) {
+      const item = await this.get(key);
+      if (item && item.expiry < now) {
+        await this.remove(key);
+      }
+    }
+  }
+  
+  // Run cleanup periodically
+  startCleanupTimer(): void {
+    setInterval(() => this.cleanup(), 60 * 60 * 1000); // Every hour
+  }
+}
+```
+
+## Performance Monitoring
+
+### Track Operation Times
+```typescript
+class PerformanceMonitor {
+  private metrics: Map<string, number[]> = new Map();
+  
+  async measure<T>(
+    operation: string,
+    fn: () => Promise<T>
+  ): Promise<T> {
+    const start = Date.now();
+    
+    try {
+      return await fn();
+    } finally {
+      const duration = Date.now() - start;
+      
+      // Store metric
+      if (!this.metrics.has(operation)) {
+        this.metrics.set(operation, []);
+      }
+      this.metrics.get(operation)!.push(duration);
+      
+      // Log in debug mode
+      if (debug) {
+        logger.debug(`${operation} completed in ${duration}ms`);
+      }
+      
+      // Warn if slow
+      if (duration > 5000) {
+        logger.warn(`Slow operation: ${operation} took ${duration}ms`);
+      }
+    }
+  }
+  
+  getStats(operation: string): { avg: number; min: number; max: number } {
+    const times = this.metrics.get(operation) || [];
+    if (times.length === 0) return { avg: 0, min: 0, max: 0 };
+    
+    return {
+      avg: times.reduce((a, b) => a + b, 0) / times.length,
+      min: Math.min(...times),
+      max: Math.max(...times)
+    };
+  }
+}
+```
+
+## Optimization Checklist
+
+### Before Deployment
+- [ ] Cache TTLs are appropriate for data types
+- [ ] Rate limiting is monitored and handled
+- [ ] Large datasets use pagination or streaming
+- [ ] Parallel operations are used where possible
+- [ ] Debug logging doesn't impact performance
+- [ ] Cache initialization doesn't block operations
+- [ ] Memory leaks are avoided (cleanup handlers)
+- [ ] Slow operations have warning logs

@@ -1,0 +1,44 @@
+---
+description: Core project context and development philosophy for bktide CLI
+alwaysApply: true
+---
+
+# bktide CLI - Buildkite GraphQL/REST CLI Tool
+
+This is a TypeScript CLI for interacting with the Buildkite GraphQL and REST APIs.
+
+## Project Purpose
+- Provide command-line access to Buildkite data
+- Support multiple output formats (plain, json, alfred)
+- Enable workflow automation and scripting
+- Integrate with Alfred workflow for macOS users
+
+## Development Philosophy
+- **GraphQL-first approach**: Always prefer GraphQL over REST unless there's a specific technical limitation
+- **Iterative development**: Implement basic functionality → test → refine → simplify
+- **Start simple**: Begin with the simplest solution and only add complexity when needed
+- **Use established libraries**: Prefer well-maintained libraries (like html-to-text) over custom regex solutions
+- **User-focused**: Provide clear, helpful error messages and intuitive command interfaces
+
+## Key Technologies
+- **Language**: TypeScript with strict type checking
+- **GraphQL Client**: graphql-request for API interactions
+- **REST Client**: Custom BuildkiteRestClient for REST endpoints
+- **CLI Framework**: Commander.js for command parsing
+- **Logging**: Pino for structured logging
+- **Cache**: node-persist for persistent caching
+- **Auth Storage**: keytar for secure credential storage
+
+## Essential Commands
+- `npm run build` - Compile TypeScript
+- `npm run start` - Execute the CLI with arguments
+- `npm run dev:compiled` - Development mode with source maps for debugging
+- `npm run dev:sourcemap` - Direct ts-node execution with source maps
+- `npm run lint` - Run ESLint checks
+
+## Project Conventions
+- Exit codes: 0 for success, 1 for errors
+- All commands support --debug flag for verbose output
+- All commands support --format flag (plain, json, alfred)
+- Environment variable support: BUILDKITE_API_TOKEN
+- XDG base directory compliance for config/cache storage

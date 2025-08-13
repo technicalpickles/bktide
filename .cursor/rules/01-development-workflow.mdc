@@ -1,0 +1,82 @@
+---
+description: Iterative development process and workflow patterns
+alwaysApply: true
+---
+
+# Development Workflow
+
+## Iterative Implementation Plan
+When implementing new features, follow this systematic approach:
+
+### 1. **Wire the Command Placeholder**
+- Update `src/index.ts` to add the new command with basic structure
+- Use Commander's `.command()` and `.description()` methods
+- Add placeholder action that just logs something
+- Ensure it compiles with `npm run build`
+
+### 2. **Create Command Structure**
+- Create new file in `src/commands/` extending BaseCommand
+- Export from `src/commands/index.ts`
+- Implement minimal `execute()` method that returns 0
+- Test that command is recognized: `npm run start -- <command> --help`
+
+### 3. **Implement Core Logic**
+- Parse and validate input arguments
+- Call `ensureInitialized()` before using clients
+- Add try/catch blocks for error handling
+- Return appropriate exit codes
+
+### 4. **Add Output Formatters**
+- Create directory `src/formatters/<entity>/`
+- Implement PlainTextFormatter and JsonFormatter
+- Update FormatterFactory with new type
+- Test each format works
+
+### 5. **Test and Refine**
+- Test with real Buildkite data
+- Test error cases and edge conditions
+- Add debug logging for troubleshooting
+- Optimize performance if needed
+
+## Validation After Each Step
+```bash
+# After every code change:
+npm run build                    # Check compilation
+npm run lint                      # Check linting
+bin/bktide <cmd> --debug   # Test functionality
+```
+
+## Working with Existing Code
+- Read existing similar commands for patterns
+- Use established helpers (parseBuildRef, formatters)
+- Don't duplicate functionality - extend existing utilities
+- Maintain consistency with existing command options
+
+## Pull Request Guidelines
+- **Confirm approach**: For complex features with many moving parts, confirm the plan with the user first
+- **Stay focused**: Don't make unprompted, unrelated improvements
+- **Document follow-ups**: Note potential improvements as "possible follow-up work" when summarizing
+- **Test thoroughly**: Include examples of testing all code paths in your summary
+
+## Common Development Patterns
+```bash
+# Quick iteration cycle
+bin/bktide <command> <args> --debug
+
+# Test with different formats
+bin/bktide <command> <args> --format json
+bin/bktide <command> <args> --format plain
+
+# Test error handling
+bin/bktide <command> invalid-input --debug
+
+# Clear cache when testing changes
+bin/bktide <command> <args> --clear-cache --debug
+```
+
+## When to Stop and Ask
+- Multiple approaches with different trade-offs
+- Significant architectural decisions
+- Changes affecting multiple commands
+- Performance vs. simplicity trade-offs
+- External dependency additions

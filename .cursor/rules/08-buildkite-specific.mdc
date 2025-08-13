@@ -1,0 +1,386 @@
+---
+description: Buildkite API patterns, domain-specific conventions, and platform guidelines
+alwaysApply: true
+---
+
+# Buildkite-Specific Guidelines
+
+## API Endpoint Selection
+
+### Use GraphQL For
+- Viewer/user information
+- Organization structure and metadata
+- Pipeline configurations
+- Build annotations
+- Team and member data
+- Selective field fetching
+- Complex nested queries
+
+### Use REST For
+- Build logs (text data)
+- Artifacts download
+- Legacy endpoints not in GraphQL
+- Webhook management
+- Some agent operations
+- When you need response headers directly
+
+## Input Format Support
+
+### Build Reference Parsing
+Support multiple input formats for user convenience:
+```typescript
+// All of these should work:
+parseBuildRef('org/pipeline/123')
+parseBuildRef('my-org/my-pipeline/456')
+parseBuildRef('@https://buildkite.com/org/pipeline/builds/789')
+parseBuildRef('https://buildkite.com/org/pipeline/builds/789')
+
+// Implementation pattern
+export function parseBuildRef(input: string): BuildReference {
+  // Remove leading @ if present (Alfred workflow convention)
+  const cleanInput = input.startsWith('@') ? input.substring(1) : input;
+  
+  // Try URL format first
+  const urlMatch = cleanInput.match(
+    /^https?:\/\/buildkite\.com\/([^\/]+)\/([^\/]+)\/builds\/(\d+)/
+  );
+  if (urlMatch) {
+    return {
+      org: urlMatch[1],
+      pipeline: urlMatch[2],
+      number: parseInt(urlMatch[3], 10)
+    };
+  }
+  
+  // Try slug format
+  const slugMatch = cleanInput.match(/^([^\/]+)\/([^\/]+)\/(\d+)$/);
+  if (slugMatch) {
+    return {
+      org: slugMatch[1],
+      pipeline: slugMatch[2],
+      number: parseInt(slugMatch[3], 10)
+    };
+  }
+  
+  throw new Error(`Invalid build reference: ${input}`);
+}
+```
+
+## Organization Handling
+
+### Multi-Organization Support
+```typescript
+// When no org is specified, list from all accessible orgs
+async getBuilds(options: { org?: string }): Promise<Build[]> {
+  if (options.org) {
+    // Get builds from specific org
+    return this.getOrgBuilds(options.org);
+  }
+  
+  // Get all accessible organizations
+  const orgs = await this.getOrganizations();
+  
+  // Fetch builds from all orgs in parallel
+  const buildPromises = orgs.map(org => 
+    this.getOrgBuilds(org.slug).catch(err => {
+      logger.debug(`Failed to get builds from ${org.slug}`, { err });
+      return []; // Continue even if one org fails
+    })
+  );
+  
+  const allBuilds = await Promise.all(buildPromises);
+  return allBuilds.flat();
+}
+```
+
+### Permission Handling
+```typescript
+// Handle organization access gracefully
+async validateOrgAccess(org: string): Promise<boolean> {
+  try {
+    const orgs = await this.getOrganizations();
+    const hasAccess = orgs.some(o => o.slug === org);
+    
+    if (!hasAccess) {
+      logger.warn(`No access to organization: ${org}`);
+      logger.info('Available organizations:', orgs.map(o => o.slug));
+    }
+    
+    return hasAccess;
+  } catch (error) {
+    if (this.isAuthenticationError(error)) {
+      throw new Error('Authentication failed. Please check your token.');
+    }
+    throw error;
+  }
+}
+```
+
+## Build States and Filters
+
+### Build State Enumeration
+```typescript
+export enum BuildState {
+  RUNNING = 'RUNNING',
+  SCHEDULED = 'SCHEDULED',
+  PASSED = 'PASSED',
+  FAILING = 'FAILING',
+  FAILED = 'FAILED',
+  BLOCKED = 'BLOCKED',
+  CANCELED = 'CANCELED',
+  CANCELING = 'CANCELING',
+  SKIPPED = 'SKIPPED',
+  NOT_RUN = 'NOT_RUN'
+}
+
+// Map user-friendly inputs to API values
+const STATE_ALIASES: Record<string, BuildState> = {
+  'running': BuildState.RUNNING,
+  'passed': BuildState.PASSED,
+  'failed': BuildState.FAILED,
+  'blocked': BuildState.BLOCKED,
+  'cancelled': BuildState.CANCELED,
+  'canceled': BuildState.CANCELED,  // US spelling
+  'skipped': BuildState.SKIPPED
+};
+```
+
+### Common Build Filters
+```typescript
+interface BuildFilters {
+  branch?: string;      // Filter by branch name
+  state?: BuildState;   // Filter by build state
+  creator?: string;     // Filter by creator email/ID
+  message?: string;     // Filter by commit message
+  metadata?: Record<string, string>; // Filter by metadata
+}
+
+// Apply filters in GraphQL query
+const GET_FILTERED_BUILDS = gql`
+  query GetFilteredBuilds(
+    $org: String!
+    $pipeline: String!
+    $branch: [String!]
+    $state: [BuildStates!]
+  ) {
+    organization(slug: $org) {
+      pipeline(slug: $pipeline) {
+        builds(
+          first: 50
+          branch: $branch
+          state: $state
+        ) {
+          edges { node { ... } }
+        }
+      }
+    }
+  }
+`;
+```
+
+## Annotation Handling
+
+### Annotation Styles
+```typescript
+export type AnnotationStyle = 'info' | 'warning' | 'error' | 'success';
+
+// Map to display symbols/colors
+const STYLE_SYMBOLS: Record<AnnotationStyle, string> = {
+  'info': 'ℹ️ ',
+  'warning': '⚠️ ',
+  'error': '❌',
+  'success': '✅'
+};
+
+// Format annotation for display
+function formatAnnotation(annotation: Annotation): string {
+  const symbol = STYLE_SYMBOLS[annotation.style] || '';
+  const context = annotation.context || 'default';
+  
+  // Convert HTML to text for terminal display
+  const body = htmlToText(annotation.bodyHtml, {
+    wordwrap: 80,
+    preserveNewlines: true
+  });
+  
+  return `${symbol} ${context}\n${body}`;
+}
+```
+
+## Authentication Patterns
+
+### Token Management
+```typescript
+// Token precedence order:
+// 1. Command line option (--token)
+// 2. Environment variable (BUILDKITE_API_TOKEN)
+// 3. Stored in keyring (via bktide token --store)
+
+async function getToken(options: CommandOptions): Promise<string> {
+  // 1. Check command line
+  if (options.token) {
+    return options.token;
+  }
+  
+  // 2. Check environment
+  if (process.env.BUILDKITE_API_TOKEN) {
+    return process.env.BUILDKITE_API_TOKEN;
+  }
+  
+  // 3. Check keyring
+  const stored = await CredentialManager.getStoredToken();
+  if (stored) {
+    return stored;
+  }
+  
+  throw new Error(
+    'No Buildkite API token found.\n' +
+    'Please provide a token via:\n' +
+    '  - --token flag\n' +
+    '  - BUILDKITE_API_TOKEN environment variable\n' +
+    '  - Run "bktide token --store" to save a token'
+  );
+}
+```
+
+### Token Validation
+```typescript
+// Validate token has necessary permissions
+async function validateToken(token: string): Promise<ValidationResult> {
+  const client = new BuildkiteClient(token, { caching: false });
+  
+  try {
+    // Test basic access
+    const viewer = await client.getViewer();
+    
+    // Test organization access
+    const orgs = await client.getOrganizations();
+    
+    // Check for GraphQL access
+    const hasGraphQL = viewer.id !== undefined;
+    
+    // Check for organization access
+    const hasOrgAccess = orgs.length > 0;
+    
+    return {
+      valid: true,
+      user: viewer.email,
+      organizations: orgs.map(o => o.slug),
+      permissions: {
+        graphql: hasGraphQL,
+        organizations: hasOrgAccess
+      }
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      error: error.message
+    };
+  }
+}
+```
+
+## Alfred Workflow Integration
+
+### Alfred Output Format
+```typescript
+export class AlfredFormatter {
+  formatBuilds(builds: Build[]): string {
+    const items = builds.map(build => ({
+      uid: build.id,
+      title: `#${build.number}: ${build.message}`,
+      subtitle: `${build.branch} - ${build.state} - ${build.createdBy.name}`,
+      arg: build.url,
+      icon: {
+        path: this.getIconForState(build.state)
+      },
+      mods: {
+        cmd: {
+          subtitle: 'Open in browser',
+          arg: build.url
+        },
+        alt: {
+          subtitle: 'Copy build number',
+          arg: build.number.toString()
+        }
+      }
+    }));
+    
+    return JSON.stringify({ items });
+  }
+  
+  private getIconForState(state: BuildState): string {
+    const iconMap: Record<BuildState, string> = {
+      [BuildState.PASSED]: './icons/passed.png',
+      [BuildState.FAILED]: './icons/failed.png',
+      [BuildState.RUNNING]: './icons/running.png',
+      [BuildState.BLOCKED]: './icons/blocked.png',
+      // ... etc
+    };
+    
+    return iconMap[state] || './icons/unknown.png';
+  }
+}
+```
+
+### Alfred Entry Point
+```bash
+#!/usr/bin/env node
+// bin/alfred-entrypoint
+
+// Set up environment for Alfred
+process.env.NODE_ENV = 'production';
+process.env.BUILDKITE_FORMAT = 'alfred';
+
+// Import and run the CLI
+require('../dist/index.js');
+```
+
+## Common Buildkite Patterns
+
+### Pipeline Slug Normalization
+```typescript
+// Buildkite normalizes pipeline names to slugs
+function normalizePipelineSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+```
+
+### Build URL Construction
+```typescript
+function getBuildUrl(org: string, pipeline: string, number: number): string {
+  return `https://buildkite.com/${org}/${pipeline}/builds/${number}`;
+}
+
+function getPipelineUrl(org: string, pipeline: string): string {
+  return `https://buildkite.com/${org}/${pipeline}`;
+}
+```
+
+### Metadata Handling
+```typescript
+// Build metadata is key-value pairs
+interface BuildMetadata {
+  [key: string]: string;
+}
+
+// Query builds by metadata
+const GET_BUILDS_BY_METADATA = gql`
+  query GetBuildsByMetadata($org: String!, $metadata: [String!]) {
+    organization(slug: $org) {
+      builds(first: 50, metadata: $metadata) {
+        edges { node { ... } }
+      }
+    }
+  }
+`;
+
+// Format metadata for query
+function formatMetadata(metadata: BuildMetadata): string[] {
+  return Object.entries(metadata).map(([key, value]) => `${key}:${value}`);
+}
+```

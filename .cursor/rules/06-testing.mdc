@@ -1,0 +1,252 @@
+---
+description: Testing requirements, strategies, and validation approaches
+alwaysApply: true
+---
+
+# Testing Strategy
+
+## Manual Testing Requirements
+
+### Test All Code Paths
+When implementing a new feature, test:
+1. **Success path** - Normal operation with valid inputs
+2. **Error paths** - Invalid inputs, missing data, API failures
+3. **Edge cases** - Empty results, large datasets, special characters
+4. **Format variations** - All supported output formats
+5. **Debug mode** - Verify debug output is helpful
+
+### Command Testing Checklist
+```bash
+# Basic functionality
+npm run start -- <command> <valid-args>
+npm run start -- <command> <valid-args> --debug
+
+# Output formats
+npm run start -- <command> <args> --format plain
+npm run start -- <command> <args> --format json
+npm run start -- <command> <args> --format alfred  # if supported
+
+# Error conditions
+npm run start -- <command>  # missing required args
+npm run start -- <command> invalid-input
+npm run start -- <command> <args> --token invalid
+
+# Edge cases
+npm run start -- <command> <args-for-empty-result>
+npm run start -- <command> <args-with-special-chars>
+
+# Performance and caching
+npm run start -- <command> <args> --no-cache
+npm run start -- <command> <args> --clear-cache
+time npm run start -- <command> <args>  # measure performance
+```
+
+## Input Validation Testing
+
+### Build Reference Testing
+```bash
+# Test various input formats for build references
+npm run start -- annotations org/pipeline/123
+npm run start -- annotations "org/pipeline/123"
+npm run start -- annotations @https://buildkite.com/org/pipeline/builds/123
+npm run start -- annotations "@https://buildkite.com/org/pipeline/builds/123"
+
+# Test invalid formats
+npm run start -- annotations org/pipeline  # missing build number
+npm run start -- annotations org/pipeline/abc  # non-numeric build
+npm run start -- annotations https://wrong.com/build  # wrong domain
+```
+
+### Organization and Pipeline Testing
+```bash
+# Test with various org/pipeline names
+npm run start -- builds --org my-org
+npm run start -- builds --org "my org with spaces"
+npm run start -- builds --org my-org --pipeline my-pipeline
+npm run start -- builds --org my-org --pipeline "pipeline-with-dashes"
+```
+
+## API Integration Testing
+
+### GraphQL Testing
+```bash
+# Test with real Buildkite data
+npm run start -- viewer --debug  # Should show rate limits
+npm run start -- orgs --debug    # Should show all accessible orgs
+
+# Test pagination
+npm run start -- builds --count 5
+npm run start -- builds --count 100  # Large request
+
+# Test filtering
+npm run start -- builds --state FAILED
+npm run start -- builds --branch main
+npm run start -- builds --creator user@example.com
+```
+
+### Authentication Testing
+```bash
+# Test token validation
+npm run start -- token --check
+npm run start -- token --store  # Interactive token entry
+BUILDKITE_API_TOKEN=test-token npm run start -- token --check
+
+# Test with no token
+unset BUILDKITE_API_TOKEN
+npm run start -- builds  # Should prompt for token
+
+# Test with invalid token
+BUILDKITE_API_TOKEN=invalid npm run start -- builds --debug
+```
+
+## Error Handling Testing
+
+### Network Error Simulation
+```bash
+# Test timeout handling (if implemented)
+# Disconnect network or use invalid endpoint
+npm run start -- builds --debug
+
+# Test rate limit handling
+# Make many rapid requests
+for i in {1..50}; do npm run start -- viewer; done
+```
+
+### Data Format Testing
+```bash
+# Test with builds that have special HTML in annotations
+npm run start -- annotations org/pipeline/build-with-html
+
+# Test with empty results
+npm run start -- builds --branch non-existent-branch
+
+# Test with malformed data (if possible to simulate)
+```
+
+## Cache Testing
+
+### Cache Behavior Validation
+```bash
+# First run - should hit API
+npm run start -- builds --debug  # Look for "Cache miss" in debug
+
+# Second run - should use cache
+npm run start -- builds --debug  # Look for "Cache hit" in debug
+
+# Force cache clear
+npm run start -- builds --clear-cache --debug
+
+# Disable cache
+npm run start -- builds --no-cache --debug
+
+# Test cache expiration (wait for TTL)
+npm run start -- builds
+sleep 35  # Wait for 30-second TTL
+npm run start -- builds --debug  # Should show cache miss
+```
+
+## Performance Testing
+
+### Measure Operation Times
+```bash
+# Time basic operations
+time npm run start -- viewer
+time npm run start -- orgs
+time npm run start -- builds --count 10
+
+# Compare cached vs uncached
+time npm run start -- pipelines  # First run
+time npm run start -- pipelines  # Cached run
+
+# Test with large datasets
+time npm run start -- builds --count 100
+time npm run start -- pipelines --count 50
+```
+
+## Output Format Testing
+
+### Validate Format Consistency
+```bash
+# JSON format should be valid JSON
+npm run start -- builds --format json | jq .
+
+# Plain format should be human-readable
+npm run start -- builds --format plain
+
+# Alfred format should match workflow requirements
+npm run start -- builds --format alfred | jq .
+
+# Test empty results in all formats
+npm run start -- builds --branch non-existent --format json
+npm run start -- builds --branch non-existent --format plain
+```
+
+## Integration Testing
+
+### End-to-End Workflows
+```bash
+# Test complete workflow
+npm run start -- token --store
+npm run start -- token --check
+npm run start -- orgs
+npm run start -- pipelines --org <org-from-above>
+npm run start -- builds --org <org> --pipeline <pipeline>
+npm run start -- annotations <org>/<pipeline>/<build-number>
+```
+
+### Alfred Workflow Testing
+```bash
+# Test Alfred integration
+./bin/alfred-entrypoint builds
+./bin/alfred-entrypoint builds --state FAILED
+./bin/alfred-entrypoint pipelines
+
+# Verify output structure
+./bin/alfred-entrypoint builds | jq '.items[0]'
+```
+
+## Regression Testing
+
+### After Making Changes
+```bash
+# Run through all commands to ensure nothing broke
+npm run build
+npm run lint
+
+# Test each command still works
+npm run start -- viewer
+npm run start -- orgs
+npm run start -- pipelines
+npm run start -- builds
+npm run start -- annotations <known-build>
+npm run start -- token --check
+
+# Test with different formats
+for fmt in plain json; do
+  npm run start -- builds --format $fmt
+done
+```
+
+## Real-World Data Testing
+
+### Use Actual Buildkite Data
+- Always test with real organizations and pipelines
+- Use builds with various states (passed, failed, running)
+- Test with builds that have annotations
+- Test with builds that have complex HTML in annotations
+- Use pipelines with special characters in names
+- Test with organizations you have different permission levels
+
+## Debug Output Validation
+
+### Ensure Debug Information is Useful
+```bash
+# Check debug output includes:
+npm run start -- builds --debug 2>&1 | grep -E "(Cache|Rate limit|Duration|GraphQL)"
+
+# Verify error context in debug mode
+BUILDKITE_API_TOKEN=invalid npm run start -- builds --debug
+
+# Check timing information
+npm run start -- builds --debug | grep "completed in"
+```
