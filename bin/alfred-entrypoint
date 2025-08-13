@@ -7,7 +7,21 @@ workflow_dir="$(dirname "$0")/.."
 log_file="$HOME/.local/state/bktide/logs/alfred.log"
 mkdir -p "$(dirname "$log_file")"
 
-export PATH="$HOME/.local/share/mise/shims:$PATH"
+# Optionally source user-provided environment to customize PATH, NODE_BIN, etc.
+xdg_config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+user_env_file="$xdg_config_home/bktide/env"
+workflow_env_file="$workflow_dir/.env"
+
+if [[ -f "$user_env_file" ]]; then
+  # Export variables defined in the file
+  set -a
+  source "$user_env_file"
+  set +a
+elif [[ -f "$workflow_env_file" ]]; then
+  set -a
+  source "$workflow_env_file"
+  set +a
+fi
 
 command="$1"
 shift

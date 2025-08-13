@@ -114,6 +114,82 @@ Validation:
 - Native deps when bundling JS: Keep native modules external and included in the bundle.
 - Large workflow size: Keep dependencies lean; audit regularly.
 
+### Distributed artifacts (GitHub Releases)
+
+Primary artifact: `.alfredworkflow` bundle
+- Filename: `bktide-workflow-${version}.alfredworkflow`
+- Contents (minimum):
+  - `info.plist` (Alfred workflow metadata)
+  - `icon.png` and `icons/` (state icons)
+  - `bin/alfred-entrypoint` (entry script; sources env file if present)
+  - `dist/index.js` (compiled CLI entry)
+  - `dist/**` (additional compiled files, if not single-file bundle)
+  - `node_modules/` (production dependencies only; include any native binaries like `@napi-rs/keyring`)
+  - `README.md` (brief usage + troubleshooting), optional
+  - `.env.example` (optional example for PATH/NODE_BIN overrides)
+
+Optional secondary artifacts:
+- `bktide-workflow-${version}.alfredworkflow.sha256` (checksum)
+- `CHANGELOG.md` excerpt in Release notes
+
+Versioning:
+- Use semver; tag repo with `vX.Y.Z`.
+- Keep `package.json.version` in sync.
+- Consider adding a workflow version in `info.plist` if desired.
+
+Release notes should include:
+- Requirements when Node is not bundled (e.g., Node 18+ on PATH).
+- How to override Node path via `~/.config/bktide/env`.
+- Notable changes and migration notes.
+
+### Packaging process for Track A (proposed)
+
+High-level: Build, stage required files, install prod deps into the staging area, and zip as `.alfredworkflow`.
+
+Staging layout example:
+```
+.stage/workflow/
+  info.plist
+  icon.png
+  icons/
+  bin/alfred-entrypoint
+  dist/**
+  node_modules/** (prod)
+  package.json
+  package-lock.json
+  README.md (optional)
+  .env.example (optional)
+```
+
+Suggested steps:
+1. Clean and build
+   - `npm ci`
+   - `npm run build`
+2. Create staging dir
+   - `rm -rf .stage && mkdir -p .stage/workflow`
+3. Copy workflow assets
+   - `cp -R info.plist icon.png icons bin/alfred-entrypoint dist package.json package-lock.json .stage/workflow/`
+4. Install production deps into staging
+   - `npm ci --omit=dev --prefix .stage/workflow`
+5. Package
+   - `cd .stage/workflow && zip -r ../../bktide-workflow-${version}.alfredworkflow .`
+6. Generate checksum (optional)
+   - `shasum -a 256 bktide-workflow-${version}.alfredworkflow > bktide-workflow-${version}.alfredworkflow.sha256`
+7. Upload artifact(s) to GitHub Release for tag `v${version}`.
+
+Notes:
+- Ensure all paths inside `info.plist` and scripts are relative.
+- Verify native module presence for target architectures (darwin-arm64/darwin-x64). `@napi-rs/keyring` publishes prebuilt binaries; confirm they are included under `node_modules`.
+- If switching to a single-file JS bundle via esbuild, keep native deps external and present in `node_modules`.
+
+### Verification for Releases
+- Import the `.alfredworkflow` into Alfred on:
+  - A machine with Node installed (PATH default)
+  - A machine/user profile where `~/.config/bktide/env` sets `NODE_BIN`
+- Run representative commands:
+  - `viewer`, `orgs`, `pipelines`, `builds`, `annotations <known-build>`
+- Check log at `$HOME/.local/state/bktide/logs/alfred.log` for errors.
+
 ---
 
 ## Track B: Bundled Node (optional, best UX)

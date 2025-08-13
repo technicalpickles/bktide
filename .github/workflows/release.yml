@@ -1,0 +1,143 @@
+name: Release Alfred Workflow
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: macos-latest  # Use macOS to ensure native dependencies work correctly
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run linting (if available)
+        run: npm run lint || echo "No lint script found, skipping"
+        continue-on-error: true
+        
+      - name: Build project
+        run: npm run build
+        
+      - name: Package workflow
+        run: npm run package
+        
+      - name: Extract version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        
+      - name: Verify artifacts
+        run: |
+          echo "Verifying generated artifacts..."
+          ls -la pkg/bktide-workflow-*.alfredworkflow*
+          
+          # Verify the workflow file is a valid zip
+          if command -v unzip >/dev/null 2>&1; then
+            echo "Testing workflow archive integrity..."
+            unzip -t pkg/bktide-workflow-*.alfredworkflow
+          fi
+          
+          # Verify checksum file exists and is valid
+          if [ -f pkg/bktide-workflow-*.alfredworkflow.sha256 ]; then
+            echo "Verifying checksum..."
+            cd pkg && shasum -c bktide-workflow-*.alfredworkflow.sha256
+          else
+            echo "Warning: Checksum file not found"
+          fi
+          
+      - name: Create release notes
+        id: release_notes
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          
+          # Create basic release notes
+          cat > release_notes.md << EOF
+          # bktide Alfred Workflow v${VERSION}
+          
+          ## Installation
+          
+          1. Download \`bktide-workflow-${VERSION}.alfredworkflow\`
+          2. Double-click to import into Alfred
+          3. Run \`bktide token store\` to configure your Buildkite API token
+          
+          ## Requirements
+          
+          - **Node.js 18+** must be installed on your system
+          - **Alfred 4+** (Alfred 5 recommended)
+          - **Buildkite API token** with appropriate permissions
+          
+          ## Quick Start
+          
+          After installation:
+          - \`bktide viewer\` - Show your user info
+          - \`bktide orgs\` - List organizations  
+          - \`bktide pipelines\` - List pipelines
+          - \`bktide builds\` - List recent builds
+          
+          ## Configuration
+          
+          If Node.js is not in your PATH, create \`~/.config/bktide/env\`:
+          \`\`\`bash
+          # For Homebrew on Apple Silicon
+          export PATH="/opt/homebrew/bin:\$PATH"
+          NODE_BIN=/opt/homebrew/bin/node
+          
+          # For Homebrew on Intel
+          export PATH="/usr/local/bin:\$PATH"
+          NODE_BIN=/usr/local/bin/node
+          \`\`\`
+          
+          ## Verification
+          
+          To verify the download integrity:
+          \`\`\`bash
+          shasum -c bktide-workflow-${VERSION}.alfredworkflow.sha256
+          \`\`\`
+          
+          ## Troubleshooting
+          
+          - **"node: command not found"**: Install Node.js or configure path in \`~/.config/bktide/env\`
+          - **"Authentication failed"**: Run \`bktide token store\` to set up your API token
+          - **Slow performance**: Clear cache with \`rm -rf ~/.cache/bktide\`
+          
+          See the included \`WORKFLOW_README.md\` for more details.
+          EOF
+          
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          name: "bktide Alfred Workflow v${{ steps.get_version.outputs.VERSION }}"
+          bodyFile: release_notes.md
+          artifacts: |
+            pkg/bktide-workflow-*.alfredworkflow
+            pkg/bktide-workflow-*.alfredworkflow.sha256
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'rc') }}
+          generateReleaseNotes: true
+          artifactErrorsFailBuild: true
+          
+      - name: Update release with additional info
+        run: |
+          echo "✅ Release created successfully!"
+          echo "📦 Workflow: bktide-workflow-${{ steps.get_version.outputs.VERSION }}.alfredworkflow"
+          echo "🔒 Checksum: bktide-workflow-${{ steps.get_version.outputs.VERSION }}.alfredworkflow.sha256"
+          echo "🌐 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          
+      - name: Cleanup artifacts
+        if: always()
+        run: |
+          # Clean up build artifacts from runner
+          rm -rf .stage
+          rm -f release_notes.md

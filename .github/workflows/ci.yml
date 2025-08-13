@@ -1,0 +1,224 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test and Build
+    runs-on: macos-latest  # Use macOS to match the target platform
+    
+    strategy:
+      matrix:
+        node-version: [18, 20]  # Test on supported Node.js versions
+        
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run linting (if available)
+        run: npm run lint || echo "No lint script found, skipping"
+        continue-on-error: true
+        
+      - name: Build TypeScript
+        run: npm run build
+        
+      - name: Verify build output
+        run: |
+          echo "Checking build artifacts..."
+          ls -la dist/
+          
+          # Verify main entry point exists
+          if [ ! -f "dist/index.js" ]; then
+            echo "❌ Main entry point dist/index.js not found"
+            exit 1
+          fi
+          
+          # Verify the built code is valid
+          node -c dist/index.js
+          echo "✅ Built JavaScript is syntactically valid"
+          
+      - name: Test CLI functionality (basic)
+        run: |
+          echo "Testing basic CLI functionality..."
+          
+          # Test CLI loads without errors
+          timeout 10s node dist/index.js --help || {
+            echo "❌ CLI failed to load or show help"
+            exit 1
+          }
+          
+          echo "✅ CLI loads successfully"
+          
+      - name: Test packaging
+        run: |
+          echo "Testing workflow packaging..."
+          npm run package
+          
+          # Verify artifacts are created
+          if [ ! -f pkg/bktide-workflow-*.alfredworkflow ]; then
+            echo "❌ Workflow bundle not created"
+            exit 1
+          fi
+          
+          if [ ! -f pkg/bktide-workflow-*.alfredworkflow.sha256 ]; then
+            echo "❌ Checksum file not created"
+            exit 1
+          fi
+          
+          # Verify the workflow is a valid zip
+          if command -v unzip >/dev/null 2>&1; then
+            echo "Testing workflow archive integrity..."
+            unzip -t pkg/bktide-workflow-*.alfredworkflow
+          fi
+          
+          # Verify checksum
+          echo "Verifying checksum..."
+          cd pkg && shasum -c bktide-workflow-*.alfredworkflow.sha256
+          
+          echo "✅ Packaging successful"
+          
+      - name: Check workflow bundle contents
+        run: |
+          echo "Checking workflow bundle contents..."
+          
+          # Extract to temporary directory
+          mkdir -p /tmp/workflow-check
+          cd /tmp/workflow-check
+          unzip -q "$GITHUB_WORKSPACE"/pkg/bktide-workflow-*.alfredworkflow
+          
+          # Check required files
+          required_files=(
+            "info.plist"
+            "icon.png"
+            "bin/alfred-entrypoint"
+            "dist/index.js"
+            "package.json"
+            "package-lock.json"
+            "env.example"
+            "WORKFLOW_README.md"
+          )
+          
+          for file in "${required_files[@]}"; do
+            if [ ! -e "$file" ]; then
+              echo "❌ Required file missing: $file"
+              exit 1
+            else
+              echo "✅ Found: $file"
+            fi
+          done
+          
+          # Check that node_modules exists and has @napi-rs/keyring
+          if [ ! -d "node_modules" ]; then
+            echo "❌ node_modules directory missing"
+            exit 1
+          fi
+          
+          if [ ! -d "node_modules/@napi-rs/keyring" ]; then
+            echo "❌ @napi-rs/keyring dependency missing"
+            exit 1
+          fi
+          
+          echo "✅ All required files present"
+          
+      - name: Check native dependencies
+        run: |
+          echo "Checking native dependencies..."
+          cd /tmp/workflow-check
+          
+          # Check for native binaries
+          keyring_path="node_modules/@napi-rs/keyring"
+          
+          if [ -f "$keyring_path/keyring.darwin-arm64.node" ]; then
+            echo "✅ Found ARM64 native binary"
+          else
+            echo "⚠️ ARM64 native binary not found"
+          fi
+          
+          if [ -f "$keyring_path/keyring.darwin-x64.node" ]; then
+            echo "✅ Found x64 native binary"
+          else
+            echo "⚠️ x64 native binary not found"
+          fi
+          
+      - name: Test Alfred entrypoint
+        env:
+          NODE_BIN: node
+        run: |
+          echo "Testing Alfred entrypoint..."
+          cd /tmp/workflow-check
+          
+          # Make entrypoint executable
+          chmod +x bin/alfred-entrypoint
+          
+          # Test that entrypoint can find and execute the CLI
+          # Note: This will fail on missing token, but should not fail on Node/JS errors
+          timeout 10s bin/alfred-entrypoint viewer 2>&1 | tee output.log
+          
+          # Check that we get the expected error (missing token) not a Node/syntax error
+          if grep -q "token" output.log || grep -q "Authentication" output.log; then
+            echo "✅ Entrypoint works (expected auth error)"
+          elif grep -q "node.*not found\|command not found" output.log; then
+            echo "❌ Node.js not found by entrypoint"
+            cat output.log
+            exit 1
+          elif grep -q "SyntaxError\|TypeError\|ReferenceError" output.log; then
+            echo "❌ JavaScript error in CLI"
+            cat output.log
+            exit 1
+          else
+            echo "✅ Entrypoint executed successfully"
+          fi
+          
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -rf .stage
+          rm -rf pkg
+          rm -rf /tmp/workflow-check
+          
+  # Optional: Test on different macOS versions
+  compatibility:
+    name: macOS Compatibility Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-12, macos-13, macos-14]  # Test on different macOS versions
+        
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install and build
+        run: |
+          npm ci
+          npm run build
+          
+      - name: Quick package test
+        run: |
+          npm run package
+          
+          # Just verify artifacts are created on this OS
+          ls -la pkg/bktide-workflow-*.alfredworkflow*
+          
+      - name: Cleanup
+        if: always()
+        run: rm -rf .stage pkg

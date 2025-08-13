@@ -8,6 +8,9 @@ prefs.plist
 # Build output
 dist/
 
+# Package artifacts
+pkg/
+
 # Logs
 logs/
 *.log
