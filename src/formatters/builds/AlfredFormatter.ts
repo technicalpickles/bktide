@@ -65,22 +65,21 @@ export class AlfredFormatter extends BaseFormatter {
     const alfredItems = builds.map((build: Build) => {
       // Generate web URL for the build (if not already present)
       const buildUrl = build.web_url || build.url || '';
-      
+
+      // Derive org/pipeline/number buildRef for alternative actions
+      const orgSlug = build.organization?.slug || extractFromUrl(buildUrl, 'org');
+      const pipelineSlug = build.pipeline?.slug || extractFromUrl(buildUrl, 'pipeline');
+      const buildNumber = build.number;
+      const buildRef = orgSlug && pipelineSlug && buildNumber ? `${orgSlug}/${pipelineSlug}/${buildNumber}` : undefined;
+
       const uid = `${build.pipeline?.slug || 'unknown'}-${build.number}`;
       const title = `${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}`;
       const subtitle = `${build.state || 'Unknown'} • ${build.branch || 'Unknown'} • ${build.message || 'No message'}`;
       const autocomplete = `${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}`;
 
-      const createdDate = (build.created_at || build.createdAt) ? 
-        new Date(build.created_at || build.createdAt as string).toLocaleString() : 'Unknown';
-      
-      const startedDate = (build.started_at || build.startedAt) ? 
-        `Started: ${new Date(build.started_at || build.startedAt as string).toLocaleString()}` : 'Not started';
-      
-      const finishedDate = (build.finished_at || build.finishedAt) ? 
-        `Finished: ${new Date(build.finished_at || build.finishedAt as string).toLocaleString()}` : 'Not finished';
+      // Previously used for alternative subtitles; not needed with new modifiers
 
-      return {
+      const item: any = {
         uid: uid,
         title: title,
         subtitle: subtitle,
@@ -90,12 +89,8 @@ export class AlfredFormatter extends BaseFormatter {
           path: this.getStateIcon(build.state)
         },
         mods: {
-          alt: {
-            subtitle: `Created: ${createdDate}`,
-            arg: buildUrl
-          },
           cmd: {
-            subtitle: `${startedDate} • ${finishedDate}`,
+            subtitle: 'Paste URL',
             arg: buildUrl
           }
         },
@@ -104,6 +99,15 @@ export class AlfredFormatter extends BaseFormatter {
           largetype: `${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}\n${build.state || 'Unknown'} • ${build.branch || 'Unknown'}\n${build.message || 'No message'}`
         }
       };
+
+      if (buildRef) {
+        item.mods.alt = {
+          subtitle: 'Show annotations',
+          arg: buildRef
+        };
+      }
+
+      return item;
     });
     
     // Return formatted JSON for Alfred
@@ -135,4 +139,11 @@ export class AlfredFormatter extends BaseFormatter {
         return 'icons/unknown.png';
     }
   }
+}
+
+function extractFromUrl(url: string, part: 'org' | 'pipeline'): string | undefined {
+  if (!url) return undefined;
+  const match = url.match(/^https?:\/\/buildkite\.com\/([^\/]+)\/([^\/]+)\/builds\/\d+\/?/i);
+  if (!match) return undefined;
+  return part === 'org' ? match[1] : match[2];
 } 
