@@ -1,3 +1,73 @@
+name: release-on-main
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Compute version
+        id: version
+        run: |
+          node scripts/compute-version.js > .version
+          echo "value=$(cat .version)" >> $GITHUB_OUTPUT
+
+      - name: Build and package
+        env:
+          BKTIDE_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          npm run package
+
+      - name: Generate changelog body
+        id: changelog
+        shell: bash
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          if [ -n "$LAST_TAG" ]; then
+            BODY=$(git log --pretty=format:'- %s' "$LAST_TAG"..HEAD)
+          else
+            BODY=$(git log --pretty=format:'- %s')
+          fi
+          # Fallback if empty
+          if [ -z "$BODY" ]; then BODY="Automated release"; fi
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        run: |
+          VERSION=${{ steps.version.outputs.value }}
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.value }}
+          prerelease: false
+          files: |
+            pkg/*.alfredworkflow
+            pkg/*.sha256
+          body: ${{ steps.changelog.outputs.body }}
 name: Release Alfred Workflow
 
 on:

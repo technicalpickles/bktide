@@ -205,6 +205,23 @@ async function injectMetadataIntoInfoPlist(version) {
   }
 }
 
+async function overrideStagedPackageVersion(version) {
+  // If an override version is provided, update the staged package.json accordingly
+  if (!version) return;
+  try {
+    const stagedPkgPath = path.join(stageDir, 'package.json');
+    const raw = await fs.readFile(stagedPkgPath, 'utf-8');
+    const pkg = JSON.parse(raw);
+    if (pkg.version !== version) {
+      pkg.version = version;
+      await fs.writeFile(stagedPkgPath, JSON.stringify(pkg, null, 2) + '\n');
+      info(`Staged package.json version set to ${version}`);
+    }
+  } catch (err) {
+    warn(`Could not override staged package.json version: ${err.message}`);
+  }
+}
+
 async function installProductionDependencies() {
   info('Installing production dependencies...');
   
@@ -305,9 +322,10 @@ async function main() {
     log('🚀 Starting Alfred workflow packaging...', 'blue');
     console.log();
     
-    // Read package.json for version
+    // Determine effective version: allow CI override via env
     const packageJson = await readPackageJson();
-    const version = packageJson.version;
+    const envVersion = process.env.BKTIDE_VERSION && process.env.BKTIDE_VERSION.trim();
+    const version = envVersion || packageJson.version;
     
     info(`Packaging version: ${version}`);
     console.log();
@@ -316,6 +334,7 @@ async function main() {
     await cleanAndCreateStaging();
     await buildProject();
     await copyWorkflowAssets();
+    await overrideStagedPackageVersion(version);
     await injectMetadataIntoInfoPlist(version);
     await installProductionDependencies();
     await validateNativeDependencies();
