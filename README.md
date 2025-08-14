@@ -8,6 +8,8 @@ A command-line tool for interacting with Buildkite's GraphQL API.
 npm install -g bktide
 ```
 
+Once installed, use the `bktide` binary directly from your shell.
+
 ## Documentation
 
 - [Development Guide](docs/development.md) - Information about running and developing the CLI
@@ -22,64 +24,67 @@ npm install -g bktide
 ### Show Your Login Information
 
 ```bash
-npm run dev -- viewer
+bktide viewer
 ```
 
 ### List Your Organizations
 
 ```bash
-npm run dev -- orgs
+bktide orgs
 ```
 
 ### List Pipelines in an Organization
 
 ```bash
-npm run dev -- pipelines
+bktide pipelines
 ```
 
 Additional options:
 ```bash
 # Filter by organization
-npm run dev -- pipelines --org your-org-slug
+bktide pipelines --org your-org-slug
 
 # Limit the number of results
-npm run dev -- pipelines --count 20
+bktide pipelines --count 20
+
+# Filter pipelines by name
+bktide pipelines --filter payments
 ```
 
 ### List Your Builds
 
 ```bash
-npm run dev -- builds
+bktide builds
 ```
 
 Additional options:
 ```bash
 # Filter by organization
-npm run dev -- builds --org your-org-slug
+bktide builds --org your-org-slug
 
 # Filter by pipeline
-npm run dev -- builds --pipeline pipeline-slug
+bktide builds --pipeline pipeline-slug
 
 # Filter by branch
-npm run dev -- builds --branch main
+bktide builds --branch main
 
 # Filter by state
-npm run dev -- builds --state passed
+bktide builds --state passed
 
 # Pagination
-npm run dev -- builds --count 20 --page 2
+bktide builds --count 20 --page 2
 
 # Output in JSON format
-npm run dev -- builds --json
+bktide builds --format json
 
 # Output in Alfred-compatible JSON format
-npm run dev -- builds --alfred
+bktide builds --format alfred
 ```
 
 ### Show Build Annotations
 
 ```bash
-npm run dev -- annotations <build>
+bktide annotations <build>
 ```
 
 The build reference can be specified in two formats:
@@ -89,22 +94,50 @@ The build reference can be specified in two formats:
 Additional options:
 ```bash
 # Filter by context
-npm run dev -- annotations gusto/zenpayroll/1287418 --context rspec
+bktide annotations gusto/zenpayroll/1287418 --context rspec
 
 # Output in JSON format
-npm run dev -- annotations gusto/zenpayroll/1287418 --format json
+bktide annotations gusto/zenpayroll/1287418 --format json
 
 # Output in plain text format (default)
-npm run dev -- annotations https://buildkite.com/gusto/zenpayroll/builds/1287418 --format plain
+bktide annotations https://buildkite.com/gusto/zenpayroll/builds/1287418 --format plain
 
 # Combine filtering and formatting
-npm run dev -- annotations gusto/zenpayroll/1287418 --context build-resources --format json
+bktide annotations gusto/zenpayroll/1287418 --context build-resources --format json
 ```
 
 ## API Token
 
 You'll need a Buildkite API token with GraphQL scopes. Create one at:
 https://buildkite.com/user/api-access-tokens
+
+### Providing your token
+
+You can provide your token in one of these ways:
+
+- `-t, --token <token>`: e.g. `bktide orgs --token abc123`
+- `BK_TOKEN` environment variable: e.g. `BK_TOKEN=abc123 bktide orgs`
+- Store once and reuse: `bktide token --store`
+
+Manage stored token:
+
+```bash
+bktide token --check   # See if a token is stored
+bktide token --reset   # Remove stored token
+```
+
+## Global Options
+
+These flags work with all commands:
+
+- `--log-level <level>`: trace|debug|info|warn|error|fatal (default: info)
+- `-d, --debug`: verbose debug output and detailed errors
+- `--no-cache`: disable API response caching
+- `--cache-ttl <ms>`: set cache TTL in milliseconds
+- `--clear-cache`: clear cached data before running
+- `-t, --token <token>`: provide Buildkite API token (or use `BK_TOKEN`)
+- `--save-token`: save token to system keychain
+- `-f, --format <format>`: plain|json|alfred (affects output and errors)
 
 # Logging System
 

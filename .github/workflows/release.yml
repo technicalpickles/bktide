@@ -48,6 +48,20 @@ jobs:
       - name: Pack tarball (dry-run)
         run: npm pack --dry-run
 
+      - name: Validate NPM token (optional)
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NPM_TOKEN:-}" ]; then
+            echo "No NPM_TOKEN present; skipping token validation."
+            exit 0
+          fi
+          printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > ~/.npmrc
+          npm ping --registry=https://registry.npmjs.org
+          USERNAME=$(npm whoami)
+          npm owner ls bktide | grep -F "$USERNAME"
+          rm -f ~/.npmrc
+
       - name: Smoke install test (local)
         run: |
           TARBALL=$(npm pack | tail -n1)
