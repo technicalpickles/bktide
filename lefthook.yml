@@ -24,6 +24,10 @@ pre-commit:
       glob: "*.{js,ts,jsx,tsx}"
       run: npx tsc-files --noEmit
 
+    - name: actionlint
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: actionlint -color
+
     # - run: yarn eslint {staged_files}
     #   glob: "*.{js,ts,jsx,tsx}"
 #

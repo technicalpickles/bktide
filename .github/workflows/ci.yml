@@ -68,12 +68,12 @@ jobs:
           npm run package
           
           # Verify artifacts are created
-          if [ ! -f pkg/bktide-workflow-*.alfredworkflow ]; then
+          if ! compgen -G "pkg/bktide-workflow-*.alfredworkflow" > /dev/null; then
             echo "❌ Workflow bundle not created"
             exit 1
           fi
           
-          if [ ! -f pkg/bktide-workflow-*.alfredworkflow.sha256 ]; then
+          if ! compgen -G "pkg/bktide-workflow-*.alfredworkflow.sha256" > /dev/null; then
             echo "❌ Checksum file not created"
             exit 1
           fi
