@@ -1,9 +1,9 @@
 # Alfred Integration
 
-This CLI supports integration with Alfred workflows via the `--alfred` option:
+This CLI supports integration with Alfred workflows via the `--format alfred` option, for example
 
 ```bash
-bin/bktide builds --alfred
+bin/bktide builds --format alfred
 ```
 
 This outputs builds in a JSON format that Alfred can process as a Script Filter. Each build will be shown as a result row with:
@@ -11,6 +11,14 @@ This outputs builds in a JSON format that Alfred can process as a Script Filter.
 - Title: Pipeline name and build number
 - Subtitle: State, branch, and commit message
 - Action: Opens the build URL when clicked
+
+## Convenience Wrapper
+
+`bin/alfred-entrypoint` is a script that Alfred can call. It:
+
+- uses NODE_BIN to determine what to execute
+- automatically adds `--format alfred`
+- calls bktide and passes `$@` to it
 
 ## Alternative Actions (Builds)
 
@@ -42,6 +50,20 @@ Notes:
 See Alfred docs:
 - Using Alternative Actions: https://www.alfredapp.com/help/workflows/advanced/alternative-actions/
 - Text View: https://www.alfredapp.com/help/workflows/user-interface/text/
+
+## Alternative Actions (Pipelines)
+
+Configure Alfred alternative actions for the Pipelines Script Filter similarly:
+
+- Enter (default): Open URL
+  - Script Filter → Open URL
+- ⌘ (Cmd): Paste URL into frontmost app
+  - Script Filter → Alternative action (⌘) → Copy to Clipboard
+  - Content: `{query}`
+  - Enable “Automatically paste to front most app”
+
+Notes:
+- The Pipelines Script Filter provides `{query}` as the pipeline’s web URL for all actions.
 
 ## Alfred Workflow Setup
 
