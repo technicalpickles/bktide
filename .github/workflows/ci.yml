@@ -61,6 +61,18 @@ jobs:
           }
           
           echo "✅ CLI loads successfully"
+
+      - name: NPM pack smoke test
+        run: |
+          echo "Running npm pack smoke test..."
+          VERSION=$(node scripts/compute-version.js)
+          npm version "$VERSION" --no-git-tag-version
+          TARBALL=$(npm pack | tail -n1)
+          mkdir -p /tmp/bktide-npm-test && cd /tmp/bktide-npm-test && npm init -y > /dev/null 2>&1
+          npm install "$GITHUB_WORKSPACE/$TARBALL"
+          ./node_modules/.bin/bktide --help >/dev/null
+          ./node_modules/.bin/bktide --version | grep -q "$VERSION"
+          echo "✅ npm pack install OK"
           
       - name: Test packaging
         run: |

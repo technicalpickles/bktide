@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import {
   BaseCommand,
@@ -124,10 +127,39 @@ const createCommandHandler = (CommandClass: CommandConstructor) => {
   };
 };
 
+function resolveAppVersion(): string {
+  // Prefer environment-provided version (set in CI before publish)
+  if (process.env.BKTIDE_VERSION && process.env.BKTIDE_VERSION.trim().length > 0) {
+    return process.env.BKTIDE_VERSION.trim();
+  }
+
+  try {
+    // Attempt to read package.json near compiled dist/index.js
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const candidatePaths = [
+      path.resolve(__dirname, '..', 'package.json'), // when running from dist/
+      path.resolve(__dirname, '..', '..', 'package.json'), // fallback
+    ];
+    for (const pkgPath of candidatePaths) {
+      if (fs.existsSync(pkgPath)) {
+        const raw = fs.readFileSync(pkgPath, 'utf-8');
+        const pkg = JSON.parse(raw) as { version?: string };
+        if (pkg.version) return pkg.version;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // Last resort
+  return '0.0.0';
+}
+
 program
   .name('bktide')
   .description('Buildkite CLI tool')
-  .version('1.0.0')
+  .version(resolveAppVersion())
   .configureHelp({ showGlobalOptions: true })
   .option('--log-level <level>', 'Set logging level (trace, debug, info, warn, error, fatal)', 'info')
   .option('-d, --debug', 'Show debug information for errors')

@@ -18,6 +18,7 @@
     "package": "node scripts/package-workflow.js",
     "package:clean": "rm -rf .stage pkg",
     "prepackage": "npm run package:clean",
+    "prepack": "npm run build",
     "release": "node scripts/release.js",
     "release:patch": "node scripts/release.js --version patch --auto-push",
     "release:minor": "node scripts/release.js --version minor --auto-push",
@@ -30,8 +31,25 @@
     "cli",
     "buildkite"
   ],
-  "author": "",
+  "author": "Josh Nichols <josh@technicalpickles.com>",
   "license": "ISC",
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "icons",
+    "README.md",
+    "LICENSE",
+    "bin/alfred-entrypoint",
+    "info.plist",
+    "WORKFLOW_README.md",
+    "env.example"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "dependencies": {
     "@napi-rs/keyring": "^1.1.6",
     "chalk": "^5.5.0",
