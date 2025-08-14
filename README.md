@@ -13,7 +13,9 @@ npm install -g bktide
 - [Development Guide](docs/development.md) - Information about running and developing the CLI
 - [Authentication](docs/authentication.md) - How to authenticate with Buildkite
 - [Caching](docs/caching.md) - Information about the CLI's caching system
-- [Alfred Integration](docs/alfred.md) - How to integrate with Alfred workflows
+- [Alfred Integration (Overview)](docs/alfred.md) - What the Alfred integration does and quick usage
+- [Alfred Installation](docs/alfred-installation.md) - End-user install, configuration, and troubleshooting
+- [Alfred Development](docs/alfred-development.md) - Packaging, wrapper behavior, metadata, and workflow wiring
 
 ## Usage
 
