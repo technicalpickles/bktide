@@ -31,7 +31,7 @@ export class AlfredFormatter extends BaseFormatter {
         title: errorTitle,
         subtitle: errorSubtitle,
         icon: {
-          path: 'icons/error.png'
+          path: 'icons/unknown.png'
         }
       };
       
@@ -54,7 +54,7 @@ export class AlfredFormatter extends BaseFormatter {
         title: emptyTitle,
         subtitle: emptySubtitle,
         icon: {
-          path: 'icons/empty.png'
+          path: 'icons/unknown.png'
         }
       };
       
@@ -128,13 +128,13 @@ export class AlfredFormatter extends BaseFormatter {
       case 'scheduled':
         return 'icons/scheduled.png';
       case 'canceled':
-        return 'icons/canceled.png';
+        return 'icons/unknown.png';
       case 'canceling':
-        return 'icons/canceling.png';
+        return 'icons/unknown.png';
       case 'skipped':
         return 'icons/skipped.png';
       case 'not_run':
-        return 'icons/not_run.png';
+        return 'icons/unknown.png';
       default:
         return 'icons/unknown.png';
     }

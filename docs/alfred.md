@@ -32,19 +32,11 @@ Configure Alfred alternative actions on the Script Filter connection:
   - Enable “Automatically paste to front most app”
 - ⌥ (Alt): Show build annotations in a Text View
   - Script Filter → Alternative action (⌥) → Run Script
-  - Recommended: Use a small Run Script that prints the build URL on the first line, then a blank line, then the annotations text:
-    - Input: `{query}` (build ref `org/pipeline/number`)
-    - Example (bash):
-      - `ref="$1"`
-      - `org_pipeline="${ref%/*}"; num="${ref##*/}"`
-      - `echo "https://buildkite.com/${org_pipeline}/builds/${num}"`
-      - `echo` (blank line)
-      - `"$WORKFLOW_DIR/bin/alfred-entrypoint" annotations "$ref" --format plain`
-  - Connect to a Text View (Object Input → Preview only)
-  - Then connect Text View → Arg and Vars to set `arg` to the first printed line (the URL), then → Open URL
+  - Script: `bin/alfred-entrypoint annotations "$@"`
+  - Connect directly to a Text View (Object Input → Preview only)
 
 Notes:
-- The Script Filter provides `{query}` as either the build URL (default, ⌘) or a build ref `org/pipeline/number` (⌥) based on the selected row.
+- The Script Filter provides `{query}` as the build URL for default/⌘ actions, and a build ref `org/pipeline/number` for the ⌥ action.
 - If the build ref cannot be derived for a row, the ⌥ alternative action is omitted for that item.
 
 See Alfred docs:
@@ -71,16 +63,31 @@ Notes:
 2. Add a "Script Filter" trigger
 3. Set the script to:
    ```bash
-   /path/to/your/project/node_modules/.bin/node /path/to/your/project/dist/index.js builds --alfred
+   /absolute/path/to/your/project/bin/alfred-entrypoint builds --filter "$*"
    ```
 4. Connect it to an "Open URL" action
+   - URL: `{query}`
+
+### Token commands in Alfred
+
+The workflow includes convenient keywords for token management:
+
+- `bkt`: Check token status (runs `token --check`)
+- `bkts`: Store/update token (prompts, then runs `token --store --token "{var:token}"`)
+- `bktr`: Reset token (runs `token --reset`)
 
 ## Icons
 
-For better visuals, you can add icons matching build states in the `icons/` directory:
+For better visuals, these icons are available in the `icons/` directory:
 - `passed.png`
 - `failed.png`
 - `running.png`
 - `scheduled.png`
-- `canceled.png`
-- `unknown.png` 
+- `skipped.png`
+- `blocked.png`
+- `failing.png`
+- `unknown.png`
+
+Notes:
+- Some states (e.g., canceled, canceling, not_run) are mapped to `unknown.png`.
+- Error/empty states also use `unknown.png` to avoid missing icons.
