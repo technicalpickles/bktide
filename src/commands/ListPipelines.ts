@@ -26,6 +26,7 @@ export class ListPipelines extends BaseCommand {
           const orgs = await this.client.getViewerOrganizationSlugs();
           await this.listPipelines(orgs, options);
         } catch (error) {
+          logger.error(error as any, 'Failed to determine your organizations');
           throw new Error('Failed to determine your organizations', { cause: error });
         }
       } else {

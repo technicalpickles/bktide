@@ -171,20 +171,16 @@ export class BuildkiteClient {
       }
       
       if (this.debug) {
-        logger.error('Error in GraphQL query:', error);
-        
-
-        
+        logger.error(error as any, 'Error in GraphQL query');
         // Log raw error information
         logger.debug('Raw error object:', { 
           error, 
           type: typeof error, 
-          constructor: error?.constructor?.name,
-          keys: error && typeof error === 'object' ? Object.keys(error) : undefined
+          constructor: (error as any)?.constructor?.name,
+          keys: error && typeof error === 'object' ? Object.keys(error as any) : undefined
         });
-        
         // Log more detailed error information
-        if (error instanceof Error && 'response' in error) {
+        if (error instanceof Error && 'response' in (error as any)) {
           const response = (error as any).response;
           logger.debug('GraphQL error details:', {
             status: response?.status,
@@ -193,15 +189,6 @@ export class BuildkiteClient {
             data: response?.data,
             headers: response?.headers ? Object.fromEntries(response.headers.entries()) : undefined
           });
-        }
-        
-        // Also log the error message and stack trace
-        if (error instanceof Error) {
-          logger.debug('Error message:', { message: error.message });
-          logger.debug('Error stack:', { stack: error.stack });
-          logger.debug('Error constructor:', { constructor: error.constructor.name });
-        } else {
-          logger.debug('Non-Error object:', { error, type: typeof error });
         }
       }
       throw error;

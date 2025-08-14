@@ -38,8 +38,7 @@ export const logger = pino(
             sync: true,
             translateTime: 'HH:MM:ss.l',
             ignore: 'time,pid,hostname',
-            errorProps: 'err,error,stack,message,code,details',
-            messageFormat: '{msg}'
+            errorProps: 'err,error,stack,message,code,details'
           }
         },
         // JSON file output for detailed logging

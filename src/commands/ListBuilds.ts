@@ -51,7 +51,7 @@ export class ListBuilds extends BaseCommand {
         try {
           orgs = await this.client.getViewerOrganizationSlugs();
         } catch (error) {
-          logger.error('Failed to determine your organizations');
+          logger.error(error as any, 'Failed to determine your organizations');
           return 1;
         }
       } else {
