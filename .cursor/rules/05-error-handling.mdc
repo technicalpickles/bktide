@@ -145,6 +145,59 @@ logger.debug('API request', {
 logger.debug('API request: GET ' + endpoint + ' with params: ' + JSON.stringify(params));
 ```
 
+### Error Logging Patterns (Pino)
+```typescript
+// Always pass the error object as the first argument so Pino captures stack/fields
+try {
+  // ...
+} catch (error) {
+  logger.error(error as any, 'Failed to fetch organizations');
+  // Optionally add structured context in a separate debug
+  logger.debug('Raw error', {
+    type: typeof error,
+    name: (error as any)?.constructor?.name,
+    keys: error && typeof error === 'object' ? Object.keys(error as any) : undefined
+  });
+}
+
+// For GraphQL errors, log response details when available
+catch (error) {
+  logger.error(error as any, 'Error in GraphQL query');
+  if (error instanceof Error && 'response' in (error as any)) {
+    const response = (error as any).response;
+    logger.debug('GraphQL error details', {
+      status: response?.status,
+      statusText: response?.statusText,
+      errors: response?.errors,
+      data: response?.data
+    });
+  }
+  throw error;
+}
+```
+
+### Logger Configuration Requirements
+```typescript
+// Ensure pretty transport does NOT drop objects
+// Avoid setting messageFormat like '{msg}' which removes structured data
+// Example (pino-pretty options):
+{
+  target: 'pino-pretty',
+  level: 'trace',
+  options: {
+    colorize: true,
+    sync: true,
+    translateTime: 'HH:MM:ss.l',
+    ignore: 'time,pid,hostname',
+    errorProps: 'err,error,stack,message,code,details'
+    // Do not set messageFormat here
+  }
+}
+
+// With this setup, `logger.error(error, 'context')` will print the error stack/details
+// when running commands with --debug.
+```
+
 ## Error Recovery
 
 ### Fallback Strategies
