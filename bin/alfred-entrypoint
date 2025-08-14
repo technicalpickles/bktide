@@ -4,6 +4,8 @@ set -e
 set -x
 
 workflow_dir="$(dirname "$0")/.."
+cd "$workflow_dir"
+
 log_file="$HOME/.local/state/bktide/logs/alfred.log"
 mkdir -p "$(dirname "$log_file")"
 
