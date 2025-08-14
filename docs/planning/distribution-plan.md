@@ -122,6 +122,7 @@ Primary artifact: `.alfredworkflow` bundle
   - `info.plist` (Alfred workflow metadata)
   - `icon.png` and `icons/` (state icons)
   - `bin/alfred-entrypoint` (entry script; sources env file if present)
+  - `bin/alfred-doctor` (Script Filter entry for diagnostics)
   - `dist/index.js` (compiled CLI entry)
   - `dist/**` (additional compiled files, if not single-file bundle)
   - `node_modules/` (production dependencies only; include any native binaries like `@napi-rs/keyring`)
@@ -157,7 +158,7 @@ Staging layout example:
   node_modules/** (prod)
   package.json
   package-lock.json
-  README.md (optional)
+  README.md (optional)****
   .env.example (optional)
 ```
 
@@ -168,7 +169,7 @@ Suggested steps:
 2. Create staging dir
    - `rm -rf .stage && mkdir -p .stage/workflow`
 3. Copy workflow assets
-   - `cp -R info.plist icon.png icons bin/alfred-entrypoint dist package.json package-lock.json .stage/workflow/`
+   - `cp -R info.plist icon.png icons bin/alfred-entrypoint bin/alfred-doctor dist package.json package-lock.json .stage/workflow/`
 4. Install production deps into staging
    - `npm ci --omit=dev --prefix .stage/workflow`
 5. Package
@@ -189,6 +190,46 @@ Notes:
 - Run representative commands:
   - `viewer`, `orgs`, `pipelines`, `builds`, `annotations <known-build>`
 - Check log at `$HOME/.local/state/bktide/logs/alfred.log` for errors.
+
+---
+
+## Setup validation (Doctor)
+
+Purpose: Provide a quick way to verify the environment is ready, both from CLI and within Alfred.
+
+### Checks
+- Node runtime: resolve binary (via `bin/alfred-doctor`), report `process.version`, `process.execPath`, enforce minimum Node version (e.g., >= 18).
+- Keychain module: attempt `import('@napi-rs/keyring')`, instantiate `new Entry('bktide','default')`, and call `getPassword()`; catch load/permission errors.
+- Token presence (optional `--check-token`): use `CredentialManager.getToken()`; report present/absent only.
+- API access (optional `--check-api`): if a token is available, call `BuildkiteClient.getViewer()` and list orgs; report success/error reason.
+
+### CLI command
+- Add `src/commands/Doctor.ts` extending `BaseCommand` (no token required unless `--check-api`).
+- Options: `--check-token`, `--check-api`, `--format plain|json|alfred`.
+- Output formatters: `formatters/doctor/{PlainTextFormatter,JsonFormatter,AlfredFormatter}.ts` mirroring existing patterns.
+
+### Alfred integration
+- Add `bin/alfred-doctor` Script Filter that:
+  - Applies Alfred Workflow Configuration variables if present: `EXTRA_PATH` (prepend to PATH), `NODE_BIN` (path to Node, default `node`).
+  - If Node execution fails, emit Alfred JSON with a single error item describing remediation (set `NODE_BIN`/`EXTRA_PATH` in Workflow Configuration).
+  - Otherwise exec: `$NODE_BIN "$workflow_dir/dist/index.js" doctor --format alfred [--check-token] [--check-api]`.
+
+### Workflow Configuration
+- Define user-editable variables in Alfred:
+  - `NODE_BIN` (text; default `node`)
+  - `EXTRA_PATH` (text; optional)
+- Use these in both `bin/alfred-entrypoint` and `bin/alfred-doctor`.
+
+### Packaging
+- Include `bin/alfred-doctor` in the `.alfredworkflow` bundle (see artifact list and copy step above).
+
+### Risks
+- Keychain permissions may prompt on first access; acceptable for diagnostics.
+- Native module arch mismatches surface as clear load errors in Doctor.
+
+### Validation
+- CLI: run `node dist/index.js doctor` with and without token; with `--check-api` using valid/invalid tokens.
+- Alfred: run the Doctor keyword on systems where Node is missing (expect helpful guidance) and where `@napi-rs/keyring` is absent/mismatched (expect clear error).
 
 ---
 
