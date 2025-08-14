@@ -1,0 +1,3 @@
+[tools]
+# use whatever is the latest LTS version: https://github.com/nodejs/Release
+node = "22"
