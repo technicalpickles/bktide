@@ -10,6 +10,8 @@ alwaysApply: true
 - assume commands will be run from the repository root by default
   - conversation logs should show if `cd` was previously run intentionally to change out of it. only use cd in those cases
   - favor running commands from the root, and not using `cd` to move around
+- assume that PAGER is set to a non-interactive command (ie `cat`)
+  - do not pipe excplicitly pipe through cat, ie `| cat`
 
 ## Iterative Implementation Plan
 When implementing new features, follow this systematic approach:
