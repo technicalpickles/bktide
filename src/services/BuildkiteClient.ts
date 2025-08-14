@@ -139,18 +139,6 @@ export class BuildkiteClient {
       }
       
       const response = await this.client.request<T>(query, variables);
-      
-      // Update rate limit info from headers
-      const headers = (this.client as any).headers as Headers;
-      this.rateLimitInfo = {
-        remaining: parseInt(headers.get('RateLimit-Remaining') || '0'),
-        limit: parseInt(headers.get('RateLimit-Limit') || '0'),
-        reset: parseInt(headers.get('RateLimit-Reset') || '0'),
-      };
-
-      if (this.debug) {
-        logger.debug('Rate limit info:', this.rateLimitInfo);
-      }
 
       // Store result in cache if caching is enabled
       if (this.cacheManager) {
