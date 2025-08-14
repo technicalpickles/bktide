@@ -5,11 +5,10 @@ node_modules/
 # https://www.alfredapp.com/help/workflows/workflow-configuration/
 prefs.plist
 
-# Build output
+# Build artifasts
 dist/
-
-# Package artifacts
 pkg/
+.stage/
 
 # Logs
 logs/
