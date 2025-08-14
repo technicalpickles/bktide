@@ -14,7 +14,7 @@
     "dev:interactive": "NODE_OPTIONS=\"--enable-source-maps --trace-uncaught --inspect\" node build-and-run.js src/index.ts --interactive",
     "watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "codegen": "./node_modules/.bin/graphql-code-generator --config codegen.mjs",
+    "codegen": "graphql-code-generator --config codegen.mjs",
     "package": "node scripts/package-workflow.js",
     "package:clean": "rm -rf .stage pkg",
     "prepackage": "npm run package:clean",
