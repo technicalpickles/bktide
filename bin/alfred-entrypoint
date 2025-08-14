@@ -6,7 +6,12 @@ set -x
 workflow_dir="$(dirname "$0")/.."
 cd "$workflow_dir"
 
-log_file="$HOME/.local/state/bktide/logs/alfred.log"
+# Prefer Alfred's cache directory for logs; fall back to XDG if unavailable
+if [[ -n "$alfred_workflow_cache" ]]; then
+  log_file="$alfred_workflow_cache/alfred.log"
+else
+  log_file="$HOME/.local/state/bktide/logs/alfred.log"
+fi
 mkdir -p "$(dirname "$log_file")"
 
 # Optionally source user-provided environment to customize PATH, NODE_BIN, etc.
@@ -17,10 +22,12 @@ workflow_env_file="$workflow_dir/.env"
 if [[ -f "$user_env_file" ]]; then
   # Export variables defined in the file
   set -a
-  source "$user_env_file"
+  # shellcheck disable=SC1090
+  source "$user_env_file" 
   set +a
 elif [[ -f "$workflow_env_file" ]]; then
   set -a
+  # shellcheck disable=SC1090
   source "$workflow_env_file"
   set +a
 fi
@@ -37,5 +44,11 @@ if [[ -z "$NODE_BIN" ]]; then
   export NODE_BIN=node
 fi
 
+# Enable CLI debug mode if user config sets DEBUG=true/1 (compatible with macOS bash 3.2)
+extra_flags=()
+if [[ "$DEBUG" == "true" || "$DEBUG" == "TRUE" || "$DEBUG" == "True" || "$DEBUG" == "1" ]]; then
+  extra_flags+=("--debug")
+fi
+
 echo "Running command: $NODE_BIN $workflow_dir/dist/index.js $command" "$@" >> "$log_file"
-"$NODE_BIN" "$workflow_dir/dist/index.js" "$command" --format alfred "$@" 2>&1 | tee -a "$log_file"
+"$NODE_BIN" "$workflow_dir/dist/index.js" "$command" --format alfred "${extra_flags[@]}" "$@" 2>&1 | tee -a "$log_file"

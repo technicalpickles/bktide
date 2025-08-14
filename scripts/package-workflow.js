@@ -16,6 +16,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
 import { fileURLToPath } from 'url';
+import plist from 'plist';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
@@ -145,6 +146,65 @@ async function copyWorkflowAssets() {
   }
 }
 
+async function loadInfoPlist(plistPath) {
+  const raw = await fs.readFile(plistPath, 'utf-8');
+  return plist.parse(raw);
+}
+
+async function saveInfoPlist(plistPath, data) {
+  const xml = plist.build(data);
+  await fs.writeFile(plistPath, xml);
+}
+
+function extractShortDescription(readmeText) {
+  const firstLine = readmeText.split(/\r?\n/).find(line => line.trim().length > 0) || '';
+  return firstLine.replace(/^#\s+/, '').trim().slice(0, 200);
+}
+
+async function injectMetadataIntoInfoPlist(version) {
+  info('Injecting metadata into info.plist...');
+  const plistPath = path.join(stageDir, 'info.plist');
+
+  const [pkgJsonRaw, readmeRaw, infoPlist] = await Promise.all([
+    fs.readFile(path.join(stageDir, 'package.json'), 'utf-8').then(JSON.parse),
+    fs.readFile(path.join(stageDir, 'WORKFLOW_README.md'), 'utf-8').catch(() => ''),
+    loadInfoPlist(plistPath)
+  ]);
+
+  const repoUrl = (pkgJsonRaw.repository && (typeof pkgJsonRaw.repository === 'string' ? pkgJsonRaw.repository : pkgJsonRaw.repository.url)) || '';
+  const author = pkgJsonRaw.author || '';
+  const description = pkgJsonRaw.description || extractShortDescription(readmeRaw);
+
+  infoPlist.version = version;
+  if (!infoPlist.bundleid || infoPlist.bundleid.trim() === '') {
+    // Create a deterministic default from package name
+    const safeName = (pkgJsonRaw.name || 'bktide').replace(/[^a-zA-Z0-9.-]/g, '');
+    infoPlist.bundleid = `com.${(author && typeof author === 'string' ? author.split(/[\s<>@]/)[0].toLowerCase() : 'bktide')}.${safeName}`;
+  }
+  if (!infoPlist.createdby || infoPlist.createdby.trim() === '') {
+    infoPlist.createdby = typeof author === 'string' ? author : (author?.name || '');
+  }
+  if (!infoPlist.webaddress || infoPlist.webaddress.trim() === '') {
+    infoPlist.webaddress = repoUrl;
+  }
+  if (!infoPlist.description || infoPlist.description.trim() === '') {
+    infoPlist.description = description;
+  }
+  if (!infoPlist.readme || infoPlist.readme.trim() === '') {
+    infoPlist.readme = readmeRaw;
+  }
+
+  await saveInfoPlist(plistPath, infoPlist);
+
+  // Validate plist
+  try {
+    await runCommand('plutil', ['-lint', plistPath], { silent: true });
+    success('info.plist metadata injected and validated');
+  } catch (err) {
+    warn('plutil not available or validation failed; continuing');
+  }
+}
+
 async function installProductionDependencies() {
   info('Installing production dependencies...');
   
@@ -256,6 +316,7 @@ async function main() {
     await cleanAndCreateStaging();
     await buildProject();
     await copyWorkflowAssets();
+    await injectMetadataIntoInfoPlist(version);
     await installProductionDependencies();
     await validateNativeDependencies();
     
