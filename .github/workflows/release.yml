@@ -48,29 +48,6 @@ jobs:
       - name: Pack tarball (dry-run)
         run: npm pack --dry-run
 
-      # - name: Validate NPM token (optional)
-      #   env:
-      #     NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      #   run: |
-      #     if [ -z "${NPM_TOKEN:-}" ]; then
-      #       echo "No NPM_TOKEN present; skipping token validation."
-      #       exit 0
-      #     fi
-      #     # Print a masked preview similar to npm UI (prefix and suffix only)
-      #     LEN=${#NPM_TOKEN}
-      #     if [ "$LEN" -ge 12 ]; then
-      #       PREFIX=${NPM_TOKEN:0:8}
-      #       SUFFIX=${NPM_TOKEN:$((LEN-4))}
-      #       echo "Detected NPM_TOKEN: ${PREFIX}......${SUFFIX}"
-      #     else
-      #       echo "Detected NPM_TOKEN: (masked)"
-      #     fi
-      #     printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > ~/.npmrc
-      #     npm ping --registry=https://registry.npmjs.org
-      #     USERNAME=$(npm whoami)
-      #     npm owner ls bktide | grep -F "$USERNAME"
-      #     rm -f ~/.npmrc
-
       - name: Smoke install test (local)
         run: |
           TARBALL=$(npm pack | tail -n1)
@@ -87,9 +64,8 @@ jobs:
           npm install -g npm@latest
           npm --version
 
-      - name: Publish to npm (trusted publishing with automatic provenance)
-        run: npm publish --access public
-        # Note: --provenance flag is not needed; it's automatic with trusted publishing
+      - name: Publish to npm (trusted publishing with provenance)
+        run: npm publish --provenance --access public
 
       - name: Build and package
         env:
