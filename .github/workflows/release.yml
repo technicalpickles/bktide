@@ -80,15 +80,16 @@ jobs:
           ./node_modules/.bin/bktide --version | grep -q "${{ steps.version.outputs.value }}"
         shell: bash
 
-      - name: Publish to npm (with token)
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # Ensure npm 11.5.1+ for trusted publishing OIDC support
+      - name: Update npm for OIDC support
         run: |
-          npm publish --access public
+          npm --version
+          npm install -g npm@latest
+          npm --version
 
-      # FIXME: consistently failing with 404
-      # - name: Publish to npm (trusted publishing with provenance)
-      #   run: npm publish --provenance --access public
+      - name: Publish to npm (trusted publishing with automatic provenance)
+        run: npm publish --access public
+        # Note: --provenance flag is not needed; it's automatic with trusted publishing
 
       - name: Build and package
         env:
