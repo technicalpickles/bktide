@@ -33,6 +33,14 @@
   ],
   "author": "Josh Nichols <josh@technicalpickles.com>",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/technicalpickles/bktide"
+  },
+  "bugs": {
+    "url": "https://github.com/technicalpickles/bktide/issues"
+  },
+  "homepage": "https://github.com/technicalpickles/bktide#readme",
   "engines": {
     "node": ">=20"
   },
