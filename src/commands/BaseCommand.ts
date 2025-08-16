@@ -152,7 +152,13 @@ export abstract class BaseCommand {
       return options.token;
     }
     
-    // Next try to get token from keyring
+    // Prefer environment variables first under Alfred or if explicitly provided
+    const envToken = process.env.BUILDKITE_API_TOKEN || process.env.BK_TOKEN;
+    if (envToken) {
+      return envToken;
+    }
+    
+    // Next try to get token from keyring (outside Alfred this will lazy-load)
     try {
       const storedToken = await this.credentialManager.getToken();
       if (storedToken) {
@@ -163,14 +169,8 @@ export abstract class BaseCommand {
       logger.debug('Error retrieving token from keychain', error);
     }
     
-    // Finally fall back to environment variable
-    const envToken = process.env.BK_TOKEN;
-    if (envToken) {
-      return envToken;
-    }
-    
     if (options.requiresToken) {
-      throw new Error('API token required. Set via --token, BK_TOKEN environment variable, or store it using --save-token.');
+      throw new Error('API token required. Set via --token, BUILDKITE_API_TOKEN/BK_TOKEN env vars, or store it using --save-token.');
     } else {
       return
     }

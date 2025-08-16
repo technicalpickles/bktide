@@ -1,4 +1,5 @@
 import { BaseErrorFormatter, ErrorFormatter, ErrorFormatterOptions } from './Formatter.js';
+import { isRunningInAlfred } from '../../utils/alfred.js';
 
 /**
  * Alfred formatter for errors
@@ -18,6 +19,26 @@ export class AlfredFormatter extends BaseErrorFormatter implements ErrorFormatte
    */
   formatError(errors: unknown | unknown[], options?: ErrorFormatterOptions): string {
     const errorArray = Array.isArray(errors) ? errors : [errors];
+
+    // Alfred first-run UX: if running in Alfred and token is missing, show setup item
+    const missingToken = errorArray.some(err => {
+      const msg = err instanceof Error ? err.message : String(err);
+      return /API token required|No token/i.test(msg);
+    });
+    if (isRunningInAlfred() && missingToken && !process.env.BUILDKITE_API_TOKEN && !process.env.BK_TOKEN) {
+      return JSON.stringify({
+        items: [
+          {
+            uid: 'set-token',
+            title: 'Set Buildkite token',
+            subtitle: 'Open Workflow Configuration to paste your token',
+            arg: 'alfred:open-config',
+            icon: { path: 'icons/info.png' },
+            valid: true
+          }
+        ]
+      });
+    }
     const items = [];
 
     for (const error of errorArray) {

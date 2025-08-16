@@ -4,6 +4,7 @@ import prompts from 'prompts';
 import { FormatterFactory, FormatterType } from '../formatters/FormatterFactory.js';
 import { TokenFormatter } from '../formatters/token/Formatter.js';
 import { TokenStatus, TokenValidationStatus, TokenCheckResult, TokenCheckOrStoreResult, TokenStoreResult } from '../types/credentials.js';
+import { isRunningInAlfred } from '../utils/alfred.js';
 
 export interface TokenOptions extends BaseCommandOptions {
   check?: boolean;
@@ -72,6 +73,9 @@ export class ManageToken extends BaseCommand {
       if (this.options.token) {
         tokenToStore = this.options.token;
       } else {
+        if (isRunningInAlfred()) {
+          return { success: false, errors: [new Error('In Alfred, set token via Workflow Configuration.')] };
+        }
         // Otherwise prompt the user
         const response = await prompts({
           type: 'password',
@@ -153,7 +157,10 @@ export class ManageToken extends BaseCommand {
   }
 
   private async checkToken(): Promise<TokenCheckResult> {
-    const hasToken = await BaseCommand.credentialManager.hasToken();
+    // In Alfred, check presence of env var as token existence
+    const hasToken = isRunningInAlfred()
+      ? Boolean(process.env.BUILDKITE_API_TOKEN || process.env.BK_TOKEN)
+      : await BaseCommand.credentialManager.hasToken();
     let isValid = false;
     let validation: TokenValidationStatus = { 
       valid: false, 
@@ -164,7 +171,9 @@ export class ManageToken extends BaseCommand {
 
     if (hasToken) {
       // Get the token for validation
-      const token = await BaseCommand.credentialManager.getToken();
+      const token = isRunningInAlfred()
+        ? (process.env.BUILDKITE_API_TOKEN || process.env.BK_TOKEN)
+        : await BaseCommand.credentialManager.getToken();
       if (!token) {
         const tokenStatus: TokenStatus = {
           hasToken: false,

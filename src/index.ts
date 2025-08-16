@@ -166,7 +166,7 @@ program
   .option('--no-cache', 'Disable caching of API responses')
   .option('--cache-ttl <milliseconds>', 'Set cache time-to-live in milliseconds', parseInt)
   .option('--clear-cache', 'Clear all cached data before executing command')
-  .option('-t, --token <token>', 'Buildkite API token (or set BK_TOKEN env var)', process.env.BK_TOKEN)
+  .option('-t, --token <token>', 'Buildkite API token (set BUILDKITE_API_TOKEN or BK_TOKEN env var)', process.env.BUILDKITE_API_TOKEN || process.env.BK_TOKEN)
   .option('--save-token', 'Save the token to system keychain for future use')
   .option('-f, --format <format>', 'Output format for results and errors (plain, json, alfred)', 'plain');
 
