@@ -59,7 +59,7 @@
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>B2329A6F-0D3F-4D1D-BB55-4BDFDC312C47</string>
+				<string>6915B5C7-3989-4E53-88BD-75D9F8ADF010</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -71,7 +71,7 @@
 			</dict>
 			<dict>
 				<key>destinationuid</key>
-				<string>720903FA-DE68-4819-B753-505F8392B54A</string>
+				<string>6915B5C7-3989-4E53-88BD-75D9F8ADF010</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -107,60 +107,6 @@
 			<dict>
 				<key>destinationuid</key>
 				<string>23FFFF40-EAC3-4E31-884E-643D969B7AB7</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>720903FA-DE68-4819-B753-505F8392B54A</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>E7CED95B-DC0B-4A2E-ADBF-329A6389F597</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>7D93BD50-1A05-4990-ABE6-14FA8A7645B3</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>2BF360A3-5D18-4185-9CF0-97B1D2B2F6BA</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>sourceoutputuid</key>
-				<string>_button1</string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>B2329A6F-0D3F-4D1D-BB55-4BDFDC312C47</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>C75A726B-1639-42C3-A91A-D8BDB79AF3B4</string>
-				<key>modifiers</key>
-				<integer>0</integer>
-				<key>modifiersubtext</key>
-				<string></string>
-				<key>vitoclose</key>
-				<false/>
-			</dict>
-		</array>
-		<key>E7CED95B-DC0B-4A2E-ADBF-329A6389F597</key>
-		<array>
-			<dict>
-				<key>destinationuid</key>
-				<string>7D93BD50-1A05-4990-ABE6-14FA8A7645B3</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -377,69 +323,23 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>102</integer>
-				<key>script</key>
-				<string>bin/alfred-entrypoint token --reset</string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
+				<key>browser</key>
 				<string></string>
-				<key>type</key>
-				<integer>11</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.script</string>
-			<key>uid</key>
-			<string>C75A726B-1639-42C3-A91A-D8BDB79AF3B4</string>
-			<key>version</key>
-			<integer>2</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>argumenttype</key>
-				<integer>0</integer>
-				<key>keyword</key>
-				<string>bktr</string>
-				<key>subtext</key>
-				<string></string>
-				<key>text</key>
-				<string>Reset Buildkite Token</string>
-				<key>withspace</key>
+				<key>skipqueryencode</key>
 				<true/>
+				<key>skipvarencode</key>
+				<true/>
+				<key>spaces</key>
+				<string></string>
+				<key>url</key>
+				<string>alfred:open-config</string>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.input.keyword</string>
+			<string>alfred.workflow.action.openurl</string>
 			<key>uid</key>
-			<string>B2329A6F-0D3F-4D1D-BB55-4BDFDC312C47</string>
+			<string>6915B5C7-3989-4E53-88BD-75D9F8ADF010</string>
 			<key>version</key>
 			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>102</integer>
-				<key>script</key>
-				<string>bin/alfred-entrypoint token --store --token "{var:token}"</string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string></string>
-				<key>type</key>
-				<integer>0</integer>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.action.script</string>
-			<key>uid</key>
-			<string>2BF360A3-5D18-4185-9CF0-97B1D2B2F6BA</string>
-			<key>version</key>
-			<integer>2</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -536,68 +436,6 @@
 			<key>version</key>
 			<integer>1</integer>
 		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>argumenttype</key>
-				<integer>0</integer>
-				<key>keyword</key>
-				<string>bkts</string>
-				<key>subtext</key>
-				<string></string>
-				<key>text</key>
-				<string>Update Buildkite Token</string>
-				<key>withspace</key>
-				<true/>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.input.keyword</string>
-			<key>uid</key>
-			<string>720903FA-DE68-4819-B753-505F8392B54A</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>argument</key>
-				<string></string>
-				<key>passthroughargument</key>
-				<false/>
-				<key>variables</key>
-				<dict>
-					<key>token</key>
-					<string>{query}</string>
-				</dict>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.utility.argument</string>
-			<key>uid</key>
-			<string>E7CED95B-DC0B-4A2E-ADBF-329A6389F597</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>button1</key>
-				<string>Ok</string>
-				<key>button2</key>
-				<string>Cancel</string>
-				<key>button3</key>
-				<string></string>
-				<key>description</key>
-				<string>This will take a moment to validate. Use `bkt` to check its status</string>
-				<key>title</key>
-				<string>Storing Token...</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.utility.dialog</string>
-			<key>uid</key>
-			<string>7D93BD50-1A05-4990-ABE6-14FA8A7645B3</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
 	</array>
 	<key>readme</key>
 	<string></string>
@@ -631,13 +469,6 @@
 			<key>ypos</key>
 			<real>330</real>
 		</dict>
-		<key>2BF360A3-5D18-4185-9CF0-97B1D2B2F6BA</key>
-		<dict>
-			<key>xpos</key>
-			<real>1030</real>
-			<key>ypos</key>
-			<real>840</real>
-		</dict>
 		<key>4BC44B5B-F643-42F8-8F64-DA29D018C1EF</key>
 		<dict>
 			<key>xpos</key>
@@ -652,6 +483,13 @@
 			<key>ypos</key>
 			<real>900</real>
 		</dict>
+		<key>6915B5C7-3989-4E53-88BD-75D9F8ADF010</key>
+		<dict>
+			<key>xpos</key>
+			<real>640</real>
+			<key>ypos</key>
+			<real>885</real>
+		</dict>
 		<key>6CEA3061-E41E-4D9C-99CF-435E7A85AED6</key>
 		<dict>
 			<key>xpos</key>
@@ -659,47 +497,12 @@
 			<key>ypos</key>
 			<real>155</real>
 		</dict>
-		<key>720903FA-DE68-4819-B753-505F8392B54A</key>
-		<dict>
-			<key>xpos</key>
-			<real>620</real>
-			<key>ypos</key>
-			<real>900</real>
-		</dict>
-		<key>7D93BD50-1A05-4990-ABE6-14FA8A7645B3</key>
-		<dict>
-			<key>xpos</key>
-			<real>915</real>
-			<key>ypos</key>
-			<real>935</real>
-		</dict>
 		<key>8B07A6D4-833B-48DB-828E-DFCD2F8BD095</key>
 		<dict>
 			<key>xpos</key>
 			<real>770</real>
 			<key>ypos</key>
 			<real>55</real>
-		</dict>
-		<key>B2329A6F-0D3F-4D1D-BB55-4BDFDC312C47</key>
-		<dict>
-			<key>xpos</key>
-			<real>610</real>
-			<key>ypos</key>
-			<real>730</real>
-		</dict>
-		<key>C75A726B-1639-42C3-A91A-D8BDB79AF3B4</key>
-		<dict>
-			<key>xpos</key>
-			<real>820</real>
-			<key>ypos</key>
-			<real>720</real>
-		</dict>
-		<key>E7CED95B-DC0B-4A2E-ADBF-329A6389F597</key>
-		<dict>
-			<key>xpos</key>
-			<real>810</real>
-			<key>ypos</key>
-			<real>930</real>
 		</dict>
 	</dict>
 	<key>userconfigurationconfig</key>

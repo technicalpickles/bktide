@@ -1,4 +1,5 @@
 import { TokenStatus, TokenValidationStatus } from '../../types/credentials.js';
+import { isRunningInAlfred } from '../../utils/alfred.js';
 import { BaseTokenFormatter } from './Formatter.js';
 
 interface AlfredItem {
@@ -127,10 +128,24 @@ export class AlfredFormatter extends BaseTokenFormatter {
   private formatTokenStatusAsItems(status: TokenStatus): AlfredItem[] {
     const items: AlfredItem[] = [];
     
-    // Add token status item
+    const inAlfred = isRunningInAlfred();
+
+    // Alfred-first UX: if no token, present actionable item to open config
+    if (inAlfred && !status.hasToken) {
+      items.push({
+        title: 'Set Buildkite token',
+        subtitle: 'Open Workflow Configuration to set BUILDKITE_API_TOKEN',
+        icon: 'icons/info.png',
+        arg: 'alfred:open-config'
+      });
+    }
+
+    // Add token status item with context-aware subtitle
     items.push({
       title: `Token Status: ${status.hasToken ? 'Present' : 'Not Present'}`,
-      subtitle: status.hasToken ? 'Token is stored in system keychain' : 'No token found in system keychain',
+      subtitle: status.hasToken
+        ? (inAlfred ? 'Token provided via Workflow Configuration' : 'Token is stored in system keychain')
+        : (inAlfred ? 'No token set in Workflow Configuration' : 'No token found in system keychain'),
       icon: this.getIcon(status.hasToken),
       arg: status.hasToken ? 'token:present' : 'token:not-present'
     });
