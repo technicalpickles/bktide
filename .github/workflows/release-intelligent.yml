@@ -1,0 +1,186 @@
+name: intelligent-release
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+
+jobs:
+  # First job: Check if we need to release
+  check-changes:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.detect.outputs.should-release }}
+      material-files: ${{ steps.detect.outputs.material-files }}
+      reason: ${{ steps.detect.outputs.reason }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for tag detection
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Detect material changes
+        id: detect
+        run: |
+          # Run the detection script
+          if node scripts/detect-material-changes.js --verbose; then
+            echo "should-release=true" >> "$GITHUB_OUTPUT"
+            
+            # Capture the JSON output for detailed info
+            RESULT=$(node scripts/detect-material-changes.js --json)
+            MATERIAL_FILES=$(echo "$RESULT" | jq -r '.materialFiles | @json')
+            REASON=$(echo "$RESULT" | jq -r '.reason')
+            
+            echo "material-files=$MATERIAL_FILES" >> "$GITHUB_OUTPUT"
+            echo "reason=$REASON" >> "$GITHUB_OUTPUT"
+            
+            echo "📦 Release needed: $REASON"
+          else
+            echo "should-release=false" >> "$GITHUB_OUTPUT"
+            echo "reason=No material changes detected" >> "$GITHUB_OUTPUT"
+            echo "⏭️ Skipping release - no material changes"
+          fi
+
+      - name: Post check summary
+        if: always()
+        run: |
+          if [ "${{ steps.detect.outputs.should-release }}" = "true" ]; then
+            {
+              echo "## 🚀 Release Required"
+              echo ""
+              echo "**Reason:** ${{ steps.detect.outputs.reason }}"
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
+            
+            if [ -n "${{ steps.detect.outputs.material-files }}" ]; then
+              echo "### Material files changed:" >> "$GITHUB_STEP_SUMMARY"
+              echo "${{ steps.detect.outputs.material-files }}" | jq -r '.[]' | while read -r file; do
+                echo "- \`${file}\`" >> "$GITHUB_STEP_SUMMARY"
+              done
+            fi
+          else
+            {
+              echo "## ⏭️ Release Skipped"
+              echo ""
+              echo "**Reason:** ${{ steps.detect.outputs.reason }}"
+              echo ""
+              echo "Only non-material changes were detected (e.g., documentation, CI configs)."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # Second job: Perform the release (only if needed)
+  release:
+    needs: check-changes
+    if: needs.check-changes.outputs.should-release == 'true'
+    runs-on: macos-latest
+    permissions:
+      contents: write
+      id-token: write
+    environment: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Compute version
+        id: version
+        run: |
+          node scripts/compute-version.js > .version
+          { echo "value=$(cat .version)"; } >> "$GITHUB_OUTPUT"
+
+      - name: Set package.json version (no git tag)
+        run: npm version "${{ steps.version.outputs.value }}" --no-git-tag-version
+
+      - name: Build (prepack enforces on publish too)
+        run: npm run build
+
+      - name: Pack tarball (dry-run)
+        run: npm pack --dry-run
+
+      - name: Smoke install test (local)
+        run: |
+          TARBALL=$(npm pack | tail -n1)
+          mkdir -p /tmp/bktide-verify && cd /tmp/bktide-verify && npm init -y > /dev/null 2>&1
+          npm install "$GITHUB_WORKSPACE/$TARBALL"
+          ./node_modules/.bin/bktide --help >/dev/null
+          ./node_modules/.bin/bktide --version | grep -q "${{ steps.version.outputs.value }}"
+        shell: bash
+
+      # Ensure npm 11.5.1+ for trusted publishing OIDC support
+      - name: Update npm for OIDC support
+        run: |
+          npm --version
+          npm install -g npm@latest
+          npm --version
+
+      - name: Publish to npm (trusted publishing with provenance)
+        run: npm publish --provenance --access public
+
+      - name: Build and package
+        env:
+          BKTIDE_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          npm run package
+
+      - name: Generate changelog body
+        id: changelog
+        shell: bash
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          if [ -n "$LAST_TAG" ]; then
+            BODY=$(git log --pretty=format:'- %s' "$LAST_TAG"..HEAD)
+          else
+            BODY=$(git log --pretty=format:'- %s')
+          fi
+          # Fallback if empty
+          if [ -z "$BODY" ]; then BODY="Automated release"; fi
+          
+          # Add material changes info
+          CHANGELOG="## Changes
+
+          $BODY
+          
+          ## Release Reason
+          ${{ needs.check-changes.outputs.reason }}"
+          
+          { echo "body<<EOF"; echo "$CHANGELOG"; echo "EOF"; } >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        run: |
+          VERSION=${{ steps.version.outputs.value }}
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
+          git push origin "v$VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.value }}
+          prerelease: false
+          files: |
+            pkg/*.alfredworkflow
+            pkg/*.sha256
+          body: ${{ steps.changelog.outputs.body }}
