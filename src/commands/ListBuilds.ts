@@ -160,6 +160,22 @@ export class ListBuilds extends BaseCommand {
       logger.console(output);
       reporter.success('Builds retrieved');
       
+      // Add contextual next-steps hints
+      if (allBuilds.length > 0) {
+        const buildCount = parseInt(perPage, 10);
+        if (allBuilds.length === buildCount) {
+          reporter.info(`Showing ${buildCount} builds. Use --count ${buildCount * 2} to see more`);
+        }
+        
+        // If filtering is not active, suggest filtering options
+        if (!options.state && !options.branch && !options.pipeline) {
+          reporter.info('Filter options:');
+          reporter.info('  • By state: --state failed');
+          reporter.info('  • By branch: --branch main');
+          reporter.info('  • By pipeline: --pipeline <name>');
+        }
+      }
+      
       if (options.debug) {
         const executeDuration = Number(process.hrtime.bigint() - executeStartTime) / 1000000;
         logger.debug(`ViewerBuildsCommandHandler execution completed in ${executeDuration.toFixed(2)}ms`);

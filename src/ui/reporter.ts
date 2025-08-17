@@ -6,6 +6,11 @@ function isMachine(format?: string): boolean {
   return f === 'json' || f === 'alfred';
 }
 
+function isInteractive(): boolean {
+  // Only show decorative messages when stdout is a TTY (not piped/redirected)
+  return Boolean(process.stdout.isTTY);
+}
+
 export class Reporter {
   private readonly format: string;
   private readonly quiet: boolean;
@@ -26,15 +31,20 @@ export class Reporter {
   }
 
   warn(message: string): void {
+    // Warnings go to stderr, check stderr TTY status
+    if (isMachine(this.format) || !process.stderr.isTTY) return;
     this.writeStderr(this.decorate(COLORS.warn, `${SYMBOLS.warn} ${message}`));
   }
 
   error(message: string): void {
+    // Errors go to stderr, check stderr TTY status  
+    if (isMachine(this.format) || !process.stderr.isTTY) return;
     this.writeStderr(this.decorate(COLORS.error, `${SYMBOLS.error} ${message}`));
   }
 
   table(rows: string[][], options?: { preserveWidths?: boolean }): void {
-    if (!rows.length || this.shouldSuppress()) return;
+    // Tables are data output, not decorative - always show them
+    if (!rows.length || isMachine(this.format)) return;
     
     // Get terminal width for responsive tables
     const width = termWidth();
@@ -54,7 +64,11 @@ export class Reporter {
   }
 
   private shouldSuppress(): boolean {
-    return this.quiet || isMachine(this.format);
+    // Suppress decorative messages when:
+    // - quiet mode is enabled
+    // - machine format (json/alfred)
+    // - stdout is not a TTY (piped/redirected)
+    return this.quiet || isMachine(this.format) || !isInteractive();
   }
 
   private decorate(fn: (s: string) => string, s: string): string {

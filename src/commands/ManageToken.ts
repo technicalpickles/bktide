@@ -5,6 +5,7 @@ import { FormatterFactory, FormatterType } from '../formatters/FormatterFactory.
 import { TokenFormatter } from '../formatters/token/Formatter.js';
 import { TokenStatus, TokenValidationStatus, TokenCheckResult, TokenCheckOrStoreResult, TokenStoreResult } from '../types/credentials.js';
 import { isRunningInAlfred } from '../utils/alfred.js';
+import { Reporter } from '../ui/reporter.js';
 
 export interface TokenOptions extends BaseCommandOptions {
   check?: boolean;
@@ -15,10 +16,12 @@ export interface TokenOptions extends BaseCommandOptions {
 
 export class ManageToken extends BaseCommand {
   private formatter: TokenFormatter;
+  private reporter: Reporter;
 
   constructor(options?: Partial<TokenOptions>) {
     super(options);
     this.formatter = FormatterFactory.getFormatter(FormatterType.TOKEN, options?.format) as TokenFormatter;
+    this.reporter = new Reporter(options?.format || 'plain', options?.quiet);
   }
 
   static get requiresToken(): boolean {
@@ -33,6 +36,12 @@ export class ManageToken extends BaseCommand {
       if (options.store) {
         const { success, errors } = await this.storeToken();
         if (success) {
+          // Add next-steps hints after successful token storage
+          this.reporter.success('Token stored successfully');
+          this.reporter.info('Next steps:');
+          this.reporter.info('  • Verify access: bktide token --check');
+          this.reporter.info('  • List organizations: bktide orgs');
+          this.reporter.info('  • List pipelines: bktide pipelines');
           return 0;
         } else {
           const formattedErrors = this.formatter.formatAuthErrors('storing', errors);
