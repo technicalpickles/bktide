@@ -17,6 +17,7 @@ import {
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
 import { logger, setLogLevel } from './services/logger.js';
+import { WidthAwareHelp } from './ui/help.js';
 
 // Set a global error handler for uncaught exceptions
 const uncaughtExceptionHandler = (err: Error) => {
@@ -158,11 +159,14 @@ function resolveAppVersion(): string {
   return '0.0.0';
 }
 
+// Create custom help instance
+const customHelp = new WidthAwareHelp();
+
 program
   .name('bktide')
   .description('Buildkite CLI tool')
   .version(resolveAppVersion())
-  .configureHelp({ showGlobalOptions: true })
+  .configureHelp(customHelp)
   .showSuggestionAfterError()
   .option('--log-level <level>', 'Set logging level (trace, debug, info, warn, error, fatal)', 'info')
   .option('-d, --debug', 'Show debug information for errors')

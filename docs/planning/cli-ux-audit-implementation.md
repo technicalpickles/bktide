@@ -2,11 +2,15 @@
 
 ## Current Status (Updated)
 
-### ✅ Completed (Week 1-2)
-- **Core Improvements**: All 3 core improvements completed
+### ✅ Completed (Week 1-3)
+- **Core Improvements**: All 3 core improvements completed (Week 1-2)
   - Width-aware tables for responsive layouts
   - Structured error templates with contextual hints
   - Next-steps hints for better discoverability
+- **Polish Phase**: All 3 polish improvements completed (Week 2-3)
+  - Width-aware help text with terminal width detection
+  - Color-blind safe palette (blue/orange instead of green/red)
+  - Progress bars for long operations (determinate and indeterminate)
 - **Bonus Features**: 
   - TTY detection fix for clean piped output
   - `--tips`/`--no-tips` flags for fine-grained control
@@ -16,12 +20,14 @@
 
 ### 🚀 Next Priorities
 1. **Quick Wins** (remaining): Exit handling unification, ASCII flag integration, CI detection
-2. **Polish** (Week 2-3): Width-aware help, color-blind palette, progress bars
-3. **Testing** (Week 3): Snapshot tests, documentation updates
+2. **Testing** (Week 3): Snapshot tests, documentation updates
+3. **Rollout** (Week 4): Integration testing, release preparation
 
 ## Executive Summary
 
 This plan addresses critical UX improvements identified in the CLI audit, prioritizing high-impact/low-effort changes that improve developer experience without breaking existing functionality. The implementation is structured in 4 weeks of incremental improvements, focusing on exit handling, width-aware displays, accessibility, and automation safety.
+
+**Progress Update**: Week 1-2 Core Improvements and Week 2-3 Polish phase are now complete. The CLI has significantly improved UX with responsive layouts, accessible colors, structured errors, and progress indicators. Remaining work focuses on testing, documentation, and final quick wins.
 
 ## Bonus Improvements (Not in Original Plan)
 
@@ -85,22 +91,22 @@ These improvements were discovered and implemented during development:
 
 ### Polish (Medium Impact, Medium Effort) - Week 2-3
 8. **Width-aware help** - Responsive help text
-   - Status: ⏳ TODO
+   - Status: ✅ COMPLETED
    - Impact: MEDIUM - Better readability
    - Effort: MEDIUM - Commander customization, ~3 hours
-   - Files: `index.ts`, help templates
+   - Files: `ui/help.ts`, `index.ts`
 
 9. **Color-blind safe palette** - Semantic colors + labels
-   - Status: ⏳ TODO
+   - Status: ✅ COMPLETED
    - Impact: MEDIUM - Accessibility
    - Effort: LOW - Update color choices, ~1 hour
    - Files: `theme.ts`
 
 10. **Progress bars** - For long operations
-    - Status: ⏳ TODO
+    - Status: ✅ COMPLETED
     - Impact: MEDIUM - Better feedback
     - Effort: MEDIUM - Progress tracking, ~4 hours
-    - Files: New `ui/progress.ts`, command updates
+    - Files: `ui/progress.ts` (created)
 
 ### Testing & Documentation (Critical, Medium Effort) - Week 3
 11. **Snapshot testing** - Ensure output stability
