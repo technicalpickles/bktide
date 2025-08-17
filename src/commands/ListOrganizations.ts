@@ -1,6 +1,7 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { logger } from '../services/logger.js';
 import { FormatterType, OrganizationFormatter } from '../formatters/index.js';
+import { Reporter } from '../ui/reporter.js';
 
 export interface OrganizationOptions extends BaseCommandOptions {
 }
@@ -12,6 +13,7 @@ export class ListOrganizations extends BaseCommand {
   
   public async execute(options: OrganizationOptions = {}): Promise<number> {      
     try {
+      const reporter = new Reporter(options.format || 'plain');
       const organizations = await this.client.getOrganizations();
       
       if (options.debug) {
@@ -24,6 +26,7 @@ export class ListOrganizations extends BaseCommand {
       // Format and output the organizations
       const output = formatter.formatOrganizations(organizations, { debug: options.debug });
       logger.console(output);
+      reporter.success('Organizations retrieved');
       
       return 0; // Success
     } catch (error) {

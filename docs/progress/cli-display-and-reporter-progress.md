@@ -24,6 +24,15 @@ Planned
 - Add `src/ui/reporter.ts` providing `info/success/warn/error` and `table(rows)` utilities, guarded for `json|alfred`.
 - Minimal integration: use reporter for a single success confirmation in `pipelines` command when `--format plain`.
 
+Applied so far
+- Added `theme.ts` and `reporter.ts`.
+- Integrated reporter confirmations into: `pipelines`, `orgs`, `viewer`, `builds`, `annotations` (plain only).
+- Verified via `bin/bktide`:
+  - `--help` shows `--color` and suggestions enabled.
+  - `pipelines --format plain` shows `✓ Pipelines retrieved` and data output.
+  - `token --check` works unchanged; reporter remains silent for token command.
+  - `boom --type basic --format plain` behavior unchanged.
+
 Out of Scope (Phase 1)
 - Spinners and broad retrofits across all commands (Phase 3).
 - Rewriting plain formatters; only optional, minimal adoption of `table()` if trivial.

@@ -69,6 +69,22 @@ Validation
 - Build + lint.
 - Run: `bktide pipelines --format plain` → shows confirmation; `--format json` → no extra lines.
 
+Application checklist (Phase 1 breadth)
+- Commands to apply reporter confirmations (plain only):
+  - `pipelines`: success after rendering.
+  - `orgs`: success after rendering; if empty, `info("No organizations found")`.
+  - `viewer`: success after rendering.
+  - `builds`: success after rendering; skip additional reporter lines in error/empty guidance branches already handled by formatter.
+  - `annotations`: success after rendering.
+- Commands to skip for now:
+  - `token`: formatter-driven UX; avoid duplicate confirmations.
+  - Global validation in `preAction`: keep as-is for now.
+
+Reporter usage rules
+- Only emit reporter lines when `--format plain` and not in Alfred/JSON.
+- Use `success` for positive confirmations; `info` for benign notices; reserve `warn`/`error` for later phases.
+- Avoid duplicating messages already produced by formatters (e.g., empty/guidance sections).
+
 #### Phase 2 – Table Utility Adoption
 1) Adopt `reporter.table()` in plain formatters/commands for aligned output
    - `builds` and `pipelines` plain outputs get aligned columns for top-level listing views.
@@ -149,6 +165,24 @@ Manual (baseline)
 Human-readable output
 - `bktide pipelines --format plain` → confirmation ✓ and aligned table.
 - `bktide builds --format plain` with/without `--org` → readable messages with guidance lines.
+
+Testing matrix (Phase 1 confirmations and non-interference)
+- Commands × Formats
+  - `pipelines`:
+    - plain: renders data + shows `✓ Pipelines retrieved`.
+    - json/alfred: no extra lines; JSON schema unchanged.
+  - `orgs`:
+    - plain: renders data + shows `✓ Organizations retrieved`; if empty, shows `ℹ︎ No organizations found`.
+    - json/alfred: no extra lines.
+  - `viewer`:
+    - plain: renders data + shows `✓ Viewer info loaded`.
+    - json/alfred: no extra lines.
+  - `builds`:
+    - plain: renders data + shows `✓ Builds retrieved`; in access/empty cases, do not add extra reporter lines.
+    - json/alfred: no extra lines.
+  - `annotations`:
+    - plain: renders data + shows `✓ Annotations retrieved`.
+    - json/alfred: no extra lines.
 
 Machine outputs unchanged
 - `bktide pipelines --format json | jq .` – valid JSON, no extra lines.

@@ -4,6 +4,7 @@ import Fuse from 'fuse.js';
 import { Build } from '../types/index.js';
 import { logger } from '../services/logger.js';
 import { BuildFormatterOptions } from '../formatters/builds/Formatter.js';
+import { Reporter } from '../ui/reporter.js';
 
 export interface ViewerBuildsOptions extends BaseCommandOptions {
   count?: string;
@@ -28,6 +29,7 @@ export class ListBuilds extends BaseCommand {
     }
     
     try {
+      const reporter = new Reporter(options.format || 'plain');
       // First, get the current user's information using GraphQL
       const viewerData = await this.client.getViewer();
       
@@ -150,6 +152,7 @@ export class ListBuilds extends BaseCommand {
       const formatter = getBuildFormatter(format);
       const output = formatter.formatBuilds(allBuilds, formatterOptions);
       logger.console(output);
+      reporter.success('Builds retrieved');
       
       if (options.debug) {
         const executeDuration = Number(process.hrtime.bigint() - executeStartTime) / 1000000;

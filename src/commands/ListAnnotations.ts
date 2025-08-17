@@ -3,6 +3,7 @@ import { logger } from '../services/logger.js';
 import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { Annotation } from '../types/index.js';
+import { Reporter } from '../ui/reporter.js';
 
 export class ListAnnotations extends BaseCommand {
   static requiresToken = true;
@@ -21,6 +22,7 @@ export class ListAnnotations extends BaseCommand {
     try {
       // Ensure the command is initialized
       await this.ensureInitialized();
+      const reporter = new Reporter(options.format || 'plain');
       
       const buildRef = parseBuildRef(options.buildArg);
       if (options.debug) {
@@ -59,6 +61,7 @@ export class ListAnnotations extends BaseCommand {
       });
       
       logger.console(output);
+      reporter.success('Annotations retrieved');
       
       return 0;
     } catch (error) {
