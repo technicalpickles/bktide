@@ -34,14 +34,25 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
     } else {
       output.push(`Pipelines across your organizations (${pipelines.length} total):`);
     }
-    
-    pipelines.forEach((pipeline: Pipeline) => {
-      if (organizations.length > 1) {
-        output.push(`- [${pipeline.organization}] ${pipeline.name} (${pipeline.slug})`);
-      } else {
-        output.push(`- ${pipeline.name} (${pipeline.slug})`);
-      }
-    });
+
+    // Build table rows
+    const rows: string[][] = [];
+    if (organizations.length > 1) {
+      rows.push(['ORGANIZATION', 'NAME', 'SLUG']);
+      pipelines.forEach((p: Pipeline) => {
+        rows.push([p.organization || '-', p.name || '-', p.slug || '-']);
+      });
+    } else {
+      rows.push(['NAME', 'SLUG']);
+      pipelines.forEach((p: Pipeline) => {
+        rows.push([p.name || '-', p.slug || '-']);
+      });
+    }
+
+    // Compute column widths and render table
+    const widths = rows[0].map((_, i) => Math.max(...rows.map(r => (r[i] ?? '').length)));
+    const lines = rows.map(r => r.map((c, i) => (c ?? '').padEnd(widths[i])).join('  '));
+    output.push(lines.join('\n'));
     
     // Summary line showing total pipelines listed
     output.push(`Showing ${pipelines.length} pipelines.`);

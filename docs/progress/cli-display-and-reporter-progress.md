@@ -17,7 +17,7 @@ Notes
 - `--color` flag is plumbed; actual color usage will be introduced with theme/reporter in Phase 1.
 
 #### Phase 1 – Theme and Reporter
-Status: In Progress
+Status: Completed
 
 Planned
 - Add `src/ui/theme.ts` exporting `COLORS` and `SYMBOLS` with TTY-aware color helpers.
@@ -30,18 +30,30 @@ Applied so far
 - Verified via `bin/bktide`:
   - `--help` shows `--color` and suggestions enabled.
   - `pipelines --format plain` shows `✓ Pipelines retrieved` and data output.
+  - `orgs --format plain` shows `✓ Organizations retrieved` and org list.
+  - `viewer --format plain` shows `✓ Viewer info loaded` and viewer details.
+  - `builds --count 3 --format plain` shows `✓ Builds retrieved` and build list.
   - `token --check` works unchanged; reporter remains silent for token command.
   - `boom --type basic --format plain` behavior unchanged.
 
-Out of Scope (Phase 1)
-- Spinners and broad retrofits across all commands (Phase 3).
-- Rewriting plain formatters; only optional, minimal adoption of `table()` if trivial.
+Notes
+- Planning doc updated with Phase 1 application checklist and a testing matrix covering confirmations across commands and formats.
+- Reporter remains silent for `json` and `alfred` formats by design.
 
 #### Phase 2 – Table Utility Adoption
-Status: Not Started
+Status: In Progress
 
-Planned
-- Use `reporter.table()` to align columns in `builds` and `pipelines` plain outputs.
+Applied so far
+- Plain pipelines output now uses aligned columns (NAME, SLUG) when a single org is targeted; (ORGANIZATION, NAME, SLUG) when multiple orgs.
+- Plain builds output now uses a tabular summary (PIPELINE, NUMBER, STATE, BRANCH) for improved scan-ability.
+
+Validation
+- `bin/bktide pipelines --format plain | head -n 20` shows aligned headings and rows.
+- `bin/bktide builds --count 5 --format plain | head -n 30` shows aligned tabular summary.
+
+Next
+- Consider applying table formatting to `orgs` (optional) and keeping `viewer`/`annotations` as-is.
+- Ensure no wrapping anomalies with very long names; consider truncation or width caps if needed.
 
 #### Phase 3 – TTY-Gated Spinners
 Status: Not Started

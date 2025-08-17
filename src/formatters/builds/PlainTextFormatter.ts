@@ -39,46 +39,32 @@ export class PlainTextFormatter extends BaseFormatter {
       return output;
     }
 
-    let output = `Found ${builds.length} builds:\n`;
-    output += '==============================================\n';
+    const lines: string[] = [];
+    lines.push(`Found ${builds.length} builds:`);
     
-    builds.forEach((build: Build) => {
-      try {
-        output += `${build.pipeline?.slug || 'Unknown pipeline'} #${build.number}\n`;
-        output += `State: ${build.state || 'Unknown'}\n`;
-        output += `Branch: ${build.branch || 'Unknown'}\n`;
-        output += `Message: ${build.message || 'No message'}\n`;
-        
-        const createdDate = (build.created_at || build.createdAt) ? 
-          new Date(build.created_at || build.createdAt as string).toLocaleString() : 'Unknown';
-        
-        const startedDate = (build.started_at || build.startedAt) ? 
-          new Date(build.started_at || build.startedAt as string).toLocaleString() : 'Not started';
-        
-        const finishedDate = (build.finished_at || build.finishedAt) ? 
-          new Date(build.finished_at || build.finishedAt as string).toLocaleString() : 'Not finished';
-        
-        output += `Created: ${createdDate}\n`;
-        output += `Started: ${startedDate}\n`;
-        output += `Finished: ${finishedDate}\n`;
-        output += `URL: ${build.web_url || build.url || 'No URL'}\n`;
-        output += '------------------\n';
-      } catch (error) {
-        output += `Error displaying build: ${error}\n`;
-        if (options?.debug) {
-          output += `Build data: ${JSON.stringify(build, null, 2)}\n`;
-        }
-        output += '------------------\n';
-      }
+    // Build a tabular summary view for scan-ability
+    const rows: string[][] = [];
+    rows.push(['PIPELINE', 'NUMBER', 'STATE', 'BRANCH']);
+    builds.forEach((b: Build) => {
+      rows.push([
+        b.pipeline?.slug || 'Unknown',
+        `#${b.number}`,
+        b.state || 'Unknown',
+        b.branch || 'Unknown'
+      ]);
     });
+    const widths = rows[0].map((_, i) => Math.max(...rows.map(r => (r[i] ?? '').length)));
+    const table = rows.map(r => r.map((c, i) => (c ?? '').padEnd(widths[i])).join('  ')).join('\n');
+    lines.push(table);
     
+    // Detailed per-build lines (optional in future; keeping summary only for now)
     // Summary and guidance lines
-    output += `\nShowing ${builds.length} builds. Use --count and --page options to see more.\n`;
+    lines.push(`\nShowing ${builds.length} builds. Use --count and --page options to see more.`);
     if (options?.organizationsCount && options.organizationsCount > 1 && !options.orgSpecified) {
-      output += `Searched across ${options.organizationsCount} organizations. Use --org to filter to a specific organization.\n`;
+      lines.push(`Searched across ${options.organizationsCount} organizations. Use --org to filter to a specific organization.`);
     }
     
-    return output;
+    return lines.join('\n');
   }
   
   private formatAccessError(options?: BuildFormatterOptions): string {
