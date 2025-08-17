@@ -1,5 +1,6 @@
 import { BaseFormatter, BuildFormatterOptions } from './Formatter.js';
 import { Build } from '../../types/index.js';
+import { renderTable } from '../../ui/table.js';
 
 export class PlainTextFormatter extends BaseFormatter {
   name = 'plain-text';
@@ -53,9 +54,7 @@ export class PlainTextFormatter extends BaseFormatter {
         b.branch || 'Unknown'
       ]);
     });
-    const widths = rows[0].map((_, i) => Math.max(...rows.map(r => (r[i] ?? '').length)));
-    const table = rows.map(r => r.map((c, i) => (c ?? '').padEnd(widths[i])).join('  ')).join('\n');
-    lines.push(table);
+    lines.push(renderTable(rows));
     
     // Detailed per-build lines (optional in future; keeping summary only for now)
     // Summary and guidance lines

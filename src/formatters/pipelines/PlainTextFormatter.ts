@@ -1,6 +1,7 @@
 import { FormatterOptions, AbstractFormatter } from '../BaseFormatter.js';
 import { PipelineFormatter } from './Formatter.js';
 import { Pipeline } from '../../types/index.js';
+import { renderTable } from '../../ui/table.js';
 
 export class PlainTextFormatter extends AbstractFormatter implements PipelineFormatter {
   constructor() {
@@ -50,9 +51,7 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
     }
 
     // Compute column widths and render table
-    const widths = rows[0].map((_, i) => Math.max(...rows.map(r => (r[i] ?? '').length)));
-    const lines = rows.map(r => r.map((c, i) => (c ?? '').padEnd(widths[i])).join('  '));
-    output.push(lines.join('\n'));
+    output.push(renderTable(rows));
     
     // Summary line showing total pipelines listed
     output.push(`Showing ${pipelines.length} pipelines.`);

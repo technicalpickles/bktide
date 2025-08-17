@@ -73,24 +73,24 @@ export function getErrorFormat(): string {
 export function formatErrorForCLI(error: unknown, debug = false): string {
   let output = '';
   
-  // Add a separator and heading
-  output += '\n\x1b[31m════════════════════════ ERROR ════════════════════════\x1b[0m\n\n';
+  // Add a separator and heading (plain text, no inline ANSI)
+  output += '\nERROR\n\n';
   
   if (error instanceof Error) {
     // Handle standard Error objects
-    output += `\x1b[31m${error.name}: ${error.message}\x1b[0m\n\n`;
+    output += `${error.name}: ${error.message}\n\n`;
     
     if (error.stack) {
       const stackLines = error.stack.split('\n');
       // First line usually contains the error message, which we've already displayed
       const stackTrace = stackLines.slice(1).join('\n');
-      output += `\x1b[33mStack Trace:\x1b[0m\n${stackTrace}\n\n`;
+      output += `Stack Trace:\n${stackTrace}\n\n`;
     }
     
     // Handle additional properties that might be present in API errors
     const apiError = error as any;
     if (apiError.response?.errors) {
-      output += '\x1b[33mAPI Errors:\x1b[0m\n';
+      output += 'API Errors:\n';
       apiError.response.errors.forEach((e: any, i: number) => {
         output += `  Error ${i + 1}: ${e.message || 'Unknown error'}\n`;
         if (e.path) output += `  Path: ${e.path.join('.')}\n`;
@@ -100,20 +100,20 @@ export function formatErrorForCLI(error: unknown, debug = false): string {
     }
     
     if (debug && apiError.request) {
-      output += '\x1b[36mRequest Details:\x1b[0m\n';
+      output += 'Request Details:\n';
       output += `  URL: ${apiError.request.url || 'N/A'}\n`;
       output += `  Method: ${apiError.request.method || 'N/A'}\n\n`;
     }
     
     // If error has a cause, include it
     if (apiError.cause) {
-      output += '\x1b[33mCaused by:\x1b[0m\n';
+      output += 'Caused by:\n';
       output += formatErrorForCLI(apiError.cause, debug);
     }
   } else if (error && typeof error === 'object') {
     // Handle non-Error objects
     try {
-      output += '\x1b[31mError Object:\x1b[0m\n';
+      output += 'Error Object:\n';
       output += JSON.stringify(error, null, 2) + '\n\n';
       
       // Try to extract more detailed information
@@ -123,7 +123,7 @@ export function formatErrorForCLI(error: unknown, debug = false): string {
       }
       
       if (debug) {
-        output += '\x1b[36mProperties:\x1b[0m\n';
+        output += 'Properties:\n';
         for (const key in errorObj) {
           try {
             if (key !== 'stack' && key !== 'message') {
@@ -137,16 +137,16 @@ export function formatErrorForCLI(error: unknown, debug = false): string {
         output += '\n';
       }
     } catch {
-      output += '\x1b[31mUnable to stringify error object\x1b[0m\n\n';
+      output += 'Unable to stringify error object\n\n';
     }
   } else {
     // Handle primitive values
-    output += `\x1b[31m${String(error)}\x1b[0m\n\n`;
+    output += `${String(error)}\n\n`;
   }
   
   if (debug) {
     // Add debug information
-    output += '\x1b[36mDebug Information:\x1b[0m\n';
+    output += 'Debug Information:\n';
     output += `  Timestamp: ${new Date().toISOString()}\n`;
     output += `  Node Version: ${process.version}\n`;
     output += `  Platform: ${process.platform} (${process.arch})\n`;
@@ -156,7 +156,7 @@ export function formatErrorForCLI(error: unknown, debug = false): string {
       const stack = new Error().stack;
       if (stack) {
         const stackLines = stack.split('\n').slice(2); // Skip the Error creation line and this function
-        output += '\n\x1b[36mCurrent Stack:\x1b[0m\n';
+        output += '\nCurrent Stack:\n';
         output += stackLines.join('\n') + '\n';
       }
     } catch {
@@ -165,7 +165,7 @@ export function formatErrorForCLI(error: unknown, debug = false): string {
   }
   
   // Add a closing separator
-  output += '\n\x1b[31m═══════════════════════════════════════════════════════\x1b[0m\n';
+  output += '\n';
   
   return output;
 }
