@@ -45,10 +45,21 @@ export function displayCLIError(
   const formattedError = formatter.formatError(error, { debug });
   
   // Print the formatted output
-  if (outputFormat === 'plain') {
-    logger.error(formattedError);
-  } else {
-    logger.console(formattedError);
+  try {
+    if (outputFormat === 'plain') {
+      // Route plain errors to stderr for CLI best practices
+      process.stderr.write(formattedError + '\n');
+    } else {
+      // Machine-readable formats to stdout
+      process.stdout.write(formattedError + '\n');
+    }
+  } catch {
+    // Fallback to logger if direct write fails
+    if (outputFormat === 'plain') {
+      logger.error(formattedError);
+    } else {
+      logger.console(formattedError);
+    }
   }
   
   process.exit(1);
