@@ -2,6 +2,7 @@ import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { logger } from '../services/logger.js';
 import { FormatterType, OrganizationFormatter } from '../formatters/index.js';
 import { Reporter } from '../ui/reporter.js';
+import { createSpinner } from '../ui/spinner.js';
 
 export interface OrganizationOptions extends BaseCommandOptions {
 }
@@ -13,8 +14,12 @@ export class ListOrganizations extends BaseCommand {
   
   public async execute(options: OrganizationOptions = {}): Promise<number> {      
     try {
-      const reporter = new Reporter(options.format || 'plain');
+      const format = options.format || 'plain';
+      const reporter = new Reporter(format);
+      const spinner = createSpinner(format);
+      spinner.start('Fetching organizations…');
       const organizations = await this.client.getOrganizations();
+      spinner.stop();
       
       if (options.debug) {
         logger.debug(`Fetched ${organizations.length} organizations`);
@@ -30,6 +35,8 @@ export class ListOrganizations extends BaseCommand {
       
       return 0; // Success
     } catch (error) {
+      const spinner = createSpinner(options.format || 'plain');
+      spinner.stop();
       this.handleError(error, options.debug);
       return 1; // Error
     }

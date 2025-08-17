@@ -5,6 +5,7 @@ import { Build } from '../types/index.js';
 import { logger } from '../services/logger.js';
 import { BuildFormatterOptions } from '../formatters/builds/Formatter.js';
 import { Reporter } from '../ui/reporter.js';
+import { createSpinner } from '../ui/spinner.js';
 
 export interface ViewerBuildsOptions extends BaseCommandOptions {
   count?: string;
@@ -29,7 +30,9 @@ export class ListBuilds extends BaseCommand {
     }
     
     try {
-      const reporter = new Reporter(options.format || 'plain');
+      const format = options.format || 'plain';
+      const reporter = new Reporter(format);
+      const spinner = createSpinner(format);
       // First, get the current user's information using GraphQL
       const viewerData = await this.client.getViewer();
       
@@ -66,10 +69,12 @@ export class ListBuilds extends BaseCommand {
       
       for (const org of orgs) {
         try {
+          spinner.start(`Fetching builds from ${org}…`);
           // First check if the user has access to this organization
           const hasAccess = await this.restClient.hasOrganizationAccess(org);
           if (!hasAccess) {
             accessErrors.push(`You don't have access to organization ${org}`);
+            spinner.fail(`No access to ${org}`);
             continue;
           }
           
@@ -87,9 +92,11 @@ export class ListBuilds extends BaseCommand {
           }
           
           allBuilds = allBuilds.concat(builds);
+          spinner.stop();
         } catch (error) {
           // Log unexpected errors but continue processing other orgs
           logger.error(error, `Error fetching builds for org ${org}`);
+          spinner.stop();
         }
       }
       
@@ -148,7 +155,6 @@ export class ListBuilds extends BaseCommand {
         }
       }
       
-      const format = options.format || 'plain';
       const formatter = getBuildFormatter(format);
       const output = formatter.formatBuilds(allBuilds, formatterOptions);
       logger.console(output);

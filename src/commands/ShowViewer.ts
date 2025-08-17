@@ -3,6 +3,7 @@ import { getViewerFormatter } from '../formatters/index.js';
 import { ViewerData } from '../types/index.js';
 import { logger } from '../services/logger.js';
 import { Reporter } from '../ui/reporter.js';
+import { createSpinner } from '../ui/spinner.js';
 
 export interface ViewerOptions extends BaseCommandOptions {
 }
@@ -16,8 +17,12 @@ export class ShowViewer extends BaseCommand {
     await this.ensureInitialized();
   
     try {
-      const reporter = new Reporter(options.format || 'plain');
+      const format = options.format || 'plain';
+      const reporter = new Reporter(format);
+      const spinner = createSpinner(format);
+      spinner.start('Fetching viewer…');
       const data = await this.client.getViewer();
+      spinner.stop();
       
       if (!data?.viewer) {
         throw new Error('Invalid response format: missing viewer data');
@@ -30,6 +35,8 @@ export class ShowViewer extends BaseCommand {
       reporter.success('Viewer info loaded');
       return 0; // Success
     } catch (error) {
+      const spinner = createSpinner(options.format || 'plain');
+      spinner.stop();
       this.handleError(error, options.debug);
       return 1; // Error
     }

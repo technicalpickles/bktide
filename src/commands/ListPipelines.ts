@@ -4,6 +4,7 @@ import Fuse from 'fuse.js';
 import { Pipeline } from '../types/index.js';
 import { logger } from '../services/logger.js';
 import { Reporter } from '../ui/reporter.js';
+import { createSpinner } from '../ui/spinner.js';
 export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
   count?: string;
@@ -55,6 +56,8 @@ export class ListPipelines extends BaseCommand {
         const limitResults = options.count !== undefined;
         const resultLimit = limitResults ? parseInt(options.count as string, 10) : Infinity;
         
+        const spinner = createSpinner(options.format || 'plain');
+        spinner.start(`Fetching pipelines from ${org}…`);
         while (hasNextPage && allPipelines.length < resultLimit) {
           if (options.debug) {
             logger.debug(`Fetching batch of pipelines from org ${org}, cursor: ${cursor || 'initial'}`);
@@ -99,7 +102,10 @@ export class ListPipelines extends BaseCommand {
             break;
           }
         }
+        spinner.stop();
       } catch (error) {
+        const spinner = createSpinner(options.format || 'plain');
+        spinner.stop();
         throw new Error(`Error fetching pipelines for organization ${org}`, { cause: error });
       }
     }

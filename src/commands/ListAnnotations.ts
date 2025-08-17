@@ -4,6 +4,7 @@ import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { Annotation } from '../types/index.js';
 import { Reporter } from '../ui/reporter.js';
+import { createSpinner } from '../ui/spinner.js';
 
 export class ListAnnotations extends BaseCommand {
   static requiresToken = true;
@@ -22,7 +23,9 @@ export class ListAnnotations extends BaseCommand {
     try {
       // Ensure the command is initialized
       await this.ensureInitialized();
-      const reporter = new Reporter(options.format || 'plain');
+      const format = options.format || 'plain';
+      const reporter = new Reporter(format);
+      const spinner = createSpinner(format);
       
       const buildRef = parseBuildRef(options.buildArg);
       if (options.debug) {
@@ -31,7 +34,9 @@ export class ListAnnotations extends BaseCommand {
       
       // Fetch annotations from the GraphQL API
       const buildSlug = `${buildRef.org}/${buildRef.pipeline}/${buildRef.number}`;
+      spinner.start('Fetching annotations…');
       const result = await this.client.getBuildAnnotations(buildSlug);
+      spinner.stop();
       
       // Extract annotations from the GraphQL response
       let annotations: Annotation[] = result.build?.annotations?.edges?.map((edge: any) => edge.node) || [];
@@ -66,6 +71,8 @@ export class ListAnnotations extends BaseCommand {
       return 0;
     } catch (error) {
       logger.error('Failed to fetch annotations:', error);
+      const spinner = createSpinner(options.format || 'plain');
+      spinner.stop();
       
       // Handle the error with the formatter
       const formatter = FormatterFactory.getFormatter(
