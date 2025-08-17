@@ -105,11 +105,17 @@ Validation
 - Verify no spinner output appears in `--format json|alfred` or when `stdout`/`stderr` is not a TTY.
 
 #### Phase 4 – Cleanup & Consistency
-1) Reduce scattered ANSI in formatters
+1) Reduce scattered ANSI in formatters and helpers
    - Route color decisions through theme where needed in `plain` format; keep `json`/`alfred` colorless.
-2) Document streams and color behaviors
-   - README notes: stdout for results, stderr for errors/prompts; `--color`, `NO_COLOR`, and TTY rules.
-3) Add minimal unit/integration checks (where practical) for stream routing and color flags.
+   - Remove inline ANSI from `cli-error-handler` and lean on error formatter/theme.
+2) Error streams policy
+   - Route plain formatted errors to stderr; keep json/alfred errors on stdout.
+3) Centralize tables
+   - Introduce `src/ui/table.ts` and refactor plain formatters to use it.
+4) Document streams and color behaviors
+   - README notes: stdout for results, stderr for errors; `--color`, `NO_COLOR`, and TTY rules.
+5) Add minimal smoke checks
+   - Scripts/checklist entries to validate streams, formats, and TTY behavior.
 
 ---
 

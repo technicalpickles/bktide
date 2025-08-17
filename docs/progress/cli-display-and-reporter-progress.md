@@ -58,13 +58,29 @@ Next
 - Monitor wrapping for extremely long names; consider truncation/ellipsis if needed.
 
 #### Phase 3 – TTY-Gated Spinners
-Status: Not Started
+Status: Completed
 
-Planned
-- Add `src/ui/spinner.ts` and use on long-running operations, no-op for `json|alfred` and non-TTY.
+Applied so far
+- Added `src/ui/spinner.ts` (TTY-only, silent for json/alfred).
+- Integrated spinner into `pipelines`, `builds`, `orgs`, `viewer`, and `annotations` for long-running fetches.
+- Spinner clears on completion (no residual frames); Reporter prints the single success line.
 
-#### Open Questions / Decisions
-- Error routing to stderr will be reconsidered after Phase 1 integration.
-- Scope of table integration per formatter vs per command (leaning per command for listings).
+Validation
+- Verified spinners are visible only in TTY and do not emit in json/alfred or when piped.
+
+#### Phase 4 – Cleanup & Consistency
+Status: Completed
+
+Applied so far
+- Centralized table rendering via `src/ui/table.ts`; refactored plain formatters (pipelines/builds/orgs).
+- Removed inline ANSI from error paths; plain error formatter uses theme; CLI error helper prints neutral text.
+- Adopted error stream routing: plain errors → stderr; json/alfred errors → stdout.
+
+Validation
+- `boom --type basic --format plain 1>out 2>err` leaves stdout empty and writes error to stderr.
+- `boom --type basic --format json 1>out 2>err` writes JSON to stdout only; stderr empty.
+
+Decisions
+- Keep `ManageToken` without reporter/spinner to avoid UX duplication.
 
 

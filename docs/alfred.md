@@ -5,6 +5,10 @@ This page is a short user-facing overview. For installation and troubleshooting,
 ## What it does
 The CLI can output Alfred Script Filter JSON via `--format alfred`. Each build or pipeline is shown as a result row with a title, subtitle, and URL.
 
+### Output behavior in Alfred
+- Only machine-readable JSON is printed on stdout. No extra lines, colors, spinners, or confirmations are emitted.
+- Errors are also printed as JSON to stdout (stderr is unused by design within Alfred).
+
 ### Quick usage
 ```bash
 bin/bktide builds --format alfred
