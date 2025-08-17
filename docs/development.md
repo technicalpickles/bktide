@@ -62,11 +62,18 @@ Add the `--debug` flag to any command for detailed error information.
 
 - Formatters: convert domain data to strings by format (plain|json|alfred). They own the content of results and errors.
 - Reporter: handles presentation and IO for human-readable output (plain only). Provides `info/success/warn/error` and a simple `table(rows)` helper. Silent for json/alfred.
-- Spinner: lightweight TTY-only progress indicator for long-running steps; clears on completion and does not print completion messages (Reporter does).
+- Progress indicators: unified API for showing progress during long-running operations
+  - Use `Progress.spinner()` for operations of unknown duration
+  - Use `Progress.bar()` for operations with known totals (e.g., processing N organizations)
+  - TTY-aware and automatically hidden in pipes, CI, and machine formats
 
 Usage rules
 - Only use Reporter in `plain` format; avoid any Reporter calls for `json|alfred`.
-- Use Spinner for operations that can take noticeable time (pagination loops, multi-org queries). Call `spinner.start(...)` and always `spinner.stop()` in finally/after completion. Let Reporter print the single success line.
+- Use Progress indicators for operations that can take noticeable time:
+  - `Progress.spinner()` for pagination loops, single API calls
+  - `Progress.bar()` for multi-org queries or operations with known item counts
+  - Always call `stop()` or use try/finally for cleanup
+  - Let Reporter print the single success line after progress completes
 - Prefer aligned tables for list outputs in plain format. Keep JSON/Alfred schemas unchanged.
 
 ## Using the GraphQL Client in Your Code

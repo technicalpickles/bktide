@@ -46,8 +46,35 @@
   - `src/ui/width.ts` - Terminal width utilities
   - `src/ui/table.ts` - Responsive table rendering
   - `src/ui/reporter.ts` - Unified output reporter
-  - `src/ui/spinner.ts` - Loading spinners
+  - `src/ui/spinner.ts` - Loading spinners (later removed)
   - `src/ui/symbols.ts` - Unicode/ASCII symbols
+
+### Progress API Refactoring (Completed) ✅
+
+#### Refactored
+- **Unified Progress API**: Complete overhaul of progress indication system
+  - Created factory methods: `Progress.spinner()`, `Progress.bar()`, `Progress.create()`
+  - Defined consistent `IProgress` interface for all progress indicators
+  - Eliminated code duplication between Spinner and IndeterminateProgress
+
+#### Migrated
+- **All commands** now use unified Progress API:
+  - `ShowViewer`, `ListOrganizations`, `ListAnnotations` - simple spinner usage
+  - `ListBuilds` - multi-org progress bar with fallback to spinner
+  - `ListPipelines` - mixed approach (progress bar for orgs, spinner for pagination)
+  - `ManageToken` - progress bar for token validation
+  - `CredentialManager` - progress bar showing validation steps
+
+#### Removed
+- `src/ui/spinner.ts` - obsolete compatibility layer (all commands migrated)
+- `src/commands/TestProgress.ts` - temporary test file no longer needed
+
+#### Documentation
+- Created `docs/progress-api.md` - comprehensive API documentation with:
+  - Usage examples for all progress types
+  - Migration guide from old APIs
+  - Best practices and troubleshooting
+  - Performance considerations
 
 ### Remaining Work
 
@@ -77,7 +104,11 @@
 - Tables and help text will look better in narrow terminals
 
 ### For Developers
-- Progress bars available via `import { ProgressBar, IndeterminateProgress } from './ui/progress.js'`
-- Use `withProgress()` helper for async operations with progress tracking
-- Color palette in `theme.ts` is now accessibility-focused
+- Progress indicators available via unified API: `import { Progress } from './ui/progress.js'`
+  - Use `Progress.spinner()` for indeterminate operations
+  - Use `Progress.bar()` for operations with known totals
+  - Use `Progress.create()` for smart detection based on options
+- Use `withProgress()` helper for async operations with automatic progress management
+- Legacy APIs (`ProgressBar`, `IndeterminateProgress`, `createSpinner`) are deprecated
+- Color palette in `theme.ts` is now accessibility-focused (blue/orange instead of green/red)
 - Width utilities available in `ui/width.ts` for responsive displays

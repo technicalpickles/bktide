@@ -139,10 +139,13 @@ These flags work with all commands:
 - `--save-token`: save token to system keychain
 - `-f, --format <format>`: plain|json|alfred (affects output and errors)
 - `--color <mode>`: auto|always|never (controls color in plain format)
+- `-q, --quiet`: suppress non-error output (success messages, tips)
+- `--tips`: show helpful tips after operations (default: true)
+- `--no-tips`: hide helpful tips
 
 ### Output Behavior
 
-- Plain format (default): human-friendly output with small success confirmations (✓ …) and aligned tables. Progress spinners show during long operations only in interactive TTYs and are cleared on completion (no residual spinner lines). 
+- Plain format (default): human-friendly output with small success confirmations (✓ …) and aligned tables. Progress indicators (spinners for indeterminate operations, progress bars for operations with known totals) show during long operations only in interactive TTYs and are cleared on completion (no residual lines). 
 - JSON/Alfred formats: strictly machine-readable; no extra lines, no colors, no spinners or confirmations.
 - Streams: results go to stdout; errors go through the error formatter. When using `--format json|alfred`, only the formatted payload is printed.
 - Colors: by default `--color auto` enables color in TTYs. Use `--color never` or `NO_COLOR=1` to disable. Use `--color always` to force color in plain output.

@@ -164,20 +164,25 @@ Status: All three core improvements completed
 
 #### Progress Bars ✅
 - Created comprehensive `src/ui/progress.ts` with:
-  - `ProgressBar` class for determinate progress (with percentage and counts)
-  - `IndeterminateProgress` class for unknown duration operations
-  - Helper functions `withProgress()` and `withIndeterminateProgress()`
+  - Unified `Progress` class with factory methods (`spinner()`, `bar()`, `create()`)
+  - Consistent `IProgress` interface for all indicator types
+  - `Spinner` class for indeterminate progress (animated)
+  - `Bar` class for determinate progress (with percentage and counts)
+  - Helper functions `withProgress()` for async operations
   - TTY-aware (hidden in pipes, CI, and machine formats)
   - Responsive to terminal width
   - Clean clearing without residual artifacts
-- Integrated into commands:
+- Integrated into ALL commands:
   - Token validation: Progress bar for 3 checks × N organizations
   - Multi-org builds: Progress bar showing org-by-org fetching
   - Pipeline pagination: Mixed approach (determinate for orgs, indeterminate for pages)
-- **Refactored Progress API** (completed):
+  - Single operations: Spinner for viewer, orgs, annotations
+- **Progress API Refactoring** (completed):
   - Unified interface via `Progress` class factory methods
-  - Consistent `IProgress` interface for all indicator types
+  - Migrated ALL commands from `createSpinner()` to `Progress.spinner()`
   - Eliminated code duplication between Spinner and IndeterminateProgress
+  - Removed obsolete `src/ui/spinner.ts` compatibility layer
+  - Removed test file `src/commands/TestProgress.ts`
   - Backward compatibility maintained via wrapper classes
   - Full documentation in `docs/progress-api.md`
 
@@ -216,9 +221,10 @@ Status: All three core improvements completed
 5. **Automation-Friendly**: TTY detection, machine format preservation, quiet mode
 
 ### Files Created/Modified
-- Created: `ui/help.ts`, `ui/progress.ts`, `ui/width.ts`, `ui/table.ts`, `ui/reporter.ts`, `ui/spinner.ts`, `ui/symbols.ts`
+- Created: `ui/help.ts`, `ui/progress.ts`, `ui/width.ts`, `ui/table.ts`, `ui/reporter.ts`, `ui/symbols.ts`
 - Modified: `ui/theme.ts`, `index.ts`, all command files, all formatter files
-- Documentation: Created `docs/CHANGELOG-cli-ux.md` to track all UX improvements
+- Removed: `ui/spinner.ts` (migrated to Progress API), `commands/TestProgress.ts` (test file)
+- Documentation: Created `docs/CHANGELOG-cli-ux.md`, `docs/progress-api.md`
 
 ### Remaining Work
 - 3 Quick Wins: Exit handling, full ASCII integration, improved CI detection

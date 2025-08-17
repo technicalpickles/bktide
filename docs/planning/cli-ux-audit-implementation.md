@@ -11,6 +11,9 @@
   - Width-aware help text with terminal width detection
   - Color-blind safe palette (blue/orange instead of green/red)
   - Progress bars for long operations (determinate and indeterminate)
+  - **Progress API Refactoring**: Unified Progress class with factory methods
+  - **Command Migration**: All commands migrated to Progress API
+  - **Cleanup**: Removed obsolete spinner.ts and test files
 - **Bonus Features**: 
   - TTY detection fix for clean piped output
   - `--tips`/`--no-tips` flags for fine-grained control

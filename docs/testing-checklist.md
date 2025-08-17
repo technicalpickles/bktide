@@ -109,9 +109,11 @@ Test each command with different output formats:
 ### Output Behavior & TTY
 - [ ] Plain format: shows a single success confirmation line (✓ …) after operations complete; no duplicate completion lines.
 - [ ] Plain format: aligned tables for pipelines, builds, and orgs; no wrapping anomalies in typical terminals.
-- [ ] json/alfred: no extra lines, no symbols or color; spinner and reporter are silent.
+- [ ] json/alfred: no extra lines, no symbols or color; progress indicators and reporter are silent.
 - [ ] `--color auto|always|never` behaves as expected; `NO_COLOR=1` disables color.
-- [ ] Spinner: visible only in interactive TTY; clears on completion (no residual frames).
+- [ ] Progress indicators: visible only in interactive TTY; clear on completion (no residual frames).
+  - [ ] Spinners show for indeterminate operations
+  - [ ] Progress bars show for operations with known totals (multi-org, token validation)
 
 ### Alfred Integration
 - [ ] Workflow import completes without errors
