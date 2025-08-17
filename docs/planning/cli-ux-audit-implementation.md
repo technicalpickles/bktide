@@ -1,71 +1,116 @@
 # CLI UX Audit - Implementation Plan
 
+## Current Status (Updated)
+
+### ✅ Completed (Week 1-2)
+- **Core Improvements**: All 3 core improvements completed
+  - Width-aware tables for responsive layouts
+  - Structured error templates with contextual hints
+  - Next-steps hints for better discoverability
+- **Bonus Features**: 
+  - TTY detection fix for clean piped output
+  - `--tips`/`--no-tips` flags for fine-grained control
+- **Phase 0**: Baseline UX partially complete
+  - `--quiet` flag implemented
+  - Commander suggestions enabled
+
+### 🚀 Next Priorities
+1. **Quick Wins** (remaining): Exit handling unification, ASCII flag integration, CI detection
+2. **Polish** (Week 2-3): Width-aware help, color-blind palette, progress bars
+3. **Testing** (Week 3): Snapshot tests, documentation updates
+
 ## Executive Summary
 
 This plan addresses critical UX improvements identified in the CLI audit, prioritizing high-impact/low-effort changes that improve developer experience without breaking existing functionality. The implementation is structured in 4 weeks of incremental improvements, focusing on exit handling, width-aware displays, accessibility, and automation safety.
+
+## Bonus Improvements (Not in Original Plan)
+
+These improvements were discovered and implemented during development:
+
+1. **TTY Detection for Piped Output** ✅
+   - Fixed decorative output appearing in pipes
+   - Ensures clean automation-friendly output
+   - Files: `reporter.ts`
+
+2. **Tips System (`--tips`/`--no-tips`)** ✅  
+   - Fine-grained control over helpful hints
+   - Smart interaction with `--quiet` flag
+   - Files: `index.ts`, `reporter.ts`, all commands
 
 ## Impact vs Effort Matrix
 
 ### Quick Wins (High Impact, Low Effort) - Week 1
 1. **Unify exit handling** - Currently mixed `process.exit()` vs `process.exitCode`
+   - Status: ⏳ TODO
    - Impact: HIGH - Improves testability, cleanup handling
    - Effort: LOW - Simple refactor, ~2 hours
    - Files: `cli-error-handler.ts`, `index.ts`
 
 2. **Add `--quiet` flag** - Suppress non-error output for automation
+   - Status: ✅ COMPLETED (Phase 0)
    - Impact: HIGH - Essential for CI/automation
    - Effort: LOW - Flag + reporter gating, ~2 hours
    - Files: `index.ts`, `reporter.ts`
 
 3. **ASCII symbol fallback** - Support limited terminals
+   - Status: 🔄 PARTIAL (symbols exist, need --ascii flag integration)
    - Impact: MEDIUM - Accessibility improvement
    - Effort: LOW - Simple toggle, ~1 hour
-   - Files: New `ui/symbols.ts`, update `theme.ts`
+   - Files: `ui/symbols.ts`, `theme.ts`
 
 4. **Improve CI/spinner detection** - Add explicit CI env check
+   - Status: ⏳ TODO
    - Impact: MEDIUM - Cleaner CI logs
    - Effort: LOW - Add env checks, ~1 hour
    - Files: `spinner.ts`
 
 ### Core Improvements (High Impact, Medium Effort) - Week 1-2
 5. **Width-aware tables** - Prevent broken layouts in narrow terminals
+   - Status: ✅ COMPLETED
    - Impact: HIGH - Critical for usability
    - Effort: MEDIUM - Truncation/wrapping logic, ~4 hours
-   - Files: New `ui/width.ts`, update `reporter.ts`
+   - Files: `ui/width.ts`, `ui/table.ts`, `reporter.ts`
 
 6. **Structured error templates** - Sectioned errors with hints
+   - Status: ✅ COMPLETED
    - Impact: HIGH - Better error UX
    - Effort: MEDIUM - Template system, ~3 hours
    - Files: `formatters/errors/PlainTextFormatter.ts`
 
 7. **Next-steps hints** - Success messages with follow-up actions
+   - Status: ✅ COMPLETED (with bonus tips system)
    - Impact: MEDIUM - Improves discoverability
    - Effort: LOW - Add to success paths, ~2 hours
-   - Files: Various command files
+   - Files: `ManageToken.ts`, `ListBuilds.ts`
 
 ### Polish (Medium Impact, Medium Effort) - Week 2-3
 8. **Width-aware help** - Responsive help text
+   - Status: ⏳ TODO
    - Impact: MEDIUM - Better readability
    - Effort: MEDIUM - Commander customization, ~3 hours
    - Files: `index.ts`, help templates
 
 9. **Color-blind safe palette** - Semantic colors + labels
+   - Status: ⏳ TODO
    - Impact: MEDIUM - Accessibility
    - Effort: LOW - Update color choices, ~1 hour
    - Files: `theme.ts`
 
 10. **Progress bars** - For long operations
+    - Status: ⏳ TODO
     - Impact: MEDIUM - Better feedback
     - Effort: MEDIUM - Progress tracking, ~4 hours
     - Files: New `ui/progress.ts`, command updates
 
 ### Testing & Documentation (Critical, Medium Effort) - Week 3
 11. **Snapshot testing** - Ensure output stability
+    - Status: ⏳ TODO
     - Impact: HIGH - Prevents regressions
     - Effort: MEDIUM - Test setup, ~4 hours
     - Files: New test files
 
 12. **Documentation updates** - Flag docs, troubleshooting
+    - Status: ⏳ TODO
     - Impact: MEDIUM - User success
     - Effort: LOW - Doc updates, ~2 hours
     - Files: README.md, docs/

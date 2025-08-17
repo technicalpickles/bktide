@@ -1,6 +1,6 @@
 ### CLI Display & Reporter – Progress Log
 
-This document tracks changes, deferrals, and next actions while implementing the plan in `docs/planning/cli-display-and-reporter-plan.md`.
+This document tracks changes, deferrals, and next actions while implementing the plan in `docs/planning/cli-display-and-reporter-plan.md` and the CLI UX audit in `docs/planning/cli-ux-audit-implementation.md`.
 
 #### Phase 0 – Baseline UX & Safety
 Status: Completed (with deferral)
@@ -82,5 +82,81 @@ Validation
 
 Decisions
 - Keep `ManageToken` without reporter/spinner to avoid UX duplication.
+
+---
+
+## CLI UX Audit Implementation Progress
+
+### Week 1: Quick Wins & Core Improvements
+
+#### Quick Wins (Not yet started)
+- [ ] Unify exit handling (process.exit() vs process.exitCode)
+- [x] Add `--quiet` flag (completed in Phase 0)
+- [ ] ASCII symbol fallback (partially done - symbols exist, need --ascii flag integration)
+- [ ] Improve CI/spinner detection
+
+#### Core Improvements (High Impact, Medium Effort) - Completed ✅
+Status: All three core improvements completed
+
+**1. Width-Aware Tables** ✅
+- Updated `src/ui/table.ts` to use width utilities
+- Tables automatically adjust to terminal width
+- Implemented intelligent column width calculation and text truncation
+- Responsive behavior ensures readability in narrow terminals
+
+**2. Structured Error Templates** ✅
+- Completely redesigned `src/formatters/errors/PlainTextFormatter.ts`
+- Errors display in clear sections: ERROR, CAUSE, DETAILS, STACK, HINTS
+- Added contextual hints based on error type:
+  - Authentication errors → token management suggestions
+  - Network errors → connectivity troubleshooting
+  - Permission errors → access verification steps
+  - Rate limit errors → retry strategies
+- Wrapped error messages for better readability
+- Used semantic symbols and colors for visual hierarchy
+
+**3. Next-Steps Hints** ✅
+- Added success hints to `ManageToken` command:
+  - After storing token: suggests verifying access and exploring orgs/pipelines
+- Added contextual hints to `ListBuilds` command:
+  - Suggests increasing count when limit is reached
+  - Shows available filter options when no filters are active
+- Improved discoverability through helpful suggestions
+
+#### Bonus Improvements (Not in original plan)
+
+**4. TTY Detection Fix** 🎁
+- Fixed issue where decorative messages appeared when piping output
+- Reporter properly detects non-TTY stdout and suppresses decorative output
+- Tables and actual data preserved, only decorative elements hidden
+- Ensures clean output when piping through `head`, `grep`, etc.
+
+**5. Tips System Implementation** 🎁
+- Added `--tips` and `--no-tips` flags for fine-grained control
+- Smart defaults: tips shown by default, `--quiet` implies `--no-tips`
+- Override capability: `--quiet --tips` shows tips but not success messages
+- New `tip()` method in Reporter for semantic clarity
+- TTY-aware: tips hidden when piping regardless of flags
+
+#### Testing Completed
+- ✅ Width-aware tables tested with pipelines command
+- ✅ Structured errors tested with `boom` command (API and basic errors)
+- ✅ Next-steps hints tested with token storage and builds listing
+- ✅ TTY detection verified with piped commands (`| head`)
+- ✅ Tips system tested with various flag combinations
+
+### Week 2: Polish (Not yet started)
+- [ ] Width-aware help text
+- [ ] Color-blind safe palette
+- [ ] Progress bars for long operations
+
+### Week 3: Testing & Documentation (Not yet started)
+- [ ] Snapshot testing
+- [ ] Documentation updates for new flags and behaviors
+
+### Week 4: Rollout & Monitoring (Not yet started)
+- [ ] Integration testing
+- [ ] Release preparation
+- [ ] Release and monitoring
 
 
