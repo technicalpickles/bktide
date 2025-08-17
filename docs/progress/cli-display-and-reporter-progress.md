@@ -170,7 +170,16 @@ Status: All three core improvements completed
   - TTY-aware (hidden in pipes, CI, and machine formats)
   - Responsive to terminal width
   - Clean clearing without residual artifacts
-- Ready for integration into long-running commands (API calls, batch operations)
+- Integrated into commands:
+  - Token validation: Progress bar for 3 checks × N organizations
+  - Multi-org builds: Progress bar showing org-by-org fetching
+  - Pipeline pagination: Mixed approach (determinate for orgs, indeterminate for pages)
+- **Refactored Progress API** (completed):
+  - Unified interface via `Progress` class factory methods
+  - Consistent `IProgress` interface for all indicator types
+  - Eliminated code duplication between Spinner and IndeterminateProgress
+  - Backward compatibility maintained via wrapper classes
+  - Full documentation in `docs/progress-api.md`
 
 ### Week 3: Testing & Documentation (Next)
 - [ ] Snapshot testing for output stability

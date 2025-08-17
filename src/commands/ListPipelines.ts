@@ -4,7 +4,6 @@ import Fuse from 'fuse.js';
 import { Pipeline } from '../types/index.js';
 import { logger } from '../services/logger.js';
 import { Reporter } from '../ui/reporter.js';
-import { createSpinner } from '../ui/spinner.js';
 import { Progress } from '../ui/progress.js';
 export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
@@ -62,6 +61,18 @@ export class ListPipelines extends BaseCommand {
     for (let orgIndex = 0; orgIndex < organizations.length; orgIndex++) {
       const org = organizations[orgIndex];
       
+      // Use different progress indicators based on context
+      let spinner = null;
+      const pageProgress = useProgressBar ? Progress.spinner(
+        `Loading pipelines from ${org}...`,
+        { format }
+      ) : null;
+      
+      if (!useProgressBar) {
+        // For single org, use spinner (existing behavior)
+        spinner = Progress.spinner(`Fetching pipelines from ${org}…`, { format });
+      }
+      
       try {
         const batchSize = this.BATCH_SIZE;
         let hasNextPage = true;
@@ -72,19 +83,6 @@ export class ListPipelines extends BaseCommand {
         // Update org progress if using progress bar
         if (orgProgress) {
           orgProgress.update(orgIndex, `Organization: ${org}`);
-        }
-        
-        // Use different progress indicators based on context
-        let spinner = null;
-        const pageProgress = useProgressBar ? Progress.spinner(
-          `Loading pipelines from ${org}...`,
-          { format }
-        ) : null;
-        
-        if (!useProgressBar) {
-          // For single org, use spinner (existing behavior)
-          spinner = createSpinner(format);
-          spinner.start(`Fetching pipelines from ${org}…`);
         }
         
         let pageCount = 0;
@@ -152,12 +150,12 @@ export class ListPipelines extends BaseCommand {
           spinner.stop();
         }
       } catch (error) {
-        // Clean up any active progress indicators
-        if (orgProgress) {
-          // Continue to show org progress
-        } else {
-          const spinner = createSpinner(format);
+        // Clean up any active progress indicators  
+        if (spinner) {
           spinner.stop();
+        }
+        if (pageProgress) {
+          pageProgress.stop();
         }
         throw new Error(`Error fetching pipelines for organization ${org}`, { cause: error });
       }

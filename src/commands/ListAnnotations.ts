@@ -4,7 +4,7 @@ import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { Annotation } from '../types/index.js';
 import { Reporter } from '../ui/reporter.js';
-import { createSpinner } from '../ui/spinner.js';
+import { Progress } from '../ui/progress.js';
 
 export class ListAnnotations extends BaseCommand {
   static requiresToken = true;
@@ -20,12 +20,14 @@ export class ListAnnotations extends BaseCommand {
       return 1;
     }
     
+    // Initialize reporter and spinner early
+    const format = options.format || 'plain';
+    const reporter = new Reporter(format, options.quiet, options.tips);
+    const spinner = Progress.spinner('Fetching annotations…', { format });
+    
     try {
       // Ensure the command is initialized
       await this.ensureInitialized();
-      const format = options.format || 'plain';
-      const reporter = new Reporter(format, options.quiet, options.tips);
-      const spinner = createSpinner(format);
       
       const buildRef = parseBuildRef(options.buildArg);
       if (options.debug) {
@@ -34,7 +36,6 @@ export class ListAnnotations extends BaseCommand {
       
       // Fetch annotations from the GraphQL API
       const buildSlug = `${buildRef.org}/${buildRef.pipeline}/${buildRef.number}`;
-      spinner.start('Fetching annotations…');
       const result = await this.client.getBuildAnnotations(buildSlug);
       spinner.stop();
       
@@ -70,9 +71,8 @@ export class ListAnnotations extends BaseCommand {
       
       return 0;
     } catch (error) {
-      logger.error('Failed to fetch annotations:', error);
-      const spinner = createSpinner(options.format || 'plain');
       spinner.stop();
+      logger.error('Failed to fetch annotations:', error);
       
       // Handle the error with the formatter
       const formatter = FormatterFactory.getFormatter(

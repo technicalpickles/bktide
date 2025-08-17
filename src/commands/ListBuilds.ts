@@ -5,7 +5,7 @@ import { Build } from '../types/index.js';
 import { logger } from '../services/logger.js';
 import { BuildFormatterOptions } from '../formatters/builds/Formatter.js';
 import { Reporter } from '../ui/reporter.js';
-import { createSpinner } from '../ui/spinner.js';
+
 import { Progress } from '../ui/progress.js';
 
 export interface ViewerBuildsOptions extends BaseCommandOptions {
@@ -34,9 +34,10 @@ export class ListBuilds extends BaseCommand {
     try {
       const format = options.format || 'plain';
       const reporter = new Reporter(format, options.quiet, options.tips);
-      const spinner = createSpinner(format);
+      const viewerSpinner = Progress.spinner('Fetching viewer info...', { format });
       // First, get the current user's information using GraphQL
       const viewerData = await this.client.getViewer();
+      viewerSpinner.stop();
       
       if (!viewerData?.viewer?.user?.uuid) {
         logger.error('Failed to get current user UUID information');
@@ -77,14 +78,17 @@ export class ListBuilds extends BaseCommand {
         format: format
       }) : null;
       
+      // Create a spinner for single-org scenario
+      let fetchSpinner = !useProgressBar ? Progress.spinner(undefined, { format }) : null;
+      
       for (let i = 0; i < orgs.length; i++) {
         const org = orgs[i];
         
         try {
           if (progress) {
             progress.update(i, `Fetching builds from ${org}`);
-          } else {
-            spinner.start(`Fetching builds from ${org}…`);
+          } else if (fetchSpinner) {
+            fetchSpinner.update(`Fetching builds from ${org}…`, `Fetching builds from ${org}…`);
           }
           
           // First check if the user has access to this organization
@@ -94,8 +98,8 @@ export class ListBuilds extends BaseCommand {
             if (progress) {
               // Continue to next org with progress bar
               progress.update(i + 1, `No access to ${org}`);
-            } else {
-              spinner.fail(`No access to ${org}`);
+            } else if (fetchSpinner) {
+              fetchSpinner.fail(`No access to ${org}`);
             }
             continue;
           }
@@ -115,14 +119,14 @@ export class ListBuilds extends BaseCommand {
           
           allBuilds = allBuilds.concat(builds);
           
-          if (!progress) {
-            spinner.stop();
+          if (!progress && fetchSpinner) {
+            fetchSpinner.stop();
           }
         } catch (error) {
           // Log unexpected errors but continue processing other orgs
           logger.error(error, `Error fetching builds for org ${org}`);
-          if (!progress) {
-            spinner.stop();
+          if (!progress && fetchSpinner) {
+            fetchSpinner.stop();
           }
         }
       }
