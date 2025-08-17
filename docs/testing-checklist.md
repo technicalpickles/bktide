@@ -106,6 +106,13 @@ Test each command with different output formats:
 - [ ] `--format json` produces valid JSON
 - [ ] `--format alfred` produces Alfred-compatible JSON with `items` array
 
+### Output Behavior & TTY
+- [ ] Plain format: shows a single success confirmation line (✓ …) after operations complete; no duplicate completion lines.
+- [ ] Plain format: aligned tables for pipelines, builds, and orgs; no wrapping anomalies in typical terminals.
+- [ ] json/alfred: no extra lines, no symbols or color; spinner and reporter are silent.
+- [ ] `--color auto|always|never` behaves as expected; `NO_COLOR=1` disables color.
+- [ ] Spinner: visible only in interactive TTY; clears on completion (no residual frames).
+
 ### Alfred Integration
 - [ ] Workflow import completes without errors
 - [ ] All commands appear in Alfred search

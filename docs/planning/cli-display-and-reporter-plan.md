@@ -96,10 +96,10 @@ Validation
 - Check non-TTY contexts (piped to file) remain uncolored and table alignment persists.
 
 #### Phase 3 – TTY-Gated Spinners (Optional, but recommended)
-1) `src/ui/spinner.ts`: lightweight wrapper (e.g., `ora`) that no-ops for `json`/`alfred` and non-TTY.
+1) `src/ui/spinner.ts`: lightweight wrapper that no-ops for `json`/`alfred` and non-TTY.
 2) Use spinner for long operations
    - `pipelines` pagination batches; `builds` multi-org queries; key REST/GraphQL calls.
-3) On success/failure, replace spinner line with concise status message (green ✓ or red ✖ in TTY).
+3) Spinner policy: spinner shows motion only and clears on completion; Reporter prints the single completion line (no duplicate ✓ output).
 
 Validation
 - Verify no spinner output appears in `--format json|alfred` or when `stdout`/`stderr` is not a TTY.

@@ -138,6 +138,14 @@ These flags work with all commands:
 - `-t, --token <token>`: provide Buildkite API token (or use `BK_TOKEN`)
 - `--save-token`: save token to system keychain
 - `-f, --format <format>`: plain|json|alfred (affects output and errors)
+- `--color <mode>`: auto|always|never (controls color in plain format)
+
+### Output Behavior
+
+- Plain format (default): human-friendly output with small success confirmations (✓ …) and aligned tables. Progress spinners show during long operations only in interactive TTYs and are cleared on completion (no residual spinner lines). 
+- JSON/Alfred formats: strictly machine-readable; no extra lines, no colors, no spinners or confirmations.
+- Streams: results go to stdout; errors go through the error formatter. When using `--format json|alfred`, only the formatted payload is printed.
+- Colors: by default `--color auto` enables color in TTYs. Use `--color never` or `NO_COLOR=1` to disable. Use `--color always` to force color in plain output.
 
 # Logging System
 
