@@ -104,6 +104,8 @@ const createCommandHandler = (CommandClass: CommandConstructor) => {
         token: options.token,
         debug: options.debug,
         format: options.format,
+        quiet: options.quiet,
+        tips: options.tips,
       });
       
       // Pass command-specific options if available
@@ -172,6 +174,8 @@ program
   .option('-f, --format <format>', 'Output format for results and errors (plain, json, alfred)', 'plain')
   .option('--color <mode>', 'Color output: auto|always|never', 'auto')
   .option('-q, --quiet', 'Suppress non-error output (plain format only)')
+  .option('--tips', 'Show helpful tips and suggestions')
+  .option('--no-tips', 'Hide helpful tips and suggestions')
   .option('--ascii', 'Use ASCII symbols instead of Unicode');
 
 // Add hooks for handling options

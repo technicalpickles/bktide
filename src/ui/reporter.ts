@@ -14,10 +14,17 @@ function isInteractive(): boolean {
 export class Reporter {
   private readonly format: string;
   private readonly quiet: boolean;
+  private readonly showTips: boolean;
 
-  constructor(format: string = 'plain', quiet = false) {
+  constructor(format: string = 'plain', quiet = false, tips?: boolean) {
     this.format = format;
     this.quiet = quiet;
+    
+    // Tips logic:
+    // - If tips is explicitly set (true or false), use that
+    // - Otherwise, tips are off if quiet mode is enabled
+    // - Default to true (show tips) if not quiet and not explicitly set
+    this.showTips = tips !== undefined ? tips : !quiet;
   }
 
   info(message: string): void {
@@ -28,6 +35,12 @@ export class Reporter {
   success(message: string): void {
     if (this.shouldSuppress()) return;
     this.writeStdout(this.decorate(COLORS.success, `${SYMBOLS.success} ${message}`));
+  }
+  
+  tip(message: string): void {
+    // Tips have their own suppression logic
+    if (!this.shouldShowTips()) return;
+    this.writeStdout(this.decorate(COLORS.info, `${SYMBOLS.info} TIP: ${message}`));
   }
 
   warn(message: string): void {
@@ -69,6 +82,14 @@ export class Reporter {
     // - machine format (json/alfred)
     // - stdout is not a TTY (piped/redirected)
     return this.quiet || isMachine(this.format) || !isInteractive();
+  }
+  
+  private shouldShowTips(): boolean {
+    // Tips are shown when:
+    // - Not in machine format (json/alfred)
+    // - stdout is a TTY (interactive)
+    // - showTips flag is true (controlled by --tips/--no-tips/--quiet)
+    return !isMachine(this.format) && isInteractive() && this.showTips;
   }
 
   private decorate(fn: (s: string) => string, s: string): string {

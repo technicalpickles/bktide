@@ -21,7 +21,7 @@ export class ListPipelines extends BaseCommand {
     await this.ensureInitialized();
     
     try {
-      const reporter = new Reporter(options.format || 'plain', options.quiet);
+      const reporter = new Reporter(options.format || 'plain', options.quiet, options.tips);
       // Need to get organization info if not provided
       const org = options.org;
       if (!org) {

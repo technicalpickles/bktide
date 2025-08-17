@@ -14,6 +14,7 @@ export interface ViewerBuildsOptions extends BaseCommandOptions {
   pipeline?: string;
   branch?: string;
   state?: string;
+  tips?: boolean;
 }
 
 export class ListBuilds extends BaseCommand {
@@ -31,7 +32,7 @@ export class ListBuilds extends BaseCommand {
     
     try {
       const format = options.format || 'plain';
-      const reporter = new Reporter(format, options.quiet);
+      const reporter = new Reporter(format, options.quiet, options.tips);
       const spinner = createSpinner(format);
       // First, get the current user's information using GraphQL
       const viewerData = await this.client.getViewer();
@@ -164,15 +165,14 @@ export class ListBuilds extends BaseCommand {
       if (allBuilds.length > 0) {
         const buildCount = parseInt(perPage, 10);
         if (allBuilds.length === buildCount) {
-          reporter.info(`Showing ${buildCount} builds. Use --count ${buildCount * 2} to see more`);
+          reporter.tip(`Use --count ${buildCount * 2} to see more builds`);
         }
         
         // If filtering is not active, suggest filtering options
         if (!options.state && !options.branch && !options.pipeline) {
-          reporter.info('Filter options:');
-          reporter.info('  • By state: --state failed');
-          reporter.info('  • By branch: --branch main');
-          reporter.info('  • By pipeline: --pipeline <name>');
+          reporter.tip('Filter by state: --state failed');
+          reporter.tip('Filter by branch: --branch main');
+          reporter.tip('Filter by pipeline: --pipeline <name>');
         }
       }
       

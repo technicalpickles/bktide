@@ -12,6 +12,7 @@ export interface TokenOptions extends BaseCommandOptions {
   store?: boolean;
   reset?: boolean;
   token?: string;
+  tips?: boolean;
 }
 
 export class ManageToken extends BaseCommand {
@@ -21,7 +22,7 @@ export class ManageToken extends BaseCommand {
   constructor(options?: Partial<TokenOptions>) {
     super(options);
     this.formatter = FormatterFactory.getFormatter(FormatterType.TOKEN, options?.format) as TokenFormatter;
-    this.reporter = new Reporter(options?.format || 'plain', options?.quiet);
+    this.reporter = new Reporter(options?.format || 'plain', options?.quiet, options?.tips);
   }
 
   static get requiresToken(): boolean {
@@ -38,10 +39,9 @@ export class ManageToken extends BaseCommand {
         if (success) {
           // Add next-steps hints after successful token storage
           this.reporter.success('Token stored successfully');
-          this.reporter.info('Next steps:');
-          this.reporter.info('  • Verify access: bktide token --check');
-          this.reporter.info('  • List organizations: bktide orgs');
-          this.reporter.info('  • List pipelines: bktide pipelines');
+          this.reporter.tip('Verify access with: bktide token --check');
+          this.reporter.tip('Explore your organizations: bktide orgs');
+          this.reporter.tip('List pipelines: bktide pipelines');
           return 0;
         } else {
           const formattedErrors = this.formatter.formatAuthErrors('storing', errors);

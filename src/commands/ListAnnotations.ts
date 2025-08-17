@@ -24,7 +24,7 @@ export class ListAnnotations extends BaseCommand {
       // Ensure the command is initialized
       await this.ensureInitialized();
       const format = options.format || 'plain';
-      const reporter = new Reporter(format, options.quiet);
+      const reporter = new Reporter(format, options.quiet, options.tips);
       const spinner = createSpinner(format);
       
       const buildRef = parseBuildRef(options.buildArg);

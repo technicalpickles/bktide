@@ -12,6 +12,7 @@ export interface BaseCommandOptions {
   format?: string;
   noCache?: boolean;
   quiet?: boolean;
+  tips?: boolean;
   token?: string;
 }
 

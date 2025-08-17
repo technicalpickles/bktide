@@ -18,7 +18,7 @@ export class ShowViewer extends BaseCommand {
   
     try {
       const format = options.format || 'plain';
-      const reporter = new Reporter(format, options.quiet);
+      const reporter = new Reporter(format, options.quiet, options.tips);
       const spinner = createSpinner(format);
       spinner.start('Fetching viewer…');
       const data = await this.client.getViewer();
