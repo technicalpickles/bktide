@@ -2,7 +2,7 @@
  * Utilities for handling pagination in API responses
  */
 
-import { ProgressBar } from '../ui/progress.js';
+import { Progress } from '../ui/progress.js';
 
 /**
  * Parse Link header from REST API responses
@@ -76,15 +76,11 @@ export async function withCountedProgress<T>(
     return;
   }
   
-  const progress = new ProgressBar({
+  const progress = Progress.bar({
     total: items.length,
     label: options.label || 'Processing',
-    showPercentage: options.showPercentage !== false,
-    showCounts: options.showCounts === true,
     format: options.format
   });
-  
-  progress.start();
   
   try {
     for (let i = 0; i < items.length; i++) {

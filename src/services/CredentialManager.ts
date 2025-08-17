@@ -5,7 +5,7 @@ import { BuildkiteClient } from './BuildkiteClient.js';
 import { BuildkiteRestClient } from './BuildkiteRestClient.js';
 import { TokenValidationStatus, OrganizationValidationStatus } from '../types/credentials.js';
 import { isRunningInAlfred } from '../utils/alfred.js';
-import { ProgressBar } from '../ui/progress.js';
+import { Progress } from '../ui/progress.js';
 
 const SERVICE_NAME = 'bktide';
 const ACCOUNT_KEY = 'default';
@@ -158,19 +158,11 @@ export class CredentialManager {
                           !isRunningInAlfred() && 
                           orgSlugs.length > 0;
       
-      let progress: ProgressBar | null = null;
-      
-      if (showProgress) {
-        // Create progress bar for validation (3 checks per org)
-        progress = new ProgressBar({
-          total: orgSlugs.length * 3,
-          label: 'Validating token access',
-          showPercentage: true,
-          showCounts: true,
-          format: options?.format
-        });
-        progress.start();
-      }
+      const progress = showProgress ? Progress.bar({
+        total: orgSlugs.length * 3,
+        label: 'Validating token access',
+        format: options?.format
+      }) : null;
 
       let checkCount = 0;
 

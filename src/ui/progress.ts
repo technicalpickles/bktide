@@ -1,262 +1,110 @@
 /**
- * Progress bar implementation for CLI
- * Provides both determinate (percentage) and indeterminate (activity) progress indicators
+ * Unified progress indicator system
+ * Provides both determinate (bar) and indeterminate (spinner) progress indicators
  */
 
 import { COLORS, SYMBOLS } from './theme.js';
 import { termWidth, truncate } from './width.js';
 
 /**
- * Check if output format is machine-readable (JSON or Alfred)
+ * Check if output format is machine-readable
  */
 function isMachineFormat(format?: string): boolean {
   const f = (format || '').toLowerCase();
   return f === 'json' || f === 'alfred';
 }
 
-export interface ProgressOptions {
-  /** Total number of items to process (for determinate progress) */
-  total?: number;
-  /** Initial progress value */
-  initial?: number;
-  /** Width of the progress bar (defaults to 30) */
-  barWidth?: number;
-  /** Whether to show percentage */
-  showPercentage?: boolean;
-  /** Whether to show current/total counts */
-  showCounts?: boolean;
-  /** Label to display */
-  label?: string;
-  /** Format (for machine format detection) */
-  format?: string;
-}
-
-export class ProgressBar {
-  private current = 0;
-  private total: number;
-  private barWidth: number;
-  private showPercentage: boolean;
-  private showCounts: boolean;
-  private label?: string;
-  private lastLineLength = 0;
-  private isActive = false;
-  private format?: string;
-  private stream: NodeJS.WriteStream;
+/**
+ * Check if we should show progress indicators
+ */
+function shouldShowProgress(format?: string): boolean {
+  // Don't show in non-TTY environments
+  if (!process.stderr.isTTY) return false;
   
-  constructor(options: ProgressOptions = {}) {
-    this.total = options.total || 100;
-    this.current = options.initial || 0;
-    this.barWidth = options.barWidth || 30;
-    this.showPercentage = options.showPercentage !== false;
-    this.showCounts = options.showCounts === true;
-    this.label = options.label;
-    this.format = options.format;
-    this.stream = process.stderr;
-  }
-
-  /**
-   * Check if progress bar should be shown
-   */
-  private shouldShow(): boolean {
-    // Don't show in non-TTY environments
-    if (!this.stream.isTTY) return false;
-    
-    // Don't show for machine formats
-    if (this.format && isMachineFormat(this.format)) return false;
-    
-    // Don't show in CI environments
-    if (process.env.CI) return false;
-    
-    // Don't show if NO_COLOR is set (indicates non-interactive)
-    if (process.env.NO_COLOR) return false;
-    
-    return true;
-  }
-
-  /**
-   * Start showing the progress bar
-   */
-  start(): void {
-    if (!this.shouldShow()) return;
-    this.isActive = true;
-    this.render();
-  }
-
-  /**
-   * Update progress
-   */
-  update(value: number, label?: string): void {
-    if (!this.shouldShow() || !this.isActive) return;
-    
-    this.current = Math.min(value, this.total);
-    if (label !== undefined) {
-      this.label = label;
-    }
-    this.render();
-  }
-
-  /**
-   * Increment progress by a delta
-   */
-  increment(delta = 1): void {
-    this.update(this.current + delta);
-  }
-
-  /**
-   * Set progress to a specific percentage (0-100)
-   */
-  setPercentage(percentage: number): void {
-    const value = Math.round((percentage / 100) * this.total);
-    this.update(value);
-  }
-
-  /**
-   * Stop and clear the progress bar
-   */
-  stop(): void {
-    if (!this.shouldShow() || !this.isActive) return;
-    
-    this.clear();
-    this.isActive = false;
-  }
-
-  /**
-   * Complete the progress bar (sets to 100% and stops)
-   */
-  complete(message?: string): void {
-    if (!this.shouldShow()) return;
-    
-    this.current = this.total;
-    this.render();
-    
-    // Clear the progress bar line
-    this.clear();
-    
-    // Print completion message if provided
-    if (message) {
-      this.stream.write(COLORS.success(`${SYMBOLS.success} ${message}\n`));
-    }
-    
-    this.isActive = false;
-  }
-
-  /**
-   * Clear the current line
-   */
-  private clear(): void {
-    if (!this.stream.isTTY) return;
-    
-    // Move cursor to beginning of line and clear
-    this.stream.write('\r' + ' '.repeat(this.lastLineLength) + '\r');
-  }
-
-  /**
-   * Render the progress bar
-   */
-  private render(): void {
-    if (!this.shouldShow() || !this.isActive) return;
-    
-    const percentage = Math.round((this.current / this.total) * 100);
-    const filledLength = Math.round((this.current / this.total) * this.barWidth);
-    const emptyLength = this.barWidth - filledLength;
-    
-    // Build progress bar
-    const filled = '█'.repeat(filledLength);
-    const empty = '░'.repeat(emptyLength);
-    const bar = `[${filled}${empty}]`;
-    
-    // Build progress line
-    const parts: string[] = [];
-    
-    if (this.label) {
-      const maxLabelWidth = Math.max(20, termWidth() - this.barWidth - 20);
-      parts.push(truncate(this.label, maxLabelWidth));
-    }
-    
-    parts.push(bar);
-    
-    if (this.showPercentage) {
-      parts.push(`${percentage}%`);
-    }
-    
-    if (this.showCounts) {
-      parts.push(`(${this.current}/${this.total})`);
-    }
-    
-    const line = parts.join(' ');
-    
-    // Clear previous line and write new one
-    this.clear();
-    this.stream.write(line);
-    this.lastLineLength = line.length;
-  }
+  // Don't show for machine formats
+  if (format && isMachineFormat(format)) return false;
+  
+  // Don't show in CI environments
+  if (process.env.CI) return false;
+  
+  // Don't show if NO_COLOR is set (indicates non-interactive)
+  if (process.env.NO_COLOR) return false;
+  
+  return true;
 }
 
 /**
- * Indeterminate progress indicator (spinner-like dots)
+ * Base interface for all progress indicators
  */
-export class IndeterminateProgress {
+export interface IProgress {
+  /** Update the progress indicator */
+  update(value: number | string, label?: string): void;
+  
+  /** Stop the progress indicator */
+  stop(): void;
+  
+  /** Complete with a success message */
+  complete(message?: string): void;
+  
+  /** Fail with an error message */
+  fail(message?: string): void;
+}
+
+/**
+ * Spinner for indeterminate progress
+ * Shows animated spinner with updating label
+ */
+class Spinner implements IProgress {
   private interval?: NodeJS.Timeout;
   private frame = 0;
   private frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-  private label?: string;
+  private label: string = '';
   private lastLineLength = 0;
-  private format?: string;
-  private stream: NodeJS.WriteStream;
+  private isActive = false;
+  private stream: NodeJS.WriteStream = process.stderr;
   
-  constructor(label?: string, format?: string) {
-    this.label = label;
-    this.format = format;
-    this.stream = process.stderr;
+  constructor(
+    label?: string,
+    private format?: string
+  ) {
+    if (label) this.label = label;
   }
 
-  /**
-   * Check if indicator should be shown
-   */
   private shouldShow(): boolean {
-    if (!this.stream.isTTY) return false;
-    if (this.format && isMachineFormat(this.format)) return false;
-    if (process.env.CI) return false;
-    if (process.env.NO_COLOR) return false;
-    return true;
+    return shouldShowProgress(this.format);
   }
 
-  /**
-   * Start the indeterminate progress indicator
-   */
   start(): void {
-    if (!this.shouldShow()) return;
+    if (!this.shouldShow() || this.isActive) return;
     
+    this.isActive = true;
     this.interval = setInterval(() => {
       this.render();
       this.frame = (this.frame + 1) % this.frames.length;
     }, 80);
   }
 
-  /**
-   * Update the label
-   */
-  updateLabel(label: string): void {
-    this.label = label;
-    if (this.shouldShow()) {
-      this.render();
+  update(_value: number | string, label?: string): void {
+    // For spinner, we only care about label updates
+    if (label !== undefined) {
+      this.label = label;
+    }
+    if (!this.isActive) {
+      this.start();
     }
   }
 
-  /**
-   * Stop the indicator
-   */
   stop(): void {
+    if (!this.isActive) return;
+    
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = undefined;
     }
     this.clear();
+    this.isActive = false;
   }
 
-  /**
-   * Stop with a completion message
-   */
   complete(message?: string): void {
     this.stop();
     if (message && this.shouldShow()) {
@@ -264,18 +112,21 @@ export class IndeterminateProgress {
     }
   }
 
-  /**
-   * Clear the current line
-   */
+  fail(message?: string): void {
+    this.stop();
+    if (message && this.shouldShow()) {
+      this.stream.write(COLORS.error(`${SYMBOLS.error} ${message}\n`));
+    }
+  }
+
   private clear(): void {
     if (!this.stream.isTTY) return;
     this.stream.write('\r' + ' '.repeat(this.lastLineLength) + '\r');
   }
 
-  /**
-   * Render the current frame
-   */
   private render(): void {
+    if (!this.shouldShow() || !this.isActive) return;
+    
     const spinner = COLORS.info(this.frames[this.frame]);
     const line = this.label ? `${spinner} ${this.label}` : spinner;
     
@@ -286,19 +137,321 @@ export class IndeterminateProgress {
 }
 
 /**
- * Helper function to track async operation progress
+ * Progress bar for determinate progress
+ * Shows percentage and optional counts
+ */
+class Bar implements IProgress {
+  private current = 0;
+  private total: number;
+  private barWidth = 30;
+  private label?: string;
+  private lastLineLength = 0;
+  private isActive = false;
+  private stream: NodeJS.WriteStream = process.stderr;
+  private format?: string;
+  
+  constructor(
+    options: {
+      total: number;
+      label?: string;
+      barWidth?: number;
+      format?: string;
+    }
+  ) {
+    this.total = options.total || 100;
+    this.label = options.label;
+    this.barWidth = options.barWidth || 30;
+    this.format = options.format;
+  }
+
+  private shouldShow(): boolean {
+    return shouldShowProgress(this.format);
+  }
+
+  start(): void {
+    if (!this.shouldShow() || this.isActive) return;
+    this.isActive = true;
+    this.render();
+  }
+
+  update(value: number | string, label?: string): void {
+    if (!this.isActive) {
+      this.start();
+    }
+    
+    // For bar, value should be a number
+    if (typeof value === 'number') {
+      this.current = Math.min(value, this.total);
+    }
+    
+    if (label !== undefined) {
+      this.label = label;
+    }
+    
+    if (this.shouldShow() && this.isActive) {
+      this.render();
+    }
+  }
+
+  stop(): void {
+    if (!this.isActive) return;
+    this.clear();
+    this.isActive = false;
+  }
+
+  complete(message?: string): void {
+    if (!this.shouldShow()) return;
+    
+    this.current = this.total;
+    this.render();
+    this.clear();
+    
+    if (message) {
+      this.stream.write(COLORS.success(`${SYMBOLS.success} ${message}\n`));
+    }
+    
+    this.isActive = false;
+  }
+
+  fail(message?: string): void {
+    this.stop();
+    if (message && this.shouldShow()) {
+      this.stream.write(COLORS.error(`${SYMBOLS.error} ${message}\n`));
+    }
+  }
+
+  private clear(): void {
+    if (!this.stream.isTTY) return;
+    this.stream.write('\r' + ' '.repeat(this.lastLineLength) + '\r');
+  }
+
+  private render(): void {
+    if (!this.shouldShow() || !this.isActive) return;
+    
+    const percentage = Math.round((this.current / this.total) * 100);
+    const filledLength = Math.round((this.current / this.total) * this.barWidth);
+    const emptyLength = this.barWidth - filledLength;
+    
+    const filled = '█'.repeat(filledLength);
+    const empty = '░'.repeat(emptyLength);
+    const bar = `[${filled}${empty}]`;
+    
+    const parts: string[] = [];
+    
+    if (this.label) {
+      const maxLabelWidth = Math.max(20, termWidth() - this.barWidth - 20);
+      parts.push(truncate(this.label, maxLabelWidth));
+    }
+    
+    parts.push(bar);
+    parts.push(`${percentage}%`);
+    parts.push(`(${this.current}/${this.total})`);
+    
+    const line = parts.join(' ');
+    
+    this.clear();
+    this.stream.write(line);
+    this.lastLineLength = line.length;
+  }
+}
+
+/**
+ * No-op progress for non-interactive environments
+ */
+class NoOpProgress implements IProgress {
+  update(): void {}
+  stop(): void {}
+  complete(): void {}
+  fail(): void {}
+}
+
+/**
+ * Main Progress API - factory methods for creating progress indicators
+ */
+export class Progress {
+  /**
+   * Create a spinner (indeterminate progress)
+   * Use for operations of unknown duration
+   */
+  static spinner(label?: string, options?: { format?: string }): IProgress {
+    if (!shouldShowProgress(options?.format)) {
+      return new NoOpProgress();
+    }
+    
+    const spinner = new Spinner(label, options?.format);
+    if (label) {
+      spinner.start();
+    }
+    return spinner;
+  }
+
+  /**
+   * Create a progress bar (determinate progress)
+   * Use when you know the total number of items
+   */
+  static bar(options: {
+    total: number;
+    label?: string;
+    format?: string;
+  }): IProgress {
+    if (!shouldShowProgress(options.format)) {
+      return new NoOpProgress();
+    }
+    
+    const bar = new Bar(options);
+    bar.start();
+    return bar;
+  }
+
+  /**
+   * Smart factory that creates appropriate progress type
+   * Creates bar if total is provided, spinner otherwise
+   */
+  static create(options?: {
+    total?: number;
+    label?: string;
+    format?: string;
+  }): IProgress {
+    if (!options) {
+      return Progress.spinner();
+    }
+    
+    if (options.total !== undefined && options.total > 0) {
+      return Progress.bar(options as { total: number; label?: string; format?: string });
+    }
+    
+    return Progress.spinner(options.label, options);
+  }
+}
+
+/**
+ * Helper for async operations with progress tracking
  */
 export async function withProgress<T>(
-  operation: (progress: ProgressBar) => Promise<T>,
-  options: ProgressOptions = {}
+  operation: (progress: IProgress) => Promise<T>,
+  options?: {
+    total?: number;
+    label?: string;
+    format?: string;
+    successMessage?: string;
+  }
 ): Promise<T> {
-  const progress = new ProgressBar(options);
-  progress.start();
+  const progress = Progress.create(options);
   
   try {
     const result = await operation(progress);
-    progress.complete();
+    progress.complete(options?.successMessage);
     return result;
+  } catch (error) {
+    progress.fail(error instanceof Error ? error.message : 'Operation failed');
+    throw error;
+  }
+}
+
+// ============================================================================
+// Legacy API - for backward compatibility during migration
+// ============================================================================
+
+/**
+ * @deprecated Use Progress.bar() instead
+ */
+export class ProgressBar {
+  private progress: IProgress;
+  
+  constructor(options: any) {
+    this.progress = Progress.bar({
+      total: options.total,
+      label: options.label,
+      format: options.format
+    });
+  }
+  
+  start(): void {
+    // Already started in constructor
+  }
+  
+  update(value: number, label?: string): void {
+    this.progress.update(value, label);
+  }
+  
+  stop(): void {
+    this.progress.stop();
+  }
+  
+  complete(message?: string): void {
+    this.progress.complete(message);
+  }
+}
+
+/**
+ * @deprecated Use Progress.spinner() instead
+ */
+export class IndeterminateProgress {
+  private progress: IProgress;
+  
+  constructor(label?: string, format?: string) {
+    this.progress = Progress.spinner(label, { format });
+  }
+  
+  start(): void {
+    // Already started if label provided
+  }
+  
+  updateLabel(label: string): void {
+    this.progress.update(label, label);
+  }
+  
+  stop(): void {
+    this.progress.stop();
+  }
+  
+  complete(message?: string): void {
+    this.progress.complete(message);
+  }
+}
+
+/**
+ * @deprecated Use withProgress() instead
+ */
+export async function withCountedProgress<T>(
+  items: T[],
+  operation: (item: T, index: number) => Promise<void>,
+  options: {
+    label?: string;
+    format?: string;
+    itemLabel?: (item: T, index: number) => string;
+    showPercentage?: boolean;
+    showCounts?: boolean;
+    onComplete?: (count: number) => string;
+  } = {}
+): Promise<void> {
+  if (!items || items.length === 0) {
+    return;
+  }
+  
+  const progress = Progress.bar({
+    total: items.length,
+    label: options.label || 'Processing',
+    format: options.format
+  });
+  
+  try {
+    for (let i = 0; i < items.length; i++) {
+      const label = options.itemLabel ? 
+        options.itemLabel(items[i], i) : 
+        `Processing item ${i + 1}/${items.length}`;
+      
+      progress.update(i, label);
+      await operation(items[i], i);
+    }
+    
+    progress.update(items.length, 'Complete');
+    
+    const completeMessage = options.onComplete ?
+      options.onComplete(items.length) :
+      `Processed ${items.length} items`;
+    
+    progress.complete(completeMessage);
   } catch (error) {
     progress.stop();
     throw error;
@@ -306,7 +459,7 @@ export async function withProgress<T>(
 }
 
 /**
- * Helper for indeterminate async operations
+ * @deprecated Use withProgress() instead
  */
 export async function withIndeterminateProgress<T>(
   operation: () => Promise<T>,
@@ -314,15 +467,8 @@ export async function withIndeterminateProgress<T>(
   format?: string,
   successMessage?: string
 ): Promise<T> {
-  const progress = new IndeterminateProgress(label, format);
-  progress.start();
-  
-  try {
-    const result = await operation();
-    progress.complete(successMessage);
-    return result;
-  } catch (error) {
-    progress.stop();
-    throw error;
-  }
+  return withProgress(
+    operation,
+    { label, format, successMessage }
+  );
 }

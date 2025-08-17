@@ -5,7 +5,7 @@ import { Pipeline } from '../types/index.js';
 import { logger } from '../services/logger.js';
 import { Reporter } from '../ui/reporter.js';
 import { createSpinner } from '../ui/spinner.js';
-import { ProgressBar, IndeterminateProgress } from '../ui/progress.js';
+import { Progress } from '../ui/progress.js';
 export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
   count?: string;
@@ -53,18 +53,11 @@ export class ListPipelines extends BaseCommand {
     // Use progress bar for multiple orgs, spinner for single org
     const format = options.format || 'plain';
     const useProgressBar = organizations.length > 1 && format === 'plain';
-    let orgProgress: ProgressBar | null = null;
-    
-    if (useProgressBar) {
-      orgProgress = new ProgressBar({
-        total: organizations.length,
-        label: 'Processing organizations',
-        showPercentage: true,
-        showCounts: false,
-        format: format
-      });
-      orgProgress.start();
-    }
+    const orgProgress = useProgressBar ? Progress.bar({
+      total: organizations.length,
+      label: 'Processing organizations',
+      format: format
+    }) : null;
     
     for (let orgIndex = 0; orgIndex < organizations.length; orgIndex++) {
       const org = organizations[orgIndex];
@@ -83,16 +76,12 @@ export class ListPipelines extends BaseCommand {
         
         // Use different progress indicators based on context
         let spinner = null;
-        let pageProgress: IndeterminateProgress | null = null;
+        const pageProgress = useProgressBar ? Progress.spinner(
+          `Loading pipelines from ${org}...`,
+          { format }
+        ) : null;
         
-        if (useProgressBar) {
-          // For multiple orgs, use indeterminate progress for pagination
-          pageProgress = new IndeterminateProgress(
-            `Loading pipelines from ${org}...`,
-            format
-          );
-          pageProgress.start();
-        } else {
+        if (!useProgressBar) {
           // For single org, use spinner (existing behavior)
           spinner = createSpinner(format);
           spinner.start(`Fetching pipelines from ${org}…`);
@@ -105,7 +94,7 @@ export class ListPipelines extends BaseCommand {
           pageCount++;
           
           if (pageProgress) {
-            pageProgress.updateLabel(`Loading ${org} (page ${pageCount})...`);
+            pageProgress.update(pageCount, `Loading ${org} (page ${pageCount})...`);
           }
           
           if (options.debug) {

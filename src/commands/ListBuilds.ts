@@ -6,7 +6,7 @@ import { logger } from '../services/logger.js';
 import { BuildFormatterOptions } from '../formatters/builds/Formatter.js';
 import { Reporter } from '../ui/reporter.js';
 import { createSpinner } from '../ui/spinner.js';
-import { ProgressBar } from '../ui/progress.js';
+import { Progress } from '../ui/progress.js';
 
 export interface ViewerBuildsOptions extends BaseCommandOptions {
   count?: string;
@@ -71,18 +71,11 @@ export class ListBuilds extends BaseCommand {
       
       // Use progress bar for multiple orgs, spinner for single org
       const useProgressBar = orgs.length > 1 && format === 'plain';
-      let progress: ProgressBar | null = null;
-      
-      if (useProgressBar) {
-        progress = new ProgressBar({
-          total: orgs.length,
-          label: 'Fetching builds from organizations',
-          showPercentage: true,
-          showCounts: false,
-          format: format
-        });
-        progress.start();
-      }
+      const progress = useProgressBar ? Progress.bar({
+        total: orgs.length,
+        label: 'Fetching builds from organizations',
+        format: format
+      }) : null;
       
       for (let i = 0; i < orgs.length; i++) {
         const org = orgs[i];
