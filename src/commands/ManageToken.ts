@@ -51,14 +51,14 @@ export class ManageToken extends BaseCommand {
       } else if (options.reset) {
         await this.resetToken();
       } else if (options.check) {
-        const { errors } = await this.checkToken();
+        const { errors } = await this.checkToken({ format: options.format });
         if (errors.length > 0) {
           const formattedErrors = this.formatter.formatAuthErrors('validating', errors);
           logger.console(formattedErrors);
           return 0;
         }
       } else {
-        const { errors } = await this.checkOrStoreToken();
+        const { errors } = await this.checkOrStoreToken({ format: options.format });
         if (errors.length > 0) {
           const formattedErrors = this.formatter.formatAuthErrors('checking or storing', errors);
           logger.console(formattedErrors);
@@ -152,8 +152,8 @@ export class ManageToken extends BaseCommand {
     }
   }
 
-  private async checkOrStoreToken(): Promise<TokenCheckOrStoreResult> {
-    const { status, errors } = await this.checkToken();
+  private async checkOrStoreToken(options?: { format?: string }): Promise<TokenCheckOrStoreResult> {
+    const { status, errors } = await this.checkToken(options);
     if (!status.hasToken || !status.isValid) {
       const { success, errors: storeErrors } = await this.storeToken();
       if (success) {
@@ -165,7 +165,7 @@ export class ManageToken extends BaseCommand {
     return { stored: false, errors };
   }
 
-  private async checkToken(): Promise<TokenCheckResult> {
+  private async checkToken(options?: { format?: string }): Promise<TokenCheckResult> {
     // In Alfred, check presence of env var as token existence
     const hasToken = isRunningInAlfred()
       ? Boolean(process.env.BUILDKITE_API_TOKEN || process.env.BK_TOKEN)
@@ -198,7 +198,10 @@ export class ManageToken extends BaseCommand {
 
       // Validate the token using the CredentialManager
       try {
-        validation = await BaseCommand.credentialManager.validateToken(token);
+        validation = await BaseCommand.credentialManager.validateToken(token, {
+          format: options?.format,
+          showProgress: true
+        });
         isValid = validation.valid && validation.canListOrganizations;
       } catch (error) {
         errors.push(error);

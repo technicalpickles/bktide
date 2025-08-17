@@ -5,6 +5,7 @@ import { BuildkiteClient } from './BuildkiteClient.js';
 import { BuildkiteRestClient } from './BuildkiteRestClient.js';
 import { TokenValidationStatus, OrganizationValidationStatus } from '../types/credentials.js';
 import { isRunningInAlfred } from '../utils/alfred.js';
+import { ProgressBar } from '../ui/progress.js';
 
 const SERVICE_NAME = 'bktide';
 const ACCOUNT_KEY = 'default';
@@ -112,9 +113,10 @@ export class CredentialManager {
   /**
    * Validates if a token is valid by making test API calls to both GraphQL and REST APIs
    * @param token Optional token to validate. If not provided, will use the stored token.
+   * @param options Optional configuration for progress display
    * @returns Object containing validation status for both GraphQL and REST APIs
    */
-  async validateToken(token?: string): Promise<TokenValidationStatus> {
+  async validateToken(token?: string, options?: { format?: string; showProgress?: boolean }): Promise<TokenValidationStatus> {
     try {
       // If no token provided, try to get the stored one
       const tokenToValidate = token || await this.getToken();
@@ -151,6 +153,27 @@ export class CredentialManager {
       const organizations: Record<string, OrganizationValidationStatus> = {};
       let allValid = true;
 
+      // Determine if we should show progress
+      const showProgress = options?.showProgress !== false && 
+                          !isRunningInAlfred() && 
+                          orgSlugs.length > 0;
+      
+      let progress: ProgressBar | null = null;
+      
+      if (showProgress) {
+        // Create progress bar for validation (3 checks per org)
+        progress = new ProgressBar({
+          total: orgSlugs.length * 3,
+          label: 'Validating token access',
+          showPercentage: true,
+          showCounts: true,
+          format: options?.format
+        });
+        progress.start();
+      }
+
+      let checkCount = 0;
+
       // Validate each organization
       for (const orgSlug of orgSlugs) {
         const orgStatus: OrganizationValidationStatus = {
@@ -159,8 +182,11 @@ export class CredentialManager {
           organizations: false
         };
 
+        // Check GraphQL access
+        if (progress) {
+          progress.update(checkCount++, `Checking GraphQL access for ${orgSlug}`);
+        }
         try {
-          // Check GraphQL access
           await graphqlClient.getViewer();
           orgStatus.graphql = true;
         } catch (error) {
@@ -168,8 +194,11 @@ export class CredentialManager {
           allValid = false;
         }
 
+        // Check build access
+        if (progress) {
+          progress.update(checkCount++, `Checking build access for ${orgSlug}`);
+        }
         try {
-          // Check build access
           await restClient.hasBuildAccess(orgSlug);
           orgStatus.builds = true;
         } catch (error) {
@@ -177,8 +206,11 @@ export class CredentialManager {
           allValid = false;
         }
 
+        // Check organization access
+        if (progress) {
+          progress.update(checkCount++, `Checking organization access for ${orgSlug}`);
+        }
         try {
-          // Check organization access
           await restClient.hasOrganizationAccess(orgSlug);
           orgStatus.organizations = true;
         } catch (error) {
@@ -187,6 +219,14 @@ export class CredentialManager {
         }
 
         organizations[orgSlug] = orgStatus;
+      }
+
+      // Complete the progress bar
+      if (progress) {
+        const successCount = Object.values(organizations)
+          .filter(org => org.graphql && org.builds && org.organizations)
+          .length;
+        progress.complete(`✓ Validated ${orgSlugs.length} organizations (${successCount} fully accessible)`);
       }
 
       return {

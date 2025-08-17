@@ -6,6 +6,7 @@ import { logger } from '../services/logger.js';
 import { BuildFormatterOptions } from '../formatters/builds/Formatter.js';
 import { Reporter } from '../ui/reporter.js';
 import { createSpinner } from '../ui/spinner.js';
+import { ProgressBar } from '../ui/progress.js';
 
 export interface ViewerBuildsOptions extends BaseCommandOptions {
   count?: string;
@@ -68,14 +69,41 @@ export class ListBuilds extends BaseCommand {
       let allBuilds: Build[] = [];
       let accessErrors: string[] = [];
       
-      for (const org of orgs) {
+      // Use progress bar for multiple orgs, spinner for single org
+      const useProgressBar = orgs.length > 1 && format === 'plain';
+      let progress: ProgressBar | null = null;
+      
+      if (useProgressBar) {
+        progress = new ProgressBar({
+          total: orgs.length,
+          label: 'Fetching builds from organizations',
+          showPercentage: true,
+          showCounts: false,
+          format: format
+        });
+        progress.start();
+      }
+      
+      for (let i = 0; i < orgs.length; i++) {
+        const org = orgs[i];
+        
         try {
-          spinner.start(`Fetching builds from ${org}…`);
+          if (progress) {
+            progress.update(i, `Fetching builds from ${org}`);
+          } else {
+            spinner.start(`Fetching builds from ${org}…`);
+          }
+          
           // First check if the user has access to this organization
           const hasAccess = await this.restClient.hasOrganizationAccess(org);
           if (!hasAccess) {
             accessErrors.push(`You don't have access to organization ${org}`);
-            spinner.fail(`No access to ${org}`);
+            if (progress) {
+              // Continue to next org with progress bar
+              progress.update(i + 1, `No access to ${org}`);
+            } else {
+              spinner.fail(`No access to ${org}`);
+            }
             continue;
           }
           
@@ -93,12 +121,23 @@ export class ListBuilds extends BaseCommand {
           }
           
           allBuilds = allBuilds.concat(builds);
-          spinner.stop();
+          
+          if (!progress) {
+            spinner.stop();
+          }
         } catch (error) {
           // Log unexpected errors but continue processing other orgs
           logger.error(error, `Error fetching builds for org ${org}`);
-          spinner.stop();
+          if (!progress) {
+            spinner.stop();
+          }
         }
+      }
+      
+      // Complete the progress bar
+      if (progress) {
+        const successOrgs = orgs.length - accessErrors.length;
+        progress.complete(`Retrieved ${allBuilds.length} builds from ${successOrgs}/${orgs.length} organizations`);
       }
       
       // Prepare formatter options
