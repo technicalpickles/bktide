@@ -161,6 +161,7 @@ program
   .description('Buildkite CLI tool')
   .version(resolveAppVersion())
   .configureHelp({ showGlobalOptions: true })
+  .showSuggestionAfterError()
   .option('--log-level <level>', 'Set logging level (trace, debug, info, warn, error, fatal)', 'info')
   .option('-d, --debug', 'Show debug information for errors')
   .option('--no-cache', 'Disable caching of API responses')
@@ -168,7 +169,8 @@ program
   .option('--clear-cache', 'Clear all cached data before executing command')
   .option('-t, --token <token>', 'Buildkite API token (set BUILDKITE_API_TOKEN or BK_TOKEN env var)', process.env.BUILDKITE_API_TOKEN || process.env.BK_TOKEN)
   .option('--save-token', 'Save the token to system keychain for future use')
-  .option('-f, --format <format>', 'Output format for results and errors (plain, json, alfred)', 'plain');
+  .option('-f, --format <format>', 'Output format for results and errors (plain, json, alfred)', 'plain')
+  .option('--color <mode>', 'Color output: auto|always|never', 'auto');
 
 // Add hooks for handling options
 program
@@ -184,6 +186,24 @@ program
     // Set the global error format from the command line options
     if (mergedOptions.format) {
       setErrorFormat(mergedOptions.format);
+    }
+
+    // Apply color mode
+    if (mergedOptions.color) {
+      const mode = String(mergedOptions.color).toLowerCase();
+      // Respect NO_COLOR when mode is never; clear when always
+      if (mode === 'never') {
+        process.env.NO_COLOR = '1';
+      } else if (mode === 'always') {
+        // Explicitly enable color by unsetting NO_COLOR; downstream code should still TTY-check
+        if (process.env.NO_COLOR) {
+          delete process.env.NO_COLOR;
+        }
+        process.env.BKTIDE_COLOR_MODE = 'always';
+      } else {
+        // auto
+        process.env.BKTIDE_COLOR_MODE = 'auto';
+      }
     }
     
     if (mergedOptions.cacheTtl && (isNaN(mergedOptions.cacheTtl) || mergedOptions.cacheTtl <= 0)) {
