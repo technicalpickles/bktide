@@ -5,9 +5,11 @@ import { Pipeline } from '../types/index.js';
 import { logger } from '../services/logger.js';
 import { Reporter } from '../ui/reporter.js';
 import { createSpinner } from '../ui/spinner.js';
+import { ProgressBar, IndeterminateProgress } from '../ui/progress.js';
 export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
   count?: string;
+  filter?: string;
 }
 
 export class ListPipelines extends BaseCommand {
@@ -48,7 +50,25 @@ export class ListPipelines extends BaseCommand {
   private async listPipelines(organizations: string[], options: PipelineOptions): Promise<void> {
     let allPipelines: Pipeline[] = [];
     
-    for (const org of organizations) {
+    // Use progress bar for multiple orgs, spinner for single org
+    const format = options.format || 'plain';
+    const useProgressBar = organizations.length > 1 && format === 'plain';
+    let orgProgress: ProgressBar | null = null;
+    
+    if (useProgressBar) {
+      orgProgress = new ProgressBar({
+        total: organizations.length,
+        label: 'Processing organizations',
+        showPercentage: true,
+        showCounts: false,
+        format: format
+      });
+      orgProgress.start();
+    }
+    
+    for (let orgIndex = 0; orgIndex < organizations.length; orgIndex++) {
+      const org = organizations[orgIndex];
+      
       try {
         const batchSize = this.BATCH_SIZE;
         let hasNextPage = true;
@@ -56,9 +76,38 @@ export class ListPipelines extends BaseCommand {
         const limitResults = options.count !== undefined;
         const resultLimit = limitResults ? parseInt(options.count as string, 10) : Infinity;
         
-        const spinner = createSpinner(options.format || 'plain');
-        spinner.start(`Fetching pipelines from ${org}…`);
+        // Update org progress if using progress bar
+        if (orgProgress) {
+          orgProgress.update(orgIndex, `Organization: ${org}`);
+        }
+        
+        // Use different progress indicators based on context
+        let spinner = null;
+        let pageProgress: IndeterminateProgress | null = null;
+        
+        if (useProgressBar) {
+          // For multiple orgs, use indeterminate progress for pagination
+          pageProgress = new IndeterminateProgress(
+            `Loading pipelines from ${org}...`,
+            format
+          );
+          pageProgress.start();
+        } else {
+          // For single org, use spinner (existing behavior)
+          spinner = createSpinner(format);
+          spinner.start(`Fetching pipelines from ${org}…`);
+        }
+        
+        let pageCount = 0;
+        let orgPipelineCount = 0;
+        
         while (hasNextPage && allPipelines.length < resultLimit) {
+          pageCount++;
+          
+          if (pageProgress) {
+            pageProgress.updateLabel(`Loading ${org} (page ${pageCount})...`);
+          }
+          
           if (options.debug) {
             logger.debug(`Fetching batch of pipelines from org ${org}, cursor: ${cursor || 'initial'}`);
           }
@@ -83,6 +132,7 @@ export class ListPipelines extends BaseCommand {
                 } as Pipeline;
               });
             
+            orgPipelineCount += pipelines.length;
             allPipelines = allPipelines.concat(pipelines);
           }
           
@@ -102,12 +152,31 @@ export class ListPipelines extends BaseCommand {
             break;
           }
         }
-        spinner.stop();
+        
+        // Stop the appropriate progress indicator
+        if (pageProgress) {
+          pageProgress.stop();
+          if (options.debug) {
+            logger.debug(`Loaded ${orgPipelineCount} pipelines from ${org} in ${pageCount} pages`);
+          }
+        } else if (spinner) {
+          spinner.stop();
+        }
       } catch (error) {
-        const spinner = createSpinner(options.format || 'plain');
-        spinner.stop();
+        // Clean up any active progress indicators
+        if (orgProgress) {
+          // Continue to show org progress
+        } else {
+          const spinner = createSpinner(format);
+          spinner.stop();
+        }
         throw new Error(`Error fetching pipelines for organization ${org}`, { cause: error });
       }
+    }
+    
+    // Complete the org progress bar if used
+    if (orgProgress) {
+      orgProgress.complete(`Loaded ${allPipelines.length} pipelines from ${organizations.length} organizations`);
     }
     
     // Apply limit if specified
@@ -136,7 +205,6 @@ export class ListPipelines extends BaseCommand {
       }
     }
     
-    const format = options.format || 'plain';
     const formatter = getPipelineFormatter(format);
     const output = formatter.formatPipelines(allPipelines, organizations);
     
