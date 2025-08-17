@@ -41,19 +41,21 @@ Notes
 - Reporter remains silent for `json` and `alfred` formats by design.
 
 #### Phase 2 – Table Utility Adoption
-Status: In Progress
+Status: Completed
 
 Applied so far
 - Plain pipelines output now uses aligned columns (NAME, SLUG) when a single org is targeted; (ORGANIZATION, NAME, SLUG) when multiple orgs.
 - Plain builds output now uses a tabular summary (PIPELINE, NUMBER, STATE, BRANCH) for improved scan-ability.
+- Plain organizations output now uses a NAME/SLUG table.
 
 Validation
 - `bin/bktide pipelines --format plain | head -n 20` shows aligned headings and rows.
 - `bin/bktide builds --count 5 --format plain | head -n 30` shows aligned tabular summary.
 
 Next
-- Consider applying table formatting to `orgs` (optional) and keeping `viewer`/`annotations` as-is.
-- Ensure no wrapping anomalies with very long names; consider truncation or width caps if needed.
+- `viewer`: keep as-is; table not beneficial for 2–3 labeled lines.
+- `annotations`: keep as-is; content is multi-line text bodies, tables not appropriate.
+- Monitor wrapping for extremely long names; consider truncation/ellipsis if needed.
 
 #### Phase 3 – TTY-Gated Spinners
 Status: Not Started
