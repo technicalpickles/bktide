@@ -3,6 +3,7 @@ import { getPipelineFormatter } from '../formatters/index.js';
 import Fuse from 'fuse.js';
 import { Pipeline } from '../types/index.js';
 import { logger } from '../services/logger.js';
+import { Reporter } from '../ui/reporter.js';
 export interface PipelineOptions extends BaseCommandOptions {
   org?: string;
   count?: string;
@@ -19,6 +20,7 @@ export class ListPipelines extends BaseCommand {
     await this.ensureInitialized();
     
     try {
+      const reporter = new Reporter(options.format || 'plain');
       // Need to get organization info if not provided
       const org = options.org;
       if (!org) {
@@ -33,6 +35,8 @@ export class ListPipelines extends BaseCommand {
         await this.listPipelines([org], options);
       }
       
+      // Minimal confirmation for human-readable mode
+      reporter.success('Pipelines retrieved');
       return 0; // Success
     } catch (error) {
       this.handleError(error, options.debug);

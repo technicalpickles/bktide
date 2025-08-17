@@ -13,7 +13,7 @@ This plan introduces a reporter layer, centralized theming, and TTY-aware termin
 - No breaking changes to JSON or Alfred output schemas.
 - No dependency on heavy UI frameworks; keep helpers lightweight.
 
----
+---****
 
 ### Current State (Summary)
 - Formatters: Per-entity formatters for `build`, `pipeline`, `viewer`, `organization`, `annotation`, `error` chosen by `FormatterFactory` with `--format plain|json|alfred`.
