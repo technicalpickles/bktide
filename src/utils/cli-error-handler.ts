@@ -62,7 +62,7 @@ export function displayCLIError(
     }
   }
   
-  process.exit(1);
+  process.exitCode = 1;
 }
 
 /**
@@ -194,8 +194,8 @@ export function withCLIErrorHandling<T extends (...args: any[]) => Promise<any>>
     debugMode?: boolean;
     format?: string;
   } = {}
-): (...args: Parameters<T>) => Promise<ReturnType<T>> {
-  return async function(...args: Parameters<T>): Promise<ReturnType<T>> {
+): (...args: Parameters<T>) => Promise<ReturnType<T> | void> {
+  return async function(...args: Parameters<T>): Promise<ReturnType<T> | void> {
     try {
       return await fn(...args);
     } catch (error) {
@@ -204,7 +204,9 @@ export function withCLIErrorHandling<T extends (...args: any[]) => Promise<any>>
         options.debugMode || false, 
         options.format
       );
-      process.exit(1);
+      process.exitCode = 1;
+      // Return void to satisfy TypeScript
+      return;
     }
   };
 } 

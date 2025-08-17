@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { getSymbols } from './symbols.js';
 
 function isTTY(): boolean {
   return Boolean(process.stdout.isTTY);
@@ -20,12 +21,8 @@ export const COLORS = {
   muted: (s: string) => (colorEnabled() ? chalk.gray(s) : s)
 };
 
-export const SYMBOLS = {
-  success: '✓',
-  warn: '⚠︎',
-  error: '✖',
-  info: 'ℹ︎'
-};
+// Export symbols from the symbols module
+export const SYMBOLS = getSymbols();
 
 export function shouldDecorate(format?: string): boolean {
   const f = (format || '').toLowerCase();

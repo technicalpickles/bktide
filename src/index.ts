@@ -170,7 +170,9 @@ program
   .option('-t, --token <token>', 'Buildkite API token (set BUILDKITE_API_TOKEN or BK_TOKEN env var)', process.env.BUILDKITE_API_TOKEN || process.env.BK_TOKEN)
   .option('--save-token', 'Save the token to system keychain for future use')
   .option('-f, --format <format>', 'Output format for results and errors (plain, json, alfred)', 'plain')
-  .option('--color <mode>', 'Color output: auto|always|never', 'auto');
+  .option('--color <mode>', 'Color output: auto|always|never', 'auto')
+  .option('-q, --quiet', 'Suppress non-error output (plain format only)')
+  .option('--ascii', 'Use ASCII symbols instead of Unicode');
 
 // Add hooks for handling options
 program
@@ -208,7 +210,8 @@ program
     
     if (mergedOptions.cacheTtl && (isNaN(mergedOptions.cacheTtl) || mergedOptions.cacheTtl <= 0)) {
       logger.error('cache-ttl must be a positive number');
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
     
     if (mergedOptions.cache === false && mergedOptions.cacheTtl) {
@@ -218,7 +221,8 @@ program
     // Validate count options
     if (mergedOptions.count && (isNaN(parseInt(mergedOptions.count)) || parseInt(mergedOptions.count) <= 0)) {
       logger.error('count must be a positive number');
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
 
     cmd.mergedOptions = mergedOptions;

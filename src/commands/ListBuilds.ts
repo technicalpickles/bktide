@@ -31,7 +31,7 @@ export class ListBuilds extends BaseCommand {
     
     try {
       const format = options.format || 'plain';
-      const reporter = new Reporter(format);
+      const reporter = new Reporter(format, options.quiet);
       const spinner = createSpinner(format);
       // First, get the current user's information using GraphQL
       const viewerData = await this.client.getViewer();

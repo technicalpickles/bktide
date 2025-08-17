@@ -15,7 +15,7 @@ export class ListOrganizations extends BaseCommand {
   public async execute(options: OrganizationOptions = {}): Promise<number> {      
     try {
       const format = options.format || 'plain';
-      const reporter = new Reporter(format);
+      const reporter = new Reporter(format, options.quiet);
       const spinner = createSpinner(format);
       spinner.start('Fetching organizations…');
       const organizations = await this.client.getOrganizations();

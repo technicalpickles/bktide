@@ -7,6 +7,32 @@ function isMachineFormat(format?: string): boolean {
   return f === 'json' || f === 'alfred';
 }
 
+function isCI(): boolean {
+  // Check for common CI environment variables
+  return !!(
+    process.env.CI ||
+    process.env.CONTINUOUS_INTEGRATION ||
+    process.env.GITHUB_ACTIONS ||
+    process.env.GITLAB_CI ||
+    process.env.CIRCLECI ||
+    process.env.TRAVIS ||
+    process.env.JENKINS_URL ||
+    process.env.BUILDKITE ||
+    process.env.DRONE ||
+    process.env.BITBUCKET_PIPELINES_UUID ||
+    process.env.AZURE_PIPELINES_BUILD_ID ||
+    process.env.TF_BUILD // Azure DevOps
+  );
+}
+
+function shouldDisableSpinner(format?: string): boolean {
+  return !isTTY() || 
+         isCI() ||
+         !!process.env.NO_COLOR ||
+         !!process.env.BKTIDE_NO_SPINNER ||
+         isMachineFormat(format);
+}
+
 export interface Spinner {
   start(text: string): void;
   setText(text: string): void;
@@ -67,7 +93,7 @@ class NoopSpinner implements Spinner {
 }
 
 export function createSpinner(format?: string): Spinner {
-  if (!isTTY() || isMachineFormat(format)) {
+  if (shouldDisableSpinner(format)) {
     return new NoopSpinner();
   }
   return new TtySpinner();
