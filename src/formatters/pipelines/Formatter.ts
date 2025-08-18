@@ -6,7 +6,9 @@ export interface PipelineFormatterOptions extends FormatterOptions {
   filterActive?: boolean;
   filterText?: string;
   truncated?: boolean;
+  hasMoreAvailable?: boolean;  // Whether there are more pipelines on the server
   totalBeforeFilter?: number;
+  requestedLimit?: number;  // The limit that was requested (via --count or default)
   organizationsCount?: number;
   orgSpecified?: boolean;
   hasError?: boolean;

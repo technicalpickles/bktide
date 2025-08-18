@@ -13,7 +13,8 @@ export interface PipelineOptions extends BaseCommandOptions {
 }
 
 export class ListPipelines extends BaseCommand {
-  readonly BATCH_SIZE = 500;
+  readonly BATCH_SIZE = 50;  // Reasonable batch size for API calls
+  readonly DEFAULT_LIMIT = 50;  // Default number of pipelines to show
   
   constructor(options?: Partial<PipelineOptions>) {
     super(options);
@@ -49,6 +50,7 @@ export class ListPipelines extends BaseCommand {
   private async listPipelines(organizations: string[], options: PipelineOptions): Promise<void> {
     let allPipelines: Pipeline[] = [];
     let totalBeforeFilter = 0;
+    let hasMorePipelines = false;  // Track if there are more pipelines available beyond what we fetched
     
     // Use progress bar for multiple orgs, spinner for single org
     const format = options.format || 'plain';
@@ -78,8 +80,10 @@ export class ListPipelines extends BaseCommand {
         const batchSize = this.BATCH_SIZE;
         let hasNextPage = true;
         let cursor: string | null = null;
-        const limitResults = options.count !== undefined;
-        const resultLimit = limitResults ? parseInt(options.count as string, 10) : Infinity;
+        // Use default limit if no count specified
+        const resultLimit = options.count !== undefined 
+          ? parseInt(options.count as string, 10) 
+          : this.DEFAULT_LIMIT;
         
         // Update org progress if using progress bar
         if (orgProgress) {
@@ -135,8 +139,12 @@ export class ListPipelines extends BaseCommand {
             }
           }
           
-          // If we're limiting results, stop after getting enough
-          if (limitResults && allPipelines.length >= resultLimit) {
+          // Stop after getting enough results
+          if (allPipelines.length >= resultLimit) {
+            // If we hit the limit and there are more pages, remember that
+            if (hasNextPage) {
+              hasMorePipelines = true;
+            }
             break;
           }
         }
@@ -167,13 +175,15 @@ export class ListPipelines extends BaseCommand {
       orgProgress.complete(`Loaded ${allPipelines.length} pipelines from ${organizations.length} organizations`);
     }
     
-    // Track if results will be truncated
-    const truncated = options.count ? allPipelines.length > parseInt(options.count, 10) : false;
+    // Apply limit and track truncation
+    const requestedLimit = options.count 
+      ? parseInt(options.count, 10) 
+      : this.DEFAULT_LIMIT;
     
-    // Apply limit if specified
-    if (options.count) {
-      const limit = parseInt(options.count, 10);
-      allPipelines = allPipelines.slice(0, limit);
+    const truncated = allPipelines.length > requestedLimit;
+    
+    if (allPipelines.length > requestedLimit) {
+      allPipelines = allPipelines.slice(0, requestedLimit);
     }
     
     // Track total before filter for context
@@ -204,8 +214,10 @@ export class ListPipelines extends BaseCommand {
       debug: options.debug,
       filterActive: !!options.filter,
       filterText: options.filter,
-      truncated: truncated,
+      truncated: truncated || hasMorePipelines,  // Either truncated locally or more available on server
+      hasMoreAvailable: hasMorePipelines,
       totalBeforeFilter: totalBeforeFilter,
+      requestedLimit: requestedLimit,
       organizationsCount: organizations.length,
       orgSpecified: !!options.org
     };
