@@ -530,7 +530,44 @@ This follows the pattern of having both list and detail commands for entities.
 
 ## Follow-up Improvements
 
+### Phase 1: Visual & Formatting Enhancements
+- **Add semantic colors**: Use color for pass/fail states consistently throughout
+- **Emoji support**: 
+  - Parse and display emoji from step labels (e.g., `:smile:`, `:rspec:`)
+  - Support both standard emoji and Buildkite-specific ones
+  - Replace UTF-8 characters with emoji for consistency (❌ → 🔴, ✅ → 🟢, etc.)
+- **Fix tips formatting**: 
+  - Remove "Tips:" label and special coloring
+  - Use consistent format: `→ command  # description` instead of mixed formats
+
+### Phase 2: Job Display Optimization
+- **Group identical jobs**: When multiple jobs have same label/state, show as:
+  ```
+  Failed: :jest: Jest (87 jobs, all not started)
+  Failed: :rspec: RSpec (1 job, exit 1, 24m 32s)
+  ```
+- **Enhanced job details** with `--jobs`:
+  - Agent information (name, hostname)
+  - Precise timing (queued, started, finished)
+  - Exit codes and retry information
+  - Parallel group info (e.g., "187/360")
+- **Pagination/limiting**:
+  - Default to showing first 10 unique job types
+  - Add `--all-jobs` flag to show everything
+  - Show summary like "...and 73 more similar jobs"
+
+### Phase 3: Data Enhancements
+- **Pull request details**: Work around GraphQL limitations
+  - Consider fetching PR info from REST API if available
+  - Or at minimum, construct GitHub PR URL from ID
+- **Performance optimizations**:
+  - Implement smart defaults (limit jobs to 10 unique types)
+  - Add progress indicator for large builds
+  - Consider caching job patterns
+
+### Phase 4: Advanced Features
 - Add `build logs <build-ref> <job-name>` for viewing job logs
 - Support build artifact listing/downloading
 - Add build retry/cancel capabilities (with appropriate permissions)
 - Integration with `open` command to open build in browser
+- Add `--watch` option for running builds
