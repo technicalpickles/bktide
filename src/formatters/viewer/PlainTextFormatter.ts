@@ -16,10 +16,6 @@ export class PlainTextFormatter extends BaseFormatter {
 
     const lines: string[] = [];
     
-    // Add heading for consistency
-    lines.push(SEMANTIC_COLORS.heading('Current User'));
-    lines.push('');
-    
     if (viewerData.viewer.user) {
       lines.push(`${SEMANTIC_COLORS.label('Name:')}  ${viewerData.viewer.user.name || SEMANTIC_COLORS.muted('(not set)')}`);
       lines.push(`${SEMANTIC_COLORS.label('Email:')} ${viewerData.viewer.user.email || SEMANTIC_COLORS.muted('(not set)')}`);
