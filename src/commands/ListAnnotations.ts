@@ -3,7 +3,7 @@ import { logger } from '../services/logger.js';
 import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { Annotation } from '../types/index.js';
-import { Reporter } from '../ui/reporter.js';
+
 import { Progress } from '../ui/progress.js';
 
 export class ListAnnotations extends BaseCommand {
@@ -22,7 +22,6 @@ export class ListAnnotations extends BaseCommand {
     
     // Initialize reporter and spinner early
     const format = options.format || 'plain';
-    const reporter = new Reporter(format, options.quiet, options.tips);
     const spinner = Progress.spinner('Fetching annotations…', { format });
     
     try {
@@ -67,7 +66,7 @@ export class ListAnnotations extends BaseCommand {
       });
       
       logger.console(output);
-      reporter.success('Annotations retrieved');
+      // Success is implicit - data display confirms retrieval
       
       return 0;
     } catch (error) {

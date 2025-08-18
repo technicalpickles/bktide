@@ -56,11 +56,9 @@ export class PlainTextFormatter extends BaseFormatter {
     });
     lines.push(renderTable(rows));
     
-    // Detailed per-build lines (optional in future; keeping summary only for now)
-    // Summary and guidance lines
-    lines.push(`\nShowing ${builds.length} builds. Use --count and --page options to see more.`);
+    // Only add org count info if searching multiple orgs
     if (options?.organizationsCount && options.organizationsCount > 1 && !options.orgSpecified) {
-      lines.push(`Searched across ${options.organizationsCount} organizations. Use --org to filter to a specific organization.`);
+      lines.push(`\nSearched across ${options.organizationsCount} organizations. Use --org to filter to a specific organization.`);
     }
     
     return lines.join('\n');

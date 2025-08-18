@@ -194,10 +194,15 @@ export class ListBuilds extends BaseCommand {
       
       const formatter = getBuildFormatter(format);
       const output = formatter.formatBuilds(allBuilds, formatterOptions);
-      logger.console(output);
-      reporter.success('Builds retrieved');
       
-      // Add contextual next-steps hints
+      // Output data directly to stdout to ensure proper ordering
+      if (format === 'plain') {
+        process.stdout.write(output + '\n');
+      } else {
+        logger.console(output);
+      }
+      
+      // Add contextual next-steps hints AFTER showing the data
       if (allBuilds.length > 0) {
         const buildCount = parseInt(perPage, 10);
         if (allBuilds.length === buildCount) {
