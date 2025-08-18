@@ -2,6 +2,8 @@
 
 This page is a short user-facing overview. For installation and troubleshooting, see `docs/alfred-installation.md`. For development and packaging details, see `docs/alfred-development.md`.
 
+> **Note**: Shell completions and Alfred integration are independent features. You can use both simultaneously without any conflicts.
+
 ## What it does
 The CLI can output Alfred Script Filter JSON via `--format alfred`. Each build or pipeline is shown as a result row with a title, subtitle, and URL.
 

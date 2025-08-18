@@ -1,0 +1,73 @@
+---
+description: Guidelines for shell completions
+globs:
+  - completions/**
+  - src/commands/GenerateCompletions.ts
+alwaysApply: false
+---
+
+# Shell Completions
+
+## When Adding New Commands
+When adding a new command to the CLI:
+1. The command will automatically appear in completions via the GenerateCompletions command
+2. If the command has special options or value completions, update the static completion files in `completions/`
+3. Test with both `bktide` and `bin/bktide`
+
+## Completion File Structure
+- Static completions in `completions/` directory
+- GenerateCompletions command for dynamic generation
+- Installation instructions go to stderr, completion script to stdout
+- Support for dynamic completions (Fish + jq) for organizations and pipelines
+
+## Files
+- `completions/bktide.fish` - Basic Fish completions
+- `completions/bktide-dynamic.fish` - Fish with dynamic completions (requires jq)
+- `completions/bktide.bash` - Bash completions
+- `completions/bktide.zsh` - Zsh completions
+- `src/commands/GenerateCompletions.ts` - Command to generate completions
+
+## Testing Completions
+```bash
+# Test without installing (Fish)
+fish -c "source completions/bktide.fish && complete --do-complete 'bktide builds --'"
+
+# Test dynamic completions
+bktide completions fish --quiet | fish -c "source - && complete --do-complete 'bktide pipelines --org '"
+
+# Test Bash completions
+bash -c "source <(bin/bktide completions bash) && complete -p bktide"
+
+# Test Zsh completions  
+zsh -c "source <(bin/bktide completions zsh) && compdef -p"
+```
+
+## Important Implementation Details
+1. **Disable file completions**: Use `complete -c bktide -f` (Fish) to prevent suggesting local files
+2. **Support both commands**: Always add completions for both `bktide` and `bin/bktide`
+3. **Output separation**: Completion script to stdout, instructions to stderr
+4. **Dynamic completions**: Use helper functions that call the CLI with `--format json --quiet`
+5. **Value completions**: Provide explicit value lists for options like `--format`, `--state`, etc.
+
+## When Updating Completions
+1. Update static files if adding new value completions
+2. The GenerateCompletions command provides basic fallback
+3. Test that completions work in all supported shells
+4. Ensure `--quiet` flag suppresses stderr output when used in completion functions
+
+## Shell-Specific Notes
+
+### Fish
+- Completions auto-load from `~/.config/fish/completions/`
+- Supports dynamic completions with helper functions
+- Use `__fish_seen_subcommand_from` for context-aware completions
+
+### Bash
+- Requires sourcing or placing in `/etc/bash_completion.d/`
+- Use `_init_completion` for proper word splitting
+- Dynamic completions via `$(command)` substitution
+
+### Zsh
+- Can be sourced or placed in `$fpath`
+- Use `_arguments` for sophisticated option handling
+- Supports state machines for complex completions

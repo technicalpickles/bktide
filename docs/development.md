@@ -76,6 +76,30 @@ Usage rules
   - Let Reporter print the single success line after progress completes
 - Prefer aligned tables for list outputs in plain format. Keep JSON/Alfred schemas unchanged.
 
+## Shell Completions Development
+
+### Testing Completions
+```bash
+# Generate completions for testing
+bin/bktide completions fish --quiet > test.fish
+fish -c "source test.fish && complete --do-complete 'bktide builds --'"
+
+# Install for local development
+npm run completions:install  # Fish users
+```
+
+### Adding New Commands/Options
+When adding new commands or options to the CLI:
+1. Update the static completion files in `completions/` if needed
+2. The `GenerateCompletions` command will automatically detect new commands
+3. Test completions work for both `bktide` and `bin/bktide`
+
+### Completion Files
+- `completions/bktide.fish` - Basic Fish completions
+- `completions/bktide-dynamic.fish` - Fish with dynamic completions (requires jq)
+- `completions/bktide.bash` - Bash completions
+- `completions/bktide.zsh` - Zsh completions
+
 ## Using the GraphQL Client in Your Code
 
 The Buildkite GraphQL client can be used in your own code:

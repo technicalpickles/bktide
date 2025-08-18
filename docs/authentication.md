@@ -52,4 +52,13 @@ npm run dev -- viewer --save-token
 This secure storage method:
 - Uses the system's native keychain (Keychain Access on macOS, Credential Manager on Windows, Secret Service API on Linux)
 - Eliminates the need to store tokens in plain text or environment variables
-- Makes future commands more convenient as no token needs to be provided 
+- Makes future commands more convenient as no token needs to be provided
+
+## Shell Completions and Authentication
+
+Note: Dynamic shell completions for Fish (when `jq` is installed) require a valid Buildkite token to fetch real-time data:
+
+- Organization name completions (`bktide pipelines --org <Tab>`)
+- Pipeline name completions (`bktide builds --pipeline <Tab>`)
+
+If you haven't configured a token, these dynamic completions won't work, but static completions (commands, options, predefined values) will still function normally. 

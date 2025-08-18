@@ -35,6 +35,8 @@ This is a TypeScript CLI for interacting with the Buildkite GraphQL and REST API
 - `npm run dev:compiled` - Development mode with source maps for debugging
 - `npm run dev:sourcemap` - Direct ts-node execution with source maps
 - `npm run lint` - Run ESLint checks
+- `npm run completions:install` - Install Fish shell completions
+- `npm run completions:generate` - Generate shell completions
 
 ## Project Conventions
 - Exit codes: 0 for success, 1 for errors
@@ -42,3 +44,5 @@ This is a TypeScript CLI for interacting with the Buildkite GraphQL and REST API
 - All commands support --format flag (plain, json, alfred)
 - Environment variable support: BUILDKITE_API_TOKEN
 - XDG base directory compliance for config/cache storage
+- Shell completions available for Fish, Bash, and Zsh
+- Completions work for both global `bktide` and local `bin/bktide`

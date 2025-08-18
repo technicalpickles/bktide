@@ -1,7 +1,7 @@
 {
   "name": "bktide",
   "version": "1.0.0",
-  "description": "Buildkite CLI tool",
+  "description": "Buildkite CLI tool with shell completions",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
@@ -33,7 +33,11 @@
   },
   "keywords": [
     "cli",
-    "buildkite"
+    "buildkite",
+    "shell-completions",
+    "fish",
+    "bash",
+    "zsh"
   ],
   "author": "Josh Nichols <josh@technicalpickles.com>",
   "license": "ISC",

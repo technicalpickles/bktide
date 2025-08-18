@@ -10,8 +10,34 @@ npm install -g bktide
 
 Once installed, use the `bktide` binary directly from your shell.
 
+## Shell Completions
+
+bktide supports auto-completion for Fish, Bash, and Zsh shells.
+
+### Quick Setup
+
+```bash
+# Fish
+bktide completions fish > ~/.config/fish/completions/bktide.fish
+
+# Bash
+echo 'source <(bktide completions bash)' >> ~/.bashrc
+
+# Zsh  
+echo 'source <(bktide completions zsh)' >> ~/.zshrc
+```
+
+Completions provide:
+- Command suggestions (`bktide <Tab>`)
+- Option completions (`bktide builds --<Tab>`)
+- Value completions (`bktide --format <Tab>`)
+- Dynamic completions for organizations and pipelines (Fish with jq installed)
+
+See [Shell Completions Guide](docs/shell-completions.md) for detailed installation and troubleshooting.
+
 ## Documentation
 
+- [Shell Completions](docs/shell-completions.md) - Complete guide for shell auto-completion setup
 - [Development Guide](docs/development.md) - Information about running and developing the CLI
 - [Authentication](docs/authentication.md) - How to authenticate with Buildkite
 - [Caching](docs/caching.md) - Information about the CLI's caching system
@@ -104,6 +130,18 @@ bktide annotations https://buildkite.com/gusto/zenpayroll/builds/1287418 --forma
 
 # Combine filtering and formatting
 bktide annotations gusto/zenpayroll/1287418 --context build-resources --format json
+```
+
+### Generate Shell Completions
+
+```bash
+# Generate completions for your shell
+bktide completions fish
+bktide completions bash
+bktide completions zsh
+
+# Auto-detect your shell and generate completions
+bktide completions
 ```
 
 ## API Token
