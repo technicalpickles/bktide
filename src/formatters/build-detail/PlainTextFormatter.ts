@@ -443,13 +443,35 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         const duration = this.formatJobDuration(group.jobs[0].node);
         lines.push(`   ${SEMANTIC_COLORS.error('Failed')}: ${label} - ran ${duration}`);
       } else {
-        // Multiple jobs with same label
-        const statusInfo = group.allNotStarted 
-          ? 'all not started' 
-          : group.exitCodes.length > 0 
-            ? `exit codes: ${group.exitCodes.join(', ')}`
-            : 'various states';
-        lines.push(`   ${SEMANTIC_COLORS.error('Failed')}: ${label} (${SEMANTIC_COLORS.count(String(group.count))} jobs, ${statusInfo})`);
+        // Multiple jobs with same label - show detailed breakdown
+        const statusParts = [];
+        
+        if (group.stateCounts.failed > 0) {
+          statusParts.push(`${group.stateCounts.failed} failed`);
+        }
+        if (group.stateCounts.broken > 0) {
+          statusParts.push(`${group.stateCounts.broken} broken`);
+        }
+        if (group.stateCounts.notStarted > 0) {
+          statusParts.push(`${group.stateCounts.notStarted} not started`);
+        }
+        if (group.stateCounts.passed > 0) {
+          statusParts.push(`${group.stateCounts.passed} passed`);
+        }
+        if (group.stateCounts.other > 0) {
+          statusParts.push(`${group.stateCounts.other} other`);
+        }
+        
+        // Add exit codes if available
+        if (group.exitCodes.length > 0) {
+          const exitCodeStr = group.exitCodes.length === 1 
+            ? `exit ${group.exitCodes[0]}`
+            : `exits: ${group.exitCodes.join(', ')}`;
+          statusParts.push(exitCodeStr);
+        }
+        
+        const statusInfo = statusParts.join(', ') || 'various states';
+        lines.push(`   ${SEMANTIC_COLORS.error('Failed')}: ${label} (${SEMANTIC_COLORS.count(String(group.count))} jobs: ${statusInfo})`);
       }
     }
     
@@ -473,7 +495,13 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
           count: 0,
           jobs: [],
           exitCodes: new Set<number>(),
-          allNotStarted: true
+          stateCounts: {
+            failed: 0,
+            broken: 0,
+            notStarted: 0,
+            passed: 0,
+            other: 0
+          }
         });
       }
       
@@ -481,12 +509,23 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       group.count++;
       group.jobs.push(job);
       
-      if (job.node.exitStatus) {
+      // Track exit codes
+      if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
         group.exitCodes.add(job.node.exitStatus);
       }
       
-      if (job.node.startedAt) {
-        group.allNotStarted = false;
+      // Count by state
+      const state = job.node.state?.toUpperCase();
+      if (!job.node.startedAt) {
+        group.stateCounts.notStarted++;
+      } else if (state === 'FAILED') {
+        group.stateCounts.failed++;
+      } else if (state === 'BROKEN') {
+        group.stateCounts.broken++;
+      } else if (state === 'PASSED' || job.node.passed === true) {
+        group.stateCounts.passed++;
+      } else {
+        group.stateCounts.other++;
       }
     }
     
