@@ -121,3 +121,4 @@ _bktide() {
 # Register completions for both bktide and bin/bktide
 complete -F _bktide bktide
 complete -F _bktide bin/bktide
+

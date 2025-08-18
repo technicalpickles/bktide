@@ -168,3 +168,4 @@ complete -c bin/bktide -n "__fish_seen_subcommand_from annotations" -l context -
 complete -c bin/bktide -n "__fish_seen_subcommand_from completions" -a "fish bash zsh" -d "Shell type"
 
 complete -c bin/bktide -n "__fish_seen_subcommand_from boom" -l type -d "Type of error to throw" -xa "basic api object"
+

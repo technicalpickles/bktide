@@ -292,3 +292,4 @@ To improve completions:
 - [Fish Completion Documentation](https://fishshell.com/docs/current/completions.html)
 - [Bash Completion Tutorial](https://iridakos.com/programming/2018/03/01/bash-programmable-completion-tutorial)
 - [Zsh Completion System](https://zsh.sourceforge.io/Doc/Release/Completion-System.html)
+

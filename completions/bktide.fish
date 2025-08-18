@@ -104,3 +104,4 @@ complete -c bin/bktide -n "__fish_seen_subcommand_from token" -l reset -d "Delet
 complete -c bin/bktide -n "__fish_seen_subcommand_from annotations" -l context -d "Filter annotations by context" -x
 
 complete -c bin/bktide -n "__fish_seen_subcommand_from boom" -l type -d "Type of error to throw" -xa "basic api object"
+
