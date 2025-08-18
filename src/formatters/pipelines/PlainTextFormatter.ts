@@ -163,14 +163,32 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
     }
     
     // Add pagination hints
-    if (options?.truncated) {
+    if (options?.truncated || options?.hasMoreAvailable) {
       const currentCount = pipelines.length;
-      const nextCount = Math.min(currentCount * 2, 500);
-      hints.push(`Use --count ${nextCount} to see more`);
-    } else if (pipelines.length >= 50) {
-      // Large result set, suggest increasing count
-      const nextCount = Math.min(pipelines.length * 2, 500);
-      hints.push(`Use --count ${nextCount} to limit the number of results`);
+      const requestedLimit = options?.requestedLimit || currentCount;
+      
+      // Only show pagination hints if we actually hit the limit
+      // (not if we got fewer results than requested)
+      if (currentCount >= requestedLimit) {
+        // Calculate reasonable next count suggestion
+        let nextCount: number;
+        if (requestedLimit < 100) {
+          nextCount = Math.min(requestedLimit * 2, 100);  // Double up to 100
+        } else if (requestedLimit < 500) {
+          nextCount = Math.min(requestedLimit + 100, 500);  // Add 100 up to 500
+        } else {
+          nextCount = requestedLimit + 250;  // Add 250 for larger requests
+        }
+        
+        // Show current limit if we're limiting results
+        if (options?.hasMoreAvailable) {
+          hints.push(`Showing first ${currentCount} pipelines`);
+          hints.push(`Use --count ${nextCount} to see more`);
+        } else if (options?.truncated) {
+          hints.push(`Results limited to ${currentCount} pipelines`);
+          hints.push(`Use --count ${nextCount} to see more`);
+        }
+      }
     }
     
     // Display hints if any
