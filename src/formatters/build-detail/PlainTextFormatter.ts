@@ -169,7 +169,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       lines.push(this.formatAnnotationSummary(build.annotations.edges));
       
       if (!options?.annotations) {
-        lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide build ${build.number} --annotations  # view annotations`));
+        lines.push(SEMANTIC_COLORS.dim(`Use --annotations to view annotation details`));
       }
     }
     
@@ -216,10 +216,10 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     // Hints for more info (no Tips label)
     if (!options?.failed && failedJobs.length > 0) {
       lines.push('');
-      lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide build ${build.number} --failed  # show failure details`));
+      lines.push(SEMANTIC_COLORS.dim(`Use --failed to show failure details`));
     }
     if (!options?.annotations && build.annotations?.edges?.length > 0) {
-      lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide build ${build.number} --annotations  # view annotations`));
+      lines.push(SEMANTIC_COLORS.dim(`Use --annotations to view annotation details`));
     }
     
     return lines.join('\n');
@@ -558,7 +558,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       const remaining = jobGroups.length - displayGroups.length;
       if (remaining > 0) {
         lines.push(`   ${SEMANTIC_COLORS.muted(`...and ${remaining} more job types`)}`);
-        lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide build <ref> --all-jobs  # show all jobs`));
+        lines.push(`   ${SEMANTIC_COLORS.dim(`Use --all-jobs to show all jobs`)}`);
       }
     }
     

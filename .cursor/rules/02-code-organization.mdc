@@ -198,6 +198,54 @@ Run test scripts with: `node test-script.js`
 - **Interfaces**: PascalCase with 'I' prefix optional
 - **Types**: PascalCase
 
+## UI Formatting Patterns
+
+### Tip Formatting Guidelines
+When displaying hints, tips, or suggestions to users, follow these consistent patterns:
+
+#### Preferred Style - Individual Flag Mentions
+```typescript
+// ✅ CORRECT - Mention the flag/option directly
+lines.push(SEMANTIC_COLORS.dim(`Use --org <name> to filter to a specific organization`));
+lines.push(SEMANTIC_COLORS.dim(`Use --filter <text> to search by name`));
+lines.push(SEMANTIC_COLORS.dim(`Use --count ${nextCount} to see more`));
+lines.push(SEMANTIC_COLORS.dim(`Use --annotations to view annotation details`));
+
+// ❌ AVOID - Full command with comment (less flexible)
+lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide builds --org <name>  # filter to specific org`));
+```
+
+#### Contextual Tips
+- Display tips AFTER showing data, not before
+- Only show relevant tips based on the current context
+- Group related tips together when showing 3+ tips
+- Use individual lines for 1-2 tips
+
+#### Styling
+- Always use `SEMANTIC_COLORS.dim()` for de-emphasized tip text
+- Don't use special labels like "Tips:" or "💡 Tips:"
+- Keep tips concise and actionable
+
+#### Examples in Formatters
+```typescript
+// In builds formatter
+if (options?.organizationsCount > 1 && !options.orgSpecified) {
+  lines.push('');
+  lines.push(SEMANTIC_COLORS.dim(`Searched across ${options.organizationsCount} organizations`));
+  lines.push(SEMANTIC_COLORS.dim(`Use --org <name> to filter to a specific organization`));
+}
+
+// In build detail formatter
+if (!options?.annotations && hasAnnotations) {
+  lines.push(SEMANTIC_COLORS.dim(`Use --annotations to view annotation details`));
+}
+
+// In pipelines formatter
+if (pipelines.length > 20) {
+  hints.push(SEMANTIC_COLORS.dim(`Use --filter <text> to search by name or description`));
+}
+```
+
 ## Export Patterns
 ```typescript
 // Always maintain src/commands/index.ts exports

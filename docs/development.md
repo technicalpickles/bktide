@@ -15,6 +15,32 @@ npm run dev:sourcemap -- <command> [options]
 npm run dev:compiled -- <command> [options]
 ```
 
+## UI Guidelines
+
+### Tip and Hint Formatting
+
+When displaying tips or hints to users, follow these consistent patterns:
+
+**Preferred Style:**
+```typescript
+// Mention the flag/option directly
+lines.push(SEMANTIC_COLORS.dim(`Use --org <name> to filter to a specific organization`));
+lines.push(SEMANTIC_COLORS.dim(`Use --filter <text> to search by name`));
+```
+
+**Avoid:**
+```typescript
+// Don't use full commands with comments
+lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide builds --org <name>  # filter to specific org`));
+```
+
+**Guidelines:**
+- Display tips AFTER showing data, not before
+- Use `SEMANTIC_COLORS.dim()` for de-emphasized text
+- Don't use special labels like "Tips:" or "💡 Tips:"
+- Keep tips concise and actionable
+- Only show contextually relevant tips
+
 ## Error Handling Improvements
 
 For better error handling and stack traces:

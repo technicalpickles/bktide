@@ -6,6 +6,7 @@
  */
 import chalk from 'chalk';
 import { getSymbols } from './symbols.js';
+import { terminalLink } from '../utils/terminal-links.js';
 
 function isTTY(): boolean {
   return Boolean(process.stdout.isTTY);
@@ -38,7 +39,7 @@ export const SEMANTIC_COLORS = {
   // Data type highlighting
   identifier: (s: string) => colorEnabled() ? chalk.cyan(s) : s,
   count: (s: string) => colorEnabled() ? chalk.magenta(s) : s,
-  url: (s: string) => colorEnabled() ? chalk.underline.cyan(s) : `<${s}>`,
+  url: (s: string, label?: string) => terminalLink(s, label),
   
   // De-emphasis (auxiliary information)
   dim: (s: string) => colorEnabled() ? chalk.dim(s) : s,
