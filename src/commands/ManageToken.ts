@@ -38,9 +38,11 @@ export class ManageToken extends BaseCommand {
         const { success, errors } = await this.storeToken();
         if (success) {
           // Add next-steps hints after successful token storage (no redundant success message)
-          this.reporter.tip('Verify access with: bktide token --check');
-          this.reporter.tip('Explore your organizations: bktide orgs');
-          this.reporter.tip('List pipelines: bktide pipelines');
+          this.reporter.tips([
+            'Verify access with: bktide token --check',
+            'Explore your organizations: bktide orgs',
+            'List pipelines: bktide pipelines'
+          ]);
           return 0;
         } else {
           const formattedErrors = this.formatter.formatAuthErrors('storing', errors);

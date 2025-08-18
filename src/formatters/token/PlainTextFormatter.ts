@@ -1,6 +1,6 @@
 import { BaseTokenFormatter, TokenFormatter } from './Formatter.js';
 import { TokenStatus, TokenValidationStatus } from '../../types/credentials.js';
-import { SEMANTIC_COLORS, formatError as themeFormatError } from '../../ui/theme.js';
+import { SEMANTIC_COLORS, formatError as themeFormatError, formatTips, TipStyle } from '../../ui/theme.js';
     
 /**
  * Plain text formatter for tokens
@@ -71,9 +71,11 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
     } else {
       // Help for users without a token
       lines.push('');
-      lines.push(SEMANTIC_COLORS.dim('To configure a token:'));
-      lines.push(SEMANTIC_COLORS.dim('  → Run: bktide token --store'));
-      lines.push(SEMANTIC_COLORS.dim('  → Or set: BUILDKITE_API_TOKEN environment variable'));
+      const actionTips = [
+        'Run: bktide token --store',
+        'Or set: BUILDKITE_API_TOKEN environment variable'
+      ];
+      lines.push(formatTips(actionTips, TipStyle.ACTIONS));
     }
     
     return lines.join('\n');

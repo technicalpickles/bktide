@@ -204,16 +204,24 @@ export class ListBuilds extends BaseCommand {
       
       // Add contextual next-steps hints AFTER showing the data
       if (allBuilds.length > 0) {
+        const tips: string[] = [];
         const buildCount = parseInt(perPage, 10);
+        
         if (allBuilds.length === buildCount) {
-          reporter.tip(`Use --count ${buildCount * 2} to see more builds`);
+          tips.push(`Use --count ${buildCount * 2} to see more builds`);
         }
         
         // If filtering is not active, suggest filtering options
         if (!options.state && !options.branch && !options.pipeline) {
-          reporter.tip('Filter by state: --state failed');
-          reporter.tip('Filter by branch: --branch main');
-          reporter.tip('Filter by pipeline: --pipeline <name>');
+          tips.push('Filter by state: --state failed');
+          tips.push('Filter by branch: --branch main');
+          tips.push('Filter by pipeline: --pipeline <name>');
+        }
+        
+        // Display all tips at once
+        if (tips.length > 0) {
+          // Use individual style for consistency with current output
+          tips.forEach(tip => reporter.tip(tip));
         }
       }
       

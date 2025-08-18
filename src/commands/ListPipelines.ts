@@ -1,5 +1,6 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { getPipelineFormatter } from '../formatters/index.js';
+import { PipelineFormatterOptions } from '../formatters/pipelines/Formatter.js';
 import Fuse from 'fuse.js';
 import { Pipeline } from '../types/index.js';
 import { logger } from '../services/logger.js';
@@ -47,6 +48,7 @@ export class ListPipelines extends BaseCommand {
   
   private async listPipelines(organizations: string[], options: PipelineOptions): Promise<void> {
     let allPipelines: Pipeline[] = [];
+    let totalBeforeFilter = 0;
     
     // Use progress bar for multiple orgs, spinner for single org
     const format = options.format || 'plain';
@@ -165,11 +167,17 @@ export class ListPipelines extends BaseCommand {
       orgProgress.complete(`Loaded ${allPipelines.length} pipelines from ${organizations.length} organizations`);
     }
     
+    // Track if results will be truncated
+    const truncated = options.count ? allPipelines.length > parseInt(options.count, 10) : false;
+    
     // Apply limit if specified
     if (options.count) {
       const limit = parseInt(options.count, 10);
       allPipelines = allPipelines.slice(0, limit);
     }
+    
+    // Track total before filter for context
+    totalBeforeFilter = allPipelines.length;
     
     if (options.filter && allPipelines.length > 0) {
       if (options.debug) {
@@ -191,8 +199,19 @@ export class ListPipelines extends BaseCommand {
       }
     }
     
+    // Prepare formatter options with context
+    const formatterOptions: PipelineFormatterOptions = {
+      debug: options.debug,
+      filterActive: !!options.filter,
+      filterText: options.filter,
+      truncated: truncated,
+      totalBeforeFilter: totalBeforeFilter,
+      organizationsCount: organizations.length,
+      orgSpecified: !!options.org
+    };
+    
     const formatter = getPipelineFormatter(format);
-    const output = formatter.formatPipelines(allPipelines, organizations);
+    const output = formatter.formatPipelines(allPipelines, organizations, formatterOptions);
     
     logger.console(output);
   }

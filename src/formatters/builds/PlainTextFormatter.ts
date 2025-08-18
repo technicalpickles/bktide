@@ -6,7 +6,9 @@ import {
   SEMANTIC_COLORS, 
   formatBuildStatus,
   formatEmptyState,
-  formatError
+  formatError,
+  formatTips,
+  TipStyle
 } from '../../ui/theme.js';
 
 export class PlainTextFormatter extends BaseFormatter {
@@ -92,9 +94,11 @@ export class PlainTextFormatter extends BaseFormatter {
     lines.push('');
     lines.push(SEMANTIC_COLORS.dim(`Found ${SEMANTIC_COLORS.count(builds.length.toString())} builds`));
     
-    // Only add org count info if searching multiple orgs
+    // Add contextual hints if searching multiple orgs
     if (options?.organizationsCount && options.organizationsCount > 1 && !options.orgSpecified) {
-      lines.push(SEMANTIC_COLORS.dim(`Searched across ${options.organizationsCount} organizations. Use --org to filter to a specific organization.`));
+      const hints = [`Searched across ${options.organizationsCount} organizations. Use --org to filter to a specific organization.`];
+      lines.push('');
+      lines.push(formatTips(hints, TipStyle.INDIVIDUAL));
     }
     
     return lines.join('\n');

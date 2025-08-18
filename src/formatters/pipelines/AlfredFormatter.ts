@@ -1,11 +1,10 @@
-import { FormatterOptions } from '../BaseFormatter.js';
-import { BaseFormatter } from './Formatter.js';
+import { BaseFormatter, PipelineFormatterOptions } from './Formatter.js';
 import { Pipeline } from '../../types/index.js';
 
 export class AlfredFormatter extends BaseFormatter {
   name = 'alfred';
   
-  formatPipelines(pipelines: Pipeline[], _organizations: string[], _options?: FormatterOptions): string {
+  formatPipelines(pipelines: Pipeline[], _organizations: string[], _options?: PipelineFormatterOptions): string {
     // Format pipelines as Alfred-compatible JSON items
     const alfredItems = pipelines.map((pipeline: Pipeline) => {
       // Generate web URL for the pipeline (if not already present)

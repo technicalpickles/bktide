@@ -1,4 +1,4 @@
-import { COLORS, SYMBOLS, shouldDecorate, SEMANTIC_COLORS } from './theme.js';
+import { COLORS, SYMBOLS, shouldDecorate, formatTips, TipStyle } from './theme.js';
 import { termWidth, calculateColumnWidths, formatTableRow } from './width.js';
 
 function isMachine(format?: string): boolean {
@@ -40,8 +40,18 @@ export class Reporter {
   tip(message: string): void {
     // Tips have their own suppression logic
     if (!this.shouldShowTips()) return;
-    // Use dim for tips to make them clearly auxiliary
-    this.writeStdout(this.decorateTip(`→ ${message}`));
+    // Use individual style for single tips from reporter
+    const formatted = formatTips([message], TipStyle.INDIVIDUAL);
+    this.writeStdout(formatted);
+  }
+  
+  /**
+   * Display multiple tips in a grouped format
+   */
+  tips(messages: string[], style?: TipStyle): void {
+    if (!this.shouldShowTips()) return;
+    const formatted = formatTips(messages, style || TipStyle.GROUPED);
+    this.writeStdout(formatted);
   }
 
   warn(message: string): void {
@@ -95,10 +105,6 @@ export class Reporter {
 
   private decorate(fn: (s: string) => string, s: string): string {
     return shouldDecorate(this.format) ? fn(s) : s;
-  }
-  
-  private decorateTip(s: string): string {
-    return shouldDecorate(this.format) ? SEMANTIC_COLORS.tip(s) : s;
   }
 
   private writeStdout(s: string): void {

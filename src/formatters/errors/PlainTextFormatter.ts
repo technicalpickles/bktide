@@ -1,5 +1,5 @@
 import { BaseErrorFormatter, ErrorFormatter, ErrorFormatterOptions } from './Formatter.js';
-import { COLORS, SYMBOLS } from '../../ui/theme.js';
+import { COLORS, SYMBOLS, formatTips, TipStyle } from '../../ui/theme.js';
 import { wrapText, termWidth } from '../../ui/width.js';
 
 /**
@@ -79,13 +79,11 @@ export class PlainTextFormatter extends BaseErrorFormatter implements ErrorForma
       }
       
       // Hints section - context-aware suggestions
-      sections.push('');
-      sections.push(COLORS.info(`${SYMBOLS.info} HINT    Try these suggestions:`));
-      
       const hints = this.getContextualHints(error, errorMessage);
-      hints.forEach(hint => {
-        sections.push(`         ${SYMBOLS.bullet} ${hint}`);
-      });
+      if (hints.length > 0) {
+        sections.push('');
+        sections.push(formatTips(hints, TipStyle.FIXES));
+      }
     }
     
     return sections.join('\n');

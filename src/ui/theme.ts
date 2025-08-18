@@ -145,6 +145,75 @@ export function formatBuildStatus(
 }
 
 /**
+ * Tip display styles for different contexts
+ */
+export enum TipStyle {
+  GROUPED = 'grouped',      // Tips: with arrows
+  INDIVIDUAL = 'individual', // → Individual arrows
+  ACTIONS = 'actions',      // Next steps: with arrows
+  FIXES = 'fixes',          // To fix this: numbered
+  BOX = 'box'              // Fancy box with arrows (wide terminals)
+}
+
+/**
+ * Format tips with consistent styling based on context
+ */
+export function formatTips(
+  tips: string[], 
+  style: TipStyle = TipStyle.GROUPED
+): string {
+  if (tips.length === 0) return '';
+  
+  switch (style) {
+    case TipStyle.GROUPED:
+      return formatGroupedTips(tips);
+    case TipStyle.INDIVIDUAL:
+      return formatIndividualTips(tips);
+    case TipStyle.ACTIONS:
+      return formatActionTips(tips);
+    case TipStyle.FIXES:
+      return formatFixTips(tips);
+    case TipStyle.BOX:
+      return formatTipBox(tips); // Use existing function
+    default:
+      return formatGroupedTips(tips);
+  }
+}
+
+function formatGroupedTips(tips: string[]): string {
+  const lines: string[] = [];
+  lines.push(SEMANTIC_COLORS.dim('Tips:'));
+  tips.forEach(tip => {
+    lines.push(SEMANTIC_COLORS.dim(`  → ${tip}`));
+  });
+  return lines.join('\n');
+}
+
+function formatIndividualTips(tips: string[]): string {
+  return tips
+    .map(tip => SEMANTIC_COLORS.dim(`→ ${tip}`))
+    .join('\n');
+}
+
+function formatActionTips(tips: string[]): string {
+  const lines: string[] = [];
+  lines.push(SEMANTIC_COLORS.dim('Next steps:'));
+  tips.forEach(tip => {
+    lines.push(SEMANTIC_COLORS.dim(`  → ${tip}`));
+  });
+  return lines.join('\n');
+}
+
+function formatFixTips(tips: string[]): string {
+  const lines: string[] = [];
+  lines.push(SEMANTIC_COLORS.subheading('To fix this:'));
+  tips.forEach((tip, i) => {
+    lines.push(`  ${i + 1}. ${tip}`);
+  });
+  return lines.join('\n');
+}
+
+/**
  * Create a formatted tip box for better visual separation
  * Only used in wide terminals
  */
@@ -153,7 +222,7 @@ export function formatTipBox(tips: string[], width?: number): string {
   
   // Only use fancy box in wide terminals
   if (termWidth < 80 || !colorEnabled()) {
-    return tips.map(t => SEMANTIC_COLORS.tip(`💡 ${t}`)).join('\n');
+    return formatGroupedTips(tips);
   }
   
   const lines: string[] = [];
@@ -162,7 +231,7 @@ export function formatTipBox(tips: string[], width?: number): string {
   
   lines.push(SEMANTIC_COLORS.dim(`┌─ Tips ${border}`));
   tips.forEach(tip => {
-    lines.push(SEMANTIC_COLORS.dim(`│ • ${tip}`));
+    lines.push(SEMANTIC_COLORS.dim(`│ → ${tip}`));
   });
   lines.push(SEMANTIC_COLORS.dim(`└${'─'.repeat(boxWidth - 1)}`));
   
@@ -194,10 +263,7 @@ export function formatError(
   // Suggestions if provided
   if (options?.suggestions && options.suggestions.length > 0) {
     lines.push('');
-    lines.push(SEMANTIC_COLORS.subheading('To fix this:'));
-    options.suggestions.forEach((suggestion, i) => {
-      lines.push(`  ${i + 1}. ${suggestion}`);
-    });
+    lines.push(formatTips(options.suggestions, TipStyle.FIXES));
   }
   
   // Help command

@@ -1,16 +1,16 @@
-import { FormatterOptions, AbstractFormatter } from '../BaseFormatter.js';
-import { PipelineFormatter } from './Formatter.js';
+import { AbstractFormatter } from '../BaseFormatter.js';
+import { PipelineFormatter, PipelineFormatterOptions } from './Formatter.js';
 import { Pipeline } from '../../types/index.js';
 import { renderTable } from '../../ui/table.js';
 import { renderResponsiveTable, isNarrowTerminal, isMobileTerminal } from '../../ui/responsive-table.js';
-import { SEMANTIC_COLORS, formatEmptyState } from '../../ui/theme.js';
+import { SEMANTIC_COLORS, formatEmptyState, formatTips, TipStyle } from '../../ui/theme.js';
 
 export class PlainTextFormatter extends AbstractFormatter implements PipelineFormatter {
   constructor() {
     super('plain-text');
   }
 
-  formatPipelines(pipelines: Pipeline[], organizations: string[], options?: FormatterOptions): string {
+  formatPipelines(pipelines: Pipeline[], organizations: string[], options?: PipelineFormatterOptions): string {
     // If no organizations are found, handle that case
     if (organizations.length === 0) {
       return formatEmptyState(
@@ -22,18 +22,37 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
     return this.format(pipelines, this.formatPipelinesImpl.bind(this, organizations), options);
   }
 
-  private formatPipelinesImpl(organizations: string[], pipelines: Pipeline[], _options?: FormatterOptions): string {
+  private formatPipelinesImpl(organizations: string[], pipelines: Pipeline[], options?: PipelineFormatterOptions): string {
     const output: string[] = [];
     
     if (pipelines.length === 0) {
-      const message = organizations.length === 1
-        ? `No pipelines found in organization ${SEMANTIC_COLORS.label(organizations[0])}`
-        : `No pipelines found across ${organizations.length} organizations`;
+      // Build context-aware empty state message
+      let message: string;
+      const suggestions: string[] = [];
       
-      return formatEmptyState(message, [
-        'Check the organization name is correct',
-        'Verify you have access to pipelines in this organization'
-      ]);
+      if (options?.filterActive && options?.filterText) {
+        // Filter returned no results
+        message = `No pipelines match filter '${SEMANTIC_COLORS.label(options.filterText)}'`;
+        suggestions.push('Try a broader search term');
+        suggestions.push('The filter searches pipeline names, slugs, and descriptions');
+        suggestions.push('Remove the filter to see all pipelines');
+      } else if (organizations.length === 1) {
+        // Specific organization has no pipelines
+        message = `No pipelines found in organization ${SEMANTIC_COLORS.label(organizations[0])}`;
+        suggestions.push('Check the organization name is correct');
+        suggestions.push('Verify you have access to pipelines in this organization');
+        suggestions.push('Run "bktide orgs" to see available organizations');
+      } else {
+        // No pipelines across all organizations
+        message = `No pipelines found across ${organizations.length === 0 ? 'any accessible' : organizations.length.toString()} organizations`;
+        suggestions.push('Check your API token has the correct permissions');
+        suggestions.push('Run "bktide token --check" to verify your access');
+        if (organizations.length > 0) {
+          suggestions.push('Some organizations may not have any pipelines configured');
+        }
+      }
+      
+      return formatEmptyState(message, suggestions);
     }
 
     // Build table rows
@@ -49,7 +68,7 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
       items.forEach((item, i) => {
         if (i > 0) output.push(''); // Separator between items
         output.push(SEMANTIC_COLORS.heading(item.name));
-        output.push(`  ${SEMANTIC_COLORS.label('Slug:')} ${item.slug}`);
+        output.push(`  ${SEMANTIC_COLORS.label('Slug:')} ${SEMANTIC_COLORS.dim(item.slug)}`);
         if (organizations.length > 1) {
           output.push(`  ${SEMANTIC_COLORS.label('Org:')} ${item.org}`);
         }
@@ -61,7 +80,7 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
         const dataRows: string[][] = pipelines.map((p: Pipeline) => [
           p.organization || SEMANTIC_COLORS.muted('-'),
           p.name || SEMANTIC_COLORS.muted('-'),
-          p.slug || SEMANTIC_COLORS.muted('-')
+          p.slug ? SEMANTIC_COLORS.dim(p.slug) : SEMANTIC_COLORS.muted('-')
         ]);
         
         const columns = [
@@ -75,7 +94,7 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
         const headers = ['NAME', 'SLUG'].map(h => SEMANTIC_COLORS.heading(h));
         const dataRows: string[][] = pipelines.map((p: Pipeline) => [
           p.name || SEMANTIC_COLORS.muted('-'),
-          p.slug || SEMANTIC_COLORS.muted('-')
+          p.slug ? SEMANTIC_COLORS.dim(p.slug) : SEMANTIC_COLORS.muted('-')
         ]);
         
         const columns = [
@@ -95,7 +114,7 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
           rows.push([
             p.organization || SEMANTIC_COLORS.muted('-'),
             p.name || SEMANTIC_COLORS.muted('-'),
-            p.slug || SEMANTIC_COLORS.muted('-')
+            p.slug ? SEMANTIC_COLORS.dim(p.slug) : SEMANTIC_COLORS.muted('-')
           ]);
         });
       } else {
@@ -104,7 +123,7 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
         pipelines.forEach((p: Pipeline) => {
           rows.push([
             p.name || SEMANTIC_COLORS.muted('-'),
-            p.slug || SEMANTIC_COLORS.muted('-')
+            p.slug ? SEMANTIC_COLORS.dim(p.slug) : SEMANTIC_COLORS.muted('-')
           ]);
         });
       }
@@ -121,7 +140,44 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
       output.push(SEMANTIC_COLORS.dim(
         `${SEMANTIC_COLORS.count(pipelines.length.toString())} pipelines across ${organizations.length} organizations`
       ));
-      output.push(SEMANTIC_COLORS.dim('Use --org to filter to a specific organization'));
+    }
+    
+    // Add contextual hints based on results
+    const hints: string[] = [];
+    
+    // Add filter hints
+    if (options?.filterActive && options?.filterText) {
+      output.push(SEMANTIC_COLORS.dim(`Showing pipelines matching '${options.filterText}'`));
+      hints.push('Remove --filter to see all pipelines');
+    } else if (pipelines.length > 20) {
+      // Many pipelines - suggest filtering
+      hints.push('Use --filter <text> to search by name or description');
+    }
+    
+    // Add organization hints
+    if (organizations.length > 1 && !options?.orgSpecified) {
+      hints.push('Use --org <name> to focus on a specific organization');
+      if (pipelines.length > 10) {
+        hints.push('Pipeline slugs are unique within each organization');
+      }
+    }
+    
+    // Add pagination hints
+    if (options?.truncated) {
+      const currentCount = pipelines.length;
+      const nextCount = Math.min(currentCount * 2, 500);
+      hints.push(`Results limited to ${currentCount} pipelines`);
+      hints.push(`Use --count ${nextCount} to see more`);
+    } else if (pipelines.length >= 50) {
+      // Large result set, suggest increasing count
+      const nextCount = Math.min(pipelines.length * 2, 500);
+      hints.push(`Use --count ${nextCount} to see more pipelines`);
+    }
+    
+    // Display hints if any
+    if (hints.length > 0) {
+      output.push('');
+      output.push(formatTips(hints, TipStyle.GROUPED));
     }
     
     return output.join('\n');
