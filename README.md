@@ -126,6 +126,53 @@ bktide token --check   # See if a token is stored
 bktide token --reset   # Remove stored token
 ```
 
+## Visual Features
+
+The CLI provides a modern visual experience with color-coded information and clear hierarchy:
+
+### Color-Coded Build Status
+Build statuses are displayed with intuitive colors for quick scanning:
+- **Blue** (✓) - Passed builds
+- **Orange** (✖) - Failed builds  
+- **Cyan** (↻) - Running builds
+- **Yellow** (⚠) - Blocked/warning states
+- **Gray** (−) - Skipped/inactive states
+
+### Visual Hierarchy
+- **Bold + underlined headers** for table columns
+- **Cyan highlighting** for identifiers (#1234, IDs)
+- **Magenta** for numeric counts
+- **Dimmed text** for auxiliary information and tips
+- **Arrow indicators** (→) for actionable tips
+
+### Accessibility
+- **Colorblind-safe palette** - Uses blue/orange instead of green/red
+- **NO_COLOR support** - Set `NO_COLOR=1` for no colors
+- **ASCII mode** - Use `BKTIDE_ASCII=1` for screen reader compatibility
+- **Symbols with text fallbacks** - Information never relies solely on color
+
+### Smart Empty States
+When no results are found, helpful suggestions guide you:
+```
+No builds found
+
+Try specifying an organization with --org <name>
+Use --count to increase the number of results
+```
+
+### Enhanced Error Messages
+Errors provide clear context and actionable solutions:
+```
+✖ Error: Authentication Failed
+
+The provided token is invalid or expired.
+
+To fix this:
+  1. Get a new token from Buildkite
+  2. Run: bktide token --store
+  3. Try your command again
+```
+
 ## Global Options
 
 These flags work with all commands:
@@ -145,10 +192,11 @@ These flags work with all commands:
 
 ### Output Behavior
 
-- Plain format (default): human-friendly output with small success confirmations (✓ …) and aligned tables. Progress indicators (spinners for indeterminate operations, progress bars for operations with known totals) show during long operations only in interactive TTYs and are cleared on completion (no residual lines). 
+- Plain format (default): human-friendly output with color-coded statuses, bold headers, and visual hierarchy. Progress indicators (spinners for indeterminate operations, progress bars for operations with known totals) show during long operations only in interactive TTYs and are cleared on completion (no residual lines). Tips appear dimmed with arrow indicators (→) at the end of output.
 - JSON/Alfred formats: strictly machine-readable; no extra lines, no colors, no spinners or confirmations.
 - Streams: results go to stdout; errors go through the error formatter. When using `--format json|alfred`, only the formatted payload is printed.
-- Colors: by default `--color auto` enables color in TTYs. Use `--color never` or `NO_COLOR=1` to disable. Use `--color always` to force color in plain output.
+- Colors: by default `--color auto` enables color in TTYs with semantic coloring (blue for success, orange for errors, etc.). Use `--color never` or `NO_COLOR=1` to disable. Use `--color always` to force color in plain output.
+- Accessibility: Full functionality without colors - symbols provide visual cues (✓, ✖, ⚠, →) with ASCII fallbacks when `BKTIDE_ASCII=1` is set.
 
 # Logging System
 
