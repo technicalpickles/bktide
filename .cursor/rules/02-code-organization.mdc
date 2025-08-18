@@ -111,6 +111,18 @@ export function parseMyInput(input: string): ParsedResult {
 ```
 
 ## Import Conventions
+
+### ES Module Requirements
+**CRITICAL**: This project uses ES modules (`"type": "module"` in package.json)
+- **ALWAYS use** ES module syntax (`import`/`export`)
+- **NEVER use** CommonJS syntax (`require`/`module.exports`)
+- This applies to ALL JavaScript and TypeScript files:
+  - Source files (`.ts`, `.js`)
+  - Test scripts (`.js`)
+  - Build scripts
+  - Any temporary test files
+
+### Import Rules
 - Use `.js` extension in imports (even for .ts files)
 - Use relative imports within the same module
 - Group imports: external → services → types → utils → local
@@ -132,6 +144,51 @@ import { parseBuildRef } from '../utils/parseBuildRef.js';
 // Local
 import { BaseCommand } from './BaseCommand.js';
 ```
+
+### Common ES Module Patterns
+
+#### ✅ CORRECT - ES Module Syntax
+```javascript
+// Imports
+import { parseBuildRef } from './dist/utils/parseBuildRef.js';
+import chalk from 'chalk';
+import { BuildkiteClient } from './dist/services/BuildkiteClient.js';
+
+// Exports
+export default myFunction;
+export { myFunction, myVariable };
+```
+
+#### ❌ WRONG - CommonJS Syntax (Will Cause Errors)
+```javascript
+// These will fail with "require is not defined in ES module scope"
+const { parseBuildRef } = require('./dist/utils/parseBuildRef.js');
+const chalk = require('chalk');
+
+module.exports = myFunction;
+module.exports = { myFunction, myVariable };
+```
+
+### Creating Test Scripts
+When creating JavaScript test files, always use ES module syntax:
+
+```javascript
+#!/usr/bin/env node
+
+// Use ES module imports
+import { someFunction } from './dist/path/to/module.js';
+
+// Test code
+async function test() {
+  const result = await someFunction('test');
+  console.log(result);
+}
+
+// For async functions, handle properly
+test().catch(console.error);
+```
+
+Run test scripts with: `node test-script.js`
 
 ## Naming Conventions
 - **Files**: PascalCase for classes, camelCase for utilities
