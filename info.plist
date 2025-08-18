@@ -119,7 +119,7 @@
 	<key>createdby</key>
 	<string></string>
 	<key>description</key>
-	<string></string>
+	<string>Streamline your Buildkite CI/CD workflows directly from Alfred</string>
 	<key>disabled</key>
 	<false/>
 	<key>name</key>
@@ -438,7 +438,16 @@
 		</dict>
 	</array>
 	<key>readme</key>
-	<string></string>
+	<string>Access your Buildkite CI/CD workflows instantly from Alfred. View builds, pipelines, and organizations without leaving your keyboard. 
+
+Features:
+• Quick access to recent builds with status indicators
+• Search and filter pipelines across organizations  
+• View build annotations and details
+• Secure token storage in system keychain
+• Multiple output formats (plain, JSON, Alfred)
+
+Requires Node.js 18+ and a Buildkite API token.</string>
 	<key>uidata</key>
 	<dict>
 		<key>0D03084F-A535-4B27-9590-958ACE71058D</key>

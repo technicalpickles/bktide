@@ -1,6 +1,15 @@
 # bktide
 
-A command-line tool for interacting with Buildkite's GraphQL API.
+Command-line interface for Buildkite CI/CD workflows with rich shell completions (Fish, Bash, Zsh) and Alfred workflow integration for macOS power users.
+
+## Features
+
+- **🚀 Workflow Management**: View and manage builds, pipelines, organizations, and annotations
+- **🔧 Smart Shell Completions**: Context-aware completions for Fish, Bash, and Zsh
+- **🎯 Alfred Integration**: macOS Alfred workflow for quick access to Buildkite data
+- **📊 Multiple Output Formats**: Plain text, JSON, or Alfred-compatible output
+- **🔐 Secure Token Storage**: System keychain integration for API credentials
+- **⚡ Performance**: Built-in caching for faster repeated operations
 
 ## Installation
 

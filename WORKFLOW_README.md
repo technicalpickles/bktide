@@ -1,6 +1,6 @@
 # bktide Alfred Workflow
 
-A powerful Alfred workflow for interacting with Buildkite builds, pipelines, and organizations.
+Streamline your Buildkite CI/CD workflows directly from Alfred. Instantly access builds, pipelines, and organizations without leaving your keyboard.
 
 ## Quick Start
 

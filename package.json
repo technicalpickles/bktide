@@ -34,10 +34,18 @@
   "keywords": [
     "cli",
     "buildkite",
+    "ci-cd",
+    "workflows",
     "shell-completions",
     "fish",
     "bash",
-    "zsh"
+    "zsh",
+    "alfred",
+    "alfred-workflow",
+    "macos",
+    "productivity",
+    "devops",
+    "build-automation"
   ],
   "author": "Josh Nichols <josh@technicalpickles.com>",
   "license": "ISC",
