@@ -8,54 +8,88 @@ import {
   formatBuildStatus
 } from '../../ui/theme.js';
 
-// Buildkite emoji mappings
-const BUILDKITE_EMOJI: Record<string, string> = {
-  // Testing frameworks
-  ':rspec:': '🧪',
-  ':jest:': '🃏',
-  ':eslint:': '📝',
-  ':rubocop:': '👮',
-  ':cypress:': '🌲',
-  ':playwright:': '🎭',
-  
-  // Tools
-  ':docker:': '🐳',
-  ':kubernetes:': '☸️',
-  ':helm:': '⚓',
-  ':terraform:': '🏗️',
-  ':aws:': '☁️',
-  ':github:': '🐙',
-  ':git:': '📦',
-  
-  // Languages
-  ':ruby:': '💎',
-  ':javascript:': '📜',
-  ':typescript:': '📘',
-  ':python:': '🐍',
-  ':go:': '🐹',
-  ':rust:': '🦀',
-  
-  // Status/Actions
-  ':pipeline:': '🔧',
-  ':console:': '💻',
-  ':database:': '🗄️',
-  ':seeds:': '🌱',
-  ':package:': '📦',
-  ':rocket:': '🚀',
-  ':fire:': '🔥',
-  ':warning:': '⚠️',
-  ':error:': '❌',
-  ':success:': '✅',
-  ':info:': 'ℹ️',
-  
-  // Standard emoji pass-through (common ones)
+// Standard emoji mappings only
+// Only map universally recognized emoji codes, not Buildkite-specific ones
+const STANDARD_EMOJI: Record<string, string> = {
+  // Faces & emotions
   ':smile:': '😊',
+  ':grin:': '😁',
+  ':joy:': '😂',
+  ':laughing:': '😆',
+  ':blush:': '😊',
+  ':heart_eyes:': '😍',
+  ':sob:': '😭',
+  ':cry:': '😢',
+  ':angry:': '😠',
+  ':rage:': '😡',
+  ':thinking:': '🤔',
+  ':confused:': '😕',
+  ':neutral_face:': '😐',
+  
+  // Hands & gestures
   ':thumbsup:': '👍',
   ':thumbsdown:': '👎',
-  ':star:': '⭐',
+  ':clap:': '👏',
+  ':wave:': '👋',
+  ':raised_hand:': '✋',
+  ':ok_hand:': '👌',
+  ':pray:': '🙏',
+  ':muscle:': '💪',
+  ':point_left:': '👈',
+  ':point_right:': '👉',
+  ':point_up:': '👆',
+  ':point_down:': '👇',
+  
+  // Objects & symbols
   ':heart:': '❤️',
+  ':broken_heart:': '💔',
+  ':star:': '⭐',
+  ':sparkles:': '✨',
   ':boom:': '💥',
+  ':fire:': '🔥',
   ':zap:': '⚡',
+  ':rocket:': '🚀',
+  ':sun:': '☀️',
+  ':moon:': '🌙',
+  ':cloud:': '☁️',
+  ':umbrella:': '☔',
+  ':snowflake:': '❄️',
+  
+  // Status symbols
+  ':white_check_mark:': '✅',
+  ':x:': '❌',
+  ':warning:': '⚠️',
+  ':exclamation:': '❗',
+  ':question:': '❓',
+  ':heavy_plus_sign:': '➕',
+  ':heavy_minus_sign:': '➖',
+  ':heavy_check_mark:': '✔️',
+  
+  // Common tools/tech (universally recognized)
+  ':computer:': '💻',
+  ':iphone:': '📱',
+  ':email:': '📧',
+  ':package:': '📦',
+  ':lock:': '🔒',
+  ':key:': '🔑',
+  ':mag:': '🔍',
+  ':bulb:': '💡',
+  ':books:': '📚',
+  ':memo:': '📝',
+  ':pencil:': '✏️',
+  ':art:': '🎨',
+  ':camera:': '📷',
+  ':movie_camera:': '🎥',
+  ':musical_note:': '🎵',
+  ':bell:': '🔔',
+  ':link:': '🔗',
+  ':paperclip:': '📎',
+  ':hourglass:': '⏳',
+  ':alarm_clock:': '⏰',
+  ':stopwatch:': '⏱️',
+  ':timer_clock:': '⏲️',
+  ':calendar:': '📅',
+  ':date:': '📅',
 };
 
 export class PlainTextFormatter extends BaseBuildDetailFormatter {
@@ -63,8 +97,9 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   
   private parseEmoji(text: string): string {
     if (!text) return text;
-    return text.replace(/:(\w+):/g, (match) => {
-      return BUILDKITE_EMOJI[match] || match;
+    // Only replace standard emoji codes, leave Buildkite-specific ones as-is
+    return text.replace(/:[\w_]+:/g, (match) => {
+      return STANDARD_EMOJI[match] || match;
     });
   }
   
