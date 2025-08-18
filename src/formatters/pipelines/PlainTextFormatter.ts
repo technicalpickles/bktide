@@ -132,14 +132,34 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
     
     // Summary line (dimmed)
     output.push('');
+    
+    // Check if we're showing a subset (we hit the limit and there might be more)
+    // But NOT when filtering (filtered results are already a subset)
+    const isShowingSubset = !options?.filterActive && (
+      options?.hasMoreAvailable || 
+      (options?.truncated && pipelines.length >= (options?.requestedLimit || 0))
+    );
+    
     if (organizations.length === 1) {
-      output.push(SEMANTIC_COLORS.dim(
-        `${SEMANTIC_COLORS.count(pipelines.length.toString())} pipelines in ${organizations[0]}`
-      ));
+      if (isShowingSubset) {
+        output.push(SEMANTIC_COLORS.dim(
+          `Showing ${SEMANTIC_COLORS.count(pipelines.length.toString())} pipelines from ${organizations[0]}`
+        ));
+      } else {
+        output.push(SEMANTIC_COLORS.dim(
+          `${SEMANTIC_COLORS.count(pipelines.length.toString())} ${pipelines.length === 1 ? 'pipeline' : 'pipelines'} in ${organizations[0]}`
+        ));
+      }
     } else {
-      output.push(SEMANTIC_COLORS.dim(
-        `${SEMANTIC_COLORS.count(pipelines.length.toString())} pipelines across ${organizations.length} organizations`
-      ));
+      if (isShowingSubset) {
+        output.push(SEMANTIC_COLORS.dim(
+          `Showing ${SEMANTIC_COLORS.count(pipelines.length.toString())} pipelines from ${organizations.length} organizations`
+        ));
+      } else {
+        output.push(SEMANTIC_COLORS.dim(
+          `${SEMANTIC_COLORS.count(pipelines.length.toString())} pipelines across ${organizations.length} organizations`
+        ));
+      }
     }
     
     // Add contextual hints based on results
@@ -180,12 +200,8 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
           nextCount = requestedLimit + 250;  // Add 250 for larger requests
         }
         
-        // Show current limit if we're limiting results
-        if (options?.hasMoreAvailable) {
-          hints.push(`Showing first ${currentCount} pipelines`);
-          hints.push(`Use --count ${nextCount} to see more`);
-        } else if (options?.truncated) {
-          hints.push(`Results limited to ${currentCount} pipelines`);
+        // Show pagination hint without duplicating the count
+        if (options?.hasMoreAvailable || options?.truncated) {
           hints.push(`Use --count ${nextCount} to see more`);
         }
       }
