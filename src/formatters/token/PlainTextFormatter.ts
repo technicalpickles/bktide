@@ -1,5 +1,6 @@
 import { BaseTokenFormatter, TokenFormatter } from './Formatter.js';
 import { TokenStatus, TokenValidationStatus } from '../../types/credentials.js';
+import { SEMANTIC_COLORS, formatError as themeFormatError } from '../../ui/theme.js';
     
 /**
  * Plain text formatter for tokens
@@ -15,37 +16,64 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
    */
   formatTokenStatus(status: TokenStatus): string {
     const lines: string[] = [];
-    lines.push(`Token Status: ${status.hasToken ? 'Present' : 'Not Present'}`);
+    
+    // Header with visual emphasis
+    lines.push(SEMANTIC_COLORS.heading('Token Configuration'));
+    lines.push('');
+    
+    // Token presence with semantic coloring - aligned labels
+    if (status.hasToken) {
+      if (status.isValid) {
+        lines.push(`${SEMANTIC_COLORS.label('Status:')}  ${SEMANTIC_COLORS.success('✓ Valid token')}`);
+      } else {
+        lines.push(`${SEMANTIC_COLORS.label('Status:')}  ${SEMANTIC_COLORS.error('✖ Invalid token')}`);
+      }
+    } else {
+      lines.push(`${SEMANTIC_COLORS.label('Status:')}  ${SEMANTIC_COLORS.muted('No token configured')}`);
+    }
     
     if (status.hasToken) {
-      lines.push(`Valid: ${status.isValid ? 'Yes' : 'No'}`);
-      
       if (status.validation.canListOrganizations) {
         const validOrgs = Object.entries(status.validation.organizations)
           .filter(([_, status]) => status.graphql && status.builds && status.organizations)
           .map(([org]) => org);
         
-        if (validOrgs.length > 0) {
-          lines.push('Valid Organizations:');
-          validOrgs.forEach(org => lines.push(`  - ${org}`));
-        }
-
         const invalidOrgs = Object.entries(status.validation.organizations)
           .filter(([_, status]) => !status.graphql || !status.builds || !status.organizations);
         
+        // Display access info with aligned labels
+        if (validOrgs.length > 0 || invalidOrgs.length > 0) {
+          const totalOrgs = validOrgs.length + invalidOrgs.length;
+          const accessLabel = totalOrgs === 1 ? 'Organization' : 'Organizations';
+          lines.push(`${SEMANTIC_COLORS.label('Access:')}  ${SEMANTIC_COLORS.count(totalOrgs.toString())} ${accessLabel.toLowerCase()}`);
+        }
+        
+        if (validOrgs.length > 0) {
+          lines.push('');
+          lines.push(SEMANTIC_COLORS.label('Valid Organizations:'));
+          validOrgs.forEach(org => lines.push(`  ${SEMANTIC_COLORS.success('✓')} ${org}`));
+        }
+
         if (invalidOrgs.length > 0) {
-          lines.push('Organizations with Limited Access:');
+          lines.push('');
+          lines.push(SEMANTIC_COLORS.warning('Limited Access:'));
           invalidOrgs.forEach(([org, status]) => {
             const invalidApis = [];
             if (!status.graphql) invalidApis.push('GraphQL');
             if (!status.builds) invalidApis.push('Builds');
             if (!status.organizations) invalidApis.push('Organizations');
-            lines.push(`  - ${org} (${invalidApis.join(', ')})`);
+            lines.push(`  ${SEMANTIC_COLORS.warning('⚠')} ${org} ${SEMANTIC_COLORS.dim(`(missing: ${invalidApis.join(', ')})`)} `);
           });
         }
       } else {
-        lines.push('Cannot list organizations - token may be invalid');
+        lines.push(`${SEMANTIC_COLORS.label('Access:')}  ${SEMANTIC_COLORS.error('Cannot list organizations')}`);
       }
+    } else {
+      // Help for users without a token
+      lines.push('');
+      lines.push(SEMANTIC_COLORS.dim('To configure a token:'));
+      lines.push(SEMANTIC_COLORS.dim('  → Run: bktide token --store'));
+      lines.push(SEMANTIC_COLORS.dim('  → Or set: BUILDKITE_API_TOKEN environment variable'));
     }
     
     return lines.join('\n');
@@ -59,9 +87,9 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
    */
   formatTokenStorageResult(success: boolean): string {
     if (success) {
-      return 'Token successfully stored in system keychain';
+      return `${SEMANTIC_COLORS.success('✓')} Token stored in system keychain`;
     } else {
-      return 'Failed to store token';
+      return `${SEMANTIC_COLORS.error('✖')} Failed to store token`;
     }
   }
 
@@ -74,13 +102,13 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
    */
   formatTokenResetResult(success: boolean, hadToken: boolean): string {
     if (!hadToken) {
-      return 'No token found in system keychain';
+      return `${SEMANTIC_COLORS.muted('No token found in system keychain')}`;
     }
 
     if (success) {
-      return 'Token successfully deleted from system keychain';
+      return `${SEMANTIC_COLORS.success('✓')} Token removed from system keychain`;
     } else {
-      return 'Failed to delete token';
+      return `${SEMANTIC_COLORS.error('✖')} Failed to delete token`;
     }
   }
 
@@ -164,10 +192,19 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
     error: unknown | unknown[]
   ): string {
     const errors = Array.isArray(error) ? error : [error];
-    return errors.map(error => {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      return `Error ${operation} token: ${errorMessage}`;
-    }).join('\n');
+    const errorMessages = errors.map(err => {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      return errorMessage;
+    });
+    
+    const suggestions = [];
+    if (operation === 'storing' || operation === 'validating') {
+      suggestions.push('Check your Buildkite API token permissions');
+      suggestions.push('Get a new token at: https://buildkite.com/user/api-access-tokens');
+    }
+    
+    const errorText = `Error ${operation} token: ${errorMessages.join(', ')}`;
+    return themeFormatError(errorText, { suggestions });
   }
 
   /**

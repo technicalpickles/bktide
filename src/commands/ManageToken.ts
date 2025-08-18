@@ -37,8 +37,7 @@ export class ManageToken extends BaseCommand {
       if (options.store) {
         const { success, errors } = await this.storeToken();
         if (success) {
-          // Add next-steps hints after successful token storage
-          this.reporter.success('Token stored successfully');
+          // Add next-steps hints after successful token storage (no redundant success message)
           this.reporter.tip('Verify access with: bktide token --check');
           this.reporter.tip('Explore your organizations: bktide orgs');
           this.reporter.tip('List pipelines: bktide pipelines');
@@ -107,7 +106,9 @@ export class ManageToken extends BaseCommand {
       }
       
       // Validate the token using the CredentialManager
-      const validationResult = await BaseCommand.credentialManager.validateToken(tokenToStore);
+      const validationResult = await BaseCommand.credentialManager.validateToken(tokenToStore, {
+        showProgress: true  // Show progress when validating during store
+      });
       
       if (!validationResult.canListOrganizations) {
         throw new Error('Token is invalid or does not have access to list organizations');
@@ -200,7 +201,7 @@ export class ManageToken extends BaseCommand {
       try {
         validation = await BaseCommand.credentialManager.validateToken(token, {
           format: options?.format,
-          showProgress: true
+          showProgress: false  // Don't show progress since we're showing formatted output
         });
         isValid = validation.valid && validation.canListOrganizations;
       } catch (error) {
