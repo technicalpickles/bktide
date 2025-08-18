@@ -19,32 +19,43 @@ npm run dev:compiled -- <command> [options]
 
 ### Tip and Hint Formatting
 
-When displaying tips or hints to users, follow these consistent patterns:
+When displaying tips or hints to users, use the standardized `formatTips` utility:
 
-**Preferred Style:**
+**Correct Usage:**
 ```typescript
-// Use arrow icon with descriptive text
-lines.push(SEMANTIC_COLORS.dim(`→ Use --org <name> to filter to a specific organization`));
-lines.push(SEMANTIC_COLORS.dim(`→ Use --filter <text> to search by name`));
-lines.push(SEMANTIC_COLORS.dim(`→ Filter by state: --state failed`));
+import { formatTips, TipStyle } from '../../ui/theme.js';
+
+// Collect tips as plain strings (no formatting)
+const tips = [
+  'Use --org <name> to filter to a specific organization',
+  'Use --filter <text> to search by name'
+];
+
+// Use formatTips utility which automatically:
+// - Adds "Tips:" header
+// - Adds arrow icons (→) to each tip
+// - Includes "Use --no-tips to hide these hints"
+// - Applies consistent dimmed styling
+if (tips.length > 0) {
+  lines.push('');
+  lines.push(formatTips(tips, TipStyle.GROUPED));
+}
 ```
 
-**Avoid:**
-```typescript
-// Don't use full commands with comments
-lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide builds --org <name>  # filter to specific org`));
-
-// Don't omit the arrow icon
-lines.push(SEMANTIC_COLORS.dim(`Use --org <name> to filter to a specific organization`));
+**Example Output:**
+```
+Tips:
+  → Use --org <name> to filter to a specific organization
+  → Use --filter <text> to search by name
+  → Use --no-tips to hide these hints
 ```
 
 **Guidelines:**
-- Always prefix hints with `→` arrow icon
+- Always use `formatTips()` utility, never format tips manually
 - Display tips AFTER showing data, not before
-- Use `SEMANTIC_COLORS.dim()` for de-emphasized text
-- Don't use special labels like "Tips:" or "💡 Tips:"
 - Keep tips concise and actionable
 - Only show contextually relevant tips
+- The utility automatically includes the turn-off hint
 
 ## Error Handling Improvements
 

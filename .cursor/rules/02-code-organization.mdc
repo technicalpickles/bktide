@@ -201,51 +201,72 @@ Run test scripts with: `node test-script.js`
 ## UI Formatting Patterns
 
 ### Tip Formatting Guidelines
-When displaying hints, tips, or suggestions to users, follow these consistent patterns:
+When displaying hints, tips, or suggestions to users, use the standardized `formatTips` utility:
 
-#### Preferred Style - Arrow Icon with Descriptive Text
+#### Correct Usage Pattern
 ```typescript
-// ✅ CORRECT - Use arrow icon with descriptive text
-lines.push(SEMANTIC_COLORS.dim(`→ Use --org <name> to filter to a specific organization`));
-lines.push(SEMANTIC_COLORS.dim(`→ Use --filter <text> to search by name`));
-lines.push(SEMANTIC_COLORS.dim(`→ Use --count ${nextCount} to see more`));
-lines.push(SEMANTIC_COLORS.dim(`→ Filter by state: --state failed`));
+import { formatTips, TipStyle } from '../../ui/theme.js';
 
-// ❌ AVOID - Full command with comment
-lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide builds --org <name>  # filter to specific org`));
+// ✅ CORRECT - Use formatTips utility
+const tips = [
+  'Use --org <name> to filter to a specific organization',
+  'Use --filter <text> to search by name',
+  'Use --count 20 to see more'
+];
 
-// ❌ AVOID - Missing arrow icon
-lines.push(SEMANTIC_COLORS.dim(`Use --org <name> to filter to a specific organization`));
+if (tips.length > 0) {
+  lines.push('');
+  lines.push(formatTips(tips, TipStyle.GROUPED));
+}
+
+// ❌ AVOID - Manual formatting
+lines.push(SEMANTIC_COLORS.dim(`→ Use --org <name> to filter`));
+lines.push('Tips:');
+lines.push('  → Use --filter <text> to search');
 ```
+
+#### What formatTips Does
+- Adds "Tips:" header automatically
+- Prefixes each tip with arrow icon (→)
+- Includes "Use --no-tips to hide these hints" automatically
+- Applies consistent `SEMANTIC_COLORS.dim()` styling
+- Returns formatted string ready to display
 
 #### Contextual Tips
 - Display tips AFTER showing data, not before
 - Only show relevant tips based on the current context
-- Group related tips together when showing 3+ tips
-- Use individual lines for 1-2 tips
-
-#### Styling
-- Always use `SEMANTIC_COLORS.dim()` for de-emphasized tip text
-- Don't use special labels like "Tips:" or "💡 Tips:"
-- Keep tips concise and actionable
+- Collect all tips first, then call formatTips once
 
 #### Examples in Formatters
 ```typescript
 // In builds formatter
 if (options?.organizationsCount > 1 && !options.orgSpecified) {
+  const tips = ['Use --org <name> to filter to a specific organization'];
   lines.push('');
-  lines.push(SEMANTIC_COLORS.dim(`Searched across ${options.organizationsCount} organizations`));
-  lines.push(SEMANTIC_COLORS.dim(`→ Use --org <name> to filter to a specific organization`));
+  lines.push(formatTips(tips, TipStyle.GROUPED));
 }
 
 // In build detail formatter
+const hints = [];
+if (!options?.failed && failedJobs.length > 0) {
+  hints.push('Use --failed to show failure details');
+}
 if (!options?.annotations && hasAnnotations) {
-  lines.push(SEMANTIC_COLORS.dim(`→ Use --annotations to view annotation details`));
+  hints.push('Use --annotations to view annotation details');
+}
+if (hints.length > 0) {
+  lines.push('');
+  lines.push(formatTips(hints, TipStyle.GROUPED));
 }
 
 // In pipelines formatter
+const hints = [];
 if (pipelines.length > 20) {
-  hints.push(SEMANTIC_COLORS.dim(`→ Use --filter <text> to search by name or description`));
+  hints.push('Use --filter <text> to search by name or description');
+}
+if (hints.length > 0) {
+  output.push('');
+  output.push(formatTips(hints, TipStyle.GROUPED));
 }
 ```
 
