@@ -5,7 +5,9 @@ import {
   formatEmptyState,
   formatError,
   SEMANTIC_COLORS,
-  formatBuildStatus
+  formatBuildStatus,
+  formatTips,
+  TipStyle
 } from '../../ui/theme.js';
 
 // Standard emoji mappings only
@@ -169,7 +171,12 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       lines.push(this.formatAnnotationSummary(build.annotations.edges));
       
       if (!options?.annotations) {
-        lines.push(SEMANTIC_COLORS.dim(`Use --annotations to view annotation details`));
+        lines.push('');
+        const tips = formatTips(
+          ['Use --annotations to view annotation details'],
+          TipStyle.GROUPED
+        );
+        lines.push(tips);
       }
     }
     
@@ -213,13 +220,18 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       lines.push(this.formatAnnotationDetails(build.annotations.edges, options));
     }
     
-    // Hints for more info (no Tips label)
+    // Hints for more info
+    const hints: string[] = [];
     if (!options?.failed && failedJobs.length > 0) {
-      lines.push('');
-      lines.push(SEMANTIC_COLORS.dim(`Use --failed to show failure details`));
+      hints.push('Use --failed to show failure details');
     }
     if (!options?.annotations && build.annotations?.edges?.length > 0) {
-      lines.push(SEMANTIC_COLORS.dim(`Use --annotations to view annotation details`));
+      hints.push('Use --annotations to view annotation details');
+    }
+    
+    if (hints.length > 0) {
+      lines.push('');
+      lines.push(formatTips(hints, TipStyle.GROUPED));
     }
     
     return lines.join('\n');
@@ -558,7 +570,12 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       const remaining = jobGroups.length - displayGroups.length;
       if (remaining > 0) {
         lines.push(`   ${SEMANTIC_COLORS.muted(`...and ${remaining} more job types`)}`);
-        lines.push(`   ${SEMANTIC_COLORS.dim(`Use --all-jobs to show all jobs`)}`);
+        lines.push('');
+        const tips = formatTips(
+          ['Use --all-jobs to show all jobs'],
+          TipStyle.GROUPED
+        );
+        lines.push(tips);
       }
     }
     

@@ -23,18 +23,23 @@ When displaying tips or hints to users, follow these consistent patterns:
 
 **Preferred Style:**
 ```typescript
-// Mention the flag/option directly
-lines.push(SEMANTIC_COLORS.dim(`Use --org <name> to filter to a specific organization`));
-lines.push(SEMANTIC_COLORS.dim(`Use --filter <text> to search by name`));
+// Use arrow icon with descriptive text
+lines.push(SEMANTIC_COLORS.dim(`→ Use --org <name> to filter to a specific organization`));
+lines.push(SEMANTIC_COLORS.dim(`→ Use --filter <text> to search by name`));
+lines.push(SEMANTIC_COLORS.dim(`→ Filter by state: --state failed`));
 ```
 
 **Avoid:**
 ```typescript
 // Don't use full commands with comments
 lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide builds --org <name>  # filter to specific org`));
+
+// Don't omit the arrow icon
+lines.push(SEMANTIC_COLORS.dim(`Use --org <name> to filter to a specific organization`));
 ```
 
 **Guidelines:**
+- Always prefix hints with `→` arrow icon
 - Display tips AFTER showing data, not before
 - Use `SEMANTIC_COLORS.dim()` for de-emphasized text
 - Don't use special labels like "Tips:" or "💡 Tips:"

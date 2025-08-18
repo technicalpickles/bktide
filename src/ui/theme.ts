@@ -161,23 +161,31 @@ export enum TipStyle {
  */
 export function formatTips(
   tips: string[], 
-  style: TipStyle = TipStyle.GROUPED
+  style: TipStyle = TipStyle.GROUPED,
+  includeTurnOff: boolean = true
 ): string {
   if (tips.length === 0) return '';
   
+  // Add the turn-off tip if not already included
+  const allTips = [...tips];
+  const turnOffMessage = 'Use --no-tips to hide these hints';
+  if (includeTurnOff && !tips.some(tip => tip.includes('--no-tips'))) {
+    allTips.push(turnOffMessage);
+  }
+  
   switch (style) {
     case TipStyle.GROUPED:
-      return formatGroupedTips(tips);
+      return formatGroupedTips(allTips);
     case TipStyle.INDIVIDUAL:
-      return formatIndividualTips(tips);
+      return formatIndividualTips(allTips);
     case TipStyle.ACTIONS:
-      return formatActionTips(tips);
+      return formatActionTips(allTips);
     case TipStyle.FIXES:
-      return formatFixTips(tips);
+      return formatFixTips(allTips);
     case TipStyle.BOX:
-      return formatTipBox(tips); // Use existing function
+      return formatTipBox(allTips); // Use existing function
     default:
-      return formatGroupedTips(tips);
+      return formatGroupedTips(allTips);
   }
 }
 

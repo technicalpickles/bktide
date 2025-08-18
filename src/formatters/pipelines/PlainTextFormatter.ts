@@ -3,7 +3,7 @@ import { PipelineFormatter, PipelineFormatterOptions } from './Formatter.js';
 import { Pipeline } from '../../types/index.js';
 import { renderTable } from '../../ui/table.js';
 import { renderResponsiveTable, isNarrowTerminal, isMobileTerminal } from '../../ui/responsive-table.js';
-import { SEMANTIC_COLORS, formatEmptyState } from '../../ui/theme.js';
+import { SEMANTIC_COLORS, formatEmptyState, formatTips, TipStyle } from '../../ui/theme.js';
 
 export class PlainTextFormatter extends AbstractFormatter implements PipelineFormatter {
   constructor() {
@@ -168,15 +168,15 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
     // Add filter hints
     if (options?.filterActive && options?.filterText) {
       output.push(SEMANTIC_COLORS.dim(`Showing pipelines matching '${options.filterText}'`));
-      hints.push(SEMANTIC_COLORS.dim(`Remove --filter to see all pipelines`));
+      hints.push(`Remove --filter to see all pipelines`);
     } else if (pipelines.length > 20) {
       // Many pipelines - suggest filtering
-      hints.push(SEMANTIC_COLORS.dim(`Use --filter <text> to search by name or description`));
+      hints.push(`Use --filter <text> to search by name or description`);
     }
     
     // Add organization hints
     if (organizations.length > 1 && !options?.orgSpecified) {
-      hints.push(SEMANTIC_COLORS.dim(`Use --org <name> to focus on a specific organization`));
+      hints.push(`Use --org <name> to focus on a specific organization`);
     }
     
     // Add pagination hints
@@ -199,7 +199,7 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
         
         // Show pagination hint without duplicating the count
         if (options?.hasMoreAvailable || options?.truncated) {
-          hints.push(SEMANTIC_COLORS.dim(`Use --count ${nextCount} to see more`));
+          hints.push(`Use --count ${nextCount} to see more`);
         }
       }
     }
@@ -207,7 +207,7 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
     // Display hints if any
     if (hints.length > 0) {
       output.push('');
-      hints.forEach(hint => output.push(hint));
+      output.push(formatTips(hints, TipStyle.GROUPED));
     }
     
     return output.join('\n');

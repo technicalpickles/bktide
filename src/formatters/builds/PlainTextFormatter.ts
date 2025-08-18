@@ -6,7 +6,9 @@ import {
   SEMANTIC_COLORS, 
   formatBuildStatus,
   formatEmptyState,
-  formatError
+  formatError,
+  formatTips,
+  TipStyle
 } from '../../ui/theme.js';
 
 export class PlainTextFormatter extends BaseFormatter {
@@ -96,7 +98,12 @@ export class PlainTextFormatter extends BaseFormatter {
     if (options?.organizationsCount && options.organizationsCount > 1 && !options.orgSpecified) {
       lines.push('');
       lines.push(SEMANTIC_COLORS.dim(`Searched across ${options.organizationsCount} organizations`));
-      lines.push(SEMANTIC_COLORS.dim(`Use --org <name> to filter to a specific organization`));
+      lines.push('');
+      const tips = formatTips(
+        ['Use --org <name> to filter to a specific organization'],
+        TipStyle.GROUPED
+      );
+      lines.push(tips);
     }
     
     return lines.join('\n');

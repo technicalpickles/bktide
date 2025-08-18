@@ -203,16 +203,19 @@ Run test scripts with: `node test-script.js`
 ### Tip Formatting Guidelines
 When displaying hints, tips, or suggestions to users, follow these consistent patterns:
 
-#### Preferred Style - Individual Flag Mentions
+#### Preferred Style - Arrow Icon with Descriptive Text
 ```typescript
-// ✅ CORRECT - Mention the flag/option directly
-lines.push(SEMANTIC_COLORS.dim(`Use --org <name> to filter to a specific organization`));
-lines.push(SEMANTIC_COLORS.dim(`Use --filter <text> to search by name`));
-lines.push(SEMANTIC_COLORS.dim(`Use --count ${nextCount} to see more`));
-lines.push(SEMANTIC_COLORS.dim(`Use --annotations to view annotation details`));
+// ✅ CORRECT - Use arrow icon with descriptive text
+lines.push(SEMANTIC_COLORS.dim(`→ Use --org <name> to filter to a specific organization`));
+lines.push(SEMANTIC_COLORS.dim(`→ Use --filter <text> to search by name`));
+lines.push(SEMANTIC_COLORS.dim(`→ Use --count ${nextCount} to see more`));
+lines.push(SEMANTIC_COLORS.dim(`→ Filter by state: --state failed`));
 
-// ❌ AVOID - Full command with comment (less flexible)
+// ❌ AVOID - Full command with comment
 lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide builds --org <name>  # filter to specific org`));
+
+// ❌ AVOID - Missing arrow icon
+lines.push(SEMANTIC_COLORS.dim(`Use --org <name> to filter to a specific organization`));
 ```
 
 #### Contextual Tips
@@ -232,17 +235,17 @@ lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide builds --org <name>  # filter to 
 if (options?.organizationsCount > 1 && !options.orgSpecified) {
   lines.push('');
   lines.push(SEMANTIC_COLORS.dim(`Searched across ${options.organizationsCount} organizations`));
-  lines.push(SEMANTIC_COLORS.dim(`Use --org <name> to filter to a specific organization`));
+  lines.push(SEMANTIC_COLORS.dim(`→ Use --org <name> to filter to a specific organization`));
 }
 
 // In build detail formatter
 if (!options?.annotations && hasAnnotations) {
-  lines.push(SEMANTIC_COLORS.dim(`Use --annotations to view annotation details`));
+  lines.push(SEMANTIC_COLORS.dim(`→ Use --annotations to view annotation details`));
 }
 
 // In pipelines formatter
 if (pipelines.length > 20) {
-  hints.push(SEMANTIC_COLORS.dim(`Use --filter <text> to search by name or description`));
+  hints.push(SEMANTIC_COLORS.dim(`→ Use --filter <text> to search by name or description`));
 }
 ```
 
