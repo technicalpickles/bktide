@@ -1,4 +1,4 @@
-import { COLORS, SYMBOLS, shouldDecorate } from './theme.js';
+import { COLORS, SYMBOLS, shouldDecorate, SEMANTIC_COLORS } from './theme.js';
 import { termWidth, calculateColumnWidths, formatTableRow } from './width.js';
 
 function isMachine(format?: string): boolean {
@@ -40,7 +40,8 @@ export class Reporter {
   tip(message: string): void {
     // Tips have their own suppression logic
     if (!this.shouldShowTips()) return;
-    this.writeStdout(this.decorate(COLORS.info, `${SYMBOLS.info} TIP: ${message}`));
+    // Use dim for tips to make them clearly auxiliary
+    this.writeStdout(this.decorateTip(`💡 ${message}`));
   }
 
   warn(message: string): void {
@@ -94,6 +95,10 @@ export class Reporter {
 
   private decorate(fn: (s: string) => string, s: string): string {
     return shouldDecorate(this.format) ? fn(s) : s;
+  }
+  
+  private decorateTip(s: string): string {
+    return shouldDecorate(this.format) ? SEMANTIC_COLORS.tip(s) : s;
   }
 
   private writeStdout(s: string): void {

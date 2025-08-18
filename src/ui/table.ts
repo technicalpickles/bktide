@@ -1,4 +1,4 @@
-import { termWidth, calculateColumnWidths, formatTableRow } from './width.js';
+import { termWidth, calculateColumnWidths, formatTableRow, stripAnsi } from './width.js';
 
 /**
  * Render a table with proper width awareness
@@ -19,10 +19,18 @@ export function renderTable(
   const separator = options?.separator ?? '  ';
   
   if (options?.preserveWidths) {
-    // Legacy behavior: preserve exact widths (may overflow in narrow terminals)
-    const widths = rows[0].map((_, i) => Math.max(...rows.map(r => (r[i] ?? '').length)));
+    // Calculate widths based on visible text (excluding ANSI codes)
+    const widths = rows[0].map((_, i) => 
+      Math.max(...rows.map(r => stripAnsi(r[i] ?? '').length))
+    );
+    
+    // Format each row with proper padding based on visible length
     return rows
-      .map(r => r.map((c, i) => (c ?? '').padEnd(widths[i])).join(separator))
+      .map(r => r.map((c, i) => {
+        const visibleLength = stripAnsi(c ?? '').length;
+        const padding = ' '.repeat(Math.max(0, widths[i] - visibleLength));
+        return (c ?? '') + padding;
+      }).join(separator))
       .join('\n');
   }
   

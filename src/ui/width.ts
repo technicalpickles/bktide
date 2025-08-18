@@ -3,6 +3,16 @@
  */
 
 /**
+ * Strip ANSI escape codes from a string
+ * Used for accurate length calculations
+ */
+export function stripAnsi(str: string): string {
+  // Comprehensive regex for ANSI escape codes
+  const ansiRegex = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
+  return str.replace(ansiRegex, '');
+}
+
+/**
  * Get the current terminal width
  * Falls back to 80 columns if not available
  */

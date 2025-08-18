@@ -124,7 +124,9 @@ export function formatBuildStatus(
   status: string, 
   options?: { useSymbol?: boolean; ascii?: boolean }
 ): string {
-  const theme = BUILD_STATUS_THEME[status as keyof typeof BUILD_STATUS_THEME];
+  // Normalize status to uppercase for theme lookup
+  const normalizedStatus = status.toUpperCase();
+  const theme = BUILD_STATUS_THEME[normalizedStatus as keyof typeof BUILD_STATUS_THEME];
   if (!theme) {
     return SEMANTIC_COLORS.muted(status);
   }
@@ -134,9 +136,11 @@ export function formatBuildStatus(
   
   if (useSymbol) {
     const symbol = ascii ? theme.ascii : theme.symbol;
+    // Keep original casing for display
     return `${symbol} ${theme.color(status)}`;
   }
   
+  // Keep original casing for display
   return theme.color(status);
 }
 

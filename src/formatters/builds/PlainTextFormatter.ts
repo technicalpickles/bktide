@@ -1,6 +1,12 @@
 import { BaseFormatter, BuildFormatterOptions } from './Formatter.js';
 import { Build } from '../../types/index.js';
 import { renderTable } from '../../ui/table.js';
+import { 
+  SEMANTIC_COLORS, 
+  formatBuildStatus,
+  formatEmptyState,
+  formatError
+} from '../../ui/theme.js';
 
 export class PlainTextFormatter extends BaseFormatter {
   name = 'plain-text';
@@ -21,94 +27,114 @@ export class PlainTextFormatter extends BaseFormatter {
     
     // Handle empty results (no error, just no data)
     if (builds.length === 0) {
-      let output = 'No builds found.';
+      let message = 'No builds found';
+      const suggestions: string[] = [];
       
       // Add user info if provided
       if (options?.userName) {
-        output = `No builds found for ${options.userName}`;
+        message = `No builds found for ${SEMANTIC_COLORS.label(options.userName)}`;
         if (options?.userEmail || options?.userId) {
-          output += ` (${options.userEmail || options.userId})`;
+          message += ` ${SEMANTIC_COLORS.dim(`(${options.userEmail || options.userId})`)}`;
         }
-        output += '.';
       }
       
-      // Add organization suggestion if applicable
+      // Add suggestions based on context
       if (!options?.orgSpecified) {
-        output += '\nTry specifying an organization with --org to narrow your search.';
+        suggestions.push('Try specifying an organization with --org <name>');
       }
+      suggestions.push('Use --count to increase the number of results');
       
-      return output;
+      return formatEmptyState(message, suggestions);
     }
 
     const lines: string[] = [];
-    lines.push(`Found ${builds.length} builds:`);
     
     // Build a tabular summary view for scan-ability
     const rows: string[][] = [];
-    rows.push(['PIPELINE', 'NUMBER', 'STATE', 'BRANCH']);
+    
+    // Bold + underlined headers for emphasis
+    const headers = ['PIPELINE', 'NUMBER', 'STATE', 'BRANCH'].map(
+      h => SEMANTIC_COLORS.heading(h)
+    );
+    rows.push(headers);
+    
     builds.forEach((b: Build) => {
       rows.push([
-        b.pipeline?.slug || 'Unknown',
-        `#${b.number}`,
-        b.state || 'Unknown',
-        b.branch || 'Unknown'
+        b.pipeline?.slug || SEMANTIC_COLORS.muted('unknown'),
+        SEMANTIC_COLORS.identifier(`#${b.number}`),
+        formatBuildStatus(b.state || 'UNKNOWN', { useSymbol: false }),
+        b.branch || SEMANTIC_COLORS.dim('(no branch)')
       ]);
     });
-    lines.push(renderTable(rows));
+    // Use preserveWidths to avoid truncation of colored status text
+    lines.push(renderTable(rows, { preserveWidths: true }));
+    
+    // Summary line (dimmed as auxiliary info)
+    lines.push('');
+    lines.push(SEMANTIC_COLORS.dim(`Found ${SEMANTIC_COLORS.count(builds.length.toString())} builds`));
     
     // Only add org count info if searching multiple orgs
     if (options?.organizationsCount && options.organizationsCount > 1 && !options.orgSpecified) {
-      lines.push(`\nSearched across ${options.organizationsCount} organizations. Use --org to filter to a specific organization.`);
+      lines.push(SEMANTIC_COLORS.dim(`Searched across ${options.organizationsCount} organizations. Use --org to filter to a specific organization.`));
     }
     
     return lines.join('\n');
   }
   
   private formatAccessError(options?: BuildFormatterOptions): string {
-    let output = '';
-    
-    if (options?.userName) {
-      output = `No builds found for ${options.userName}`;
-      if (options?.userEmail || options?.userId) {
-        output += ` (${options.userEmail || options.userId})`;
-      }
-      output += '. ';
-    }
+    let message = 'Access Denied';
     
     if (options?.orgSpecified && options?.accessErrors && options.accessErrors.length > 0) {
-      output += options.accessErrors[0];
+      message = options.accessErrors[0];
     } else {
-      output += 'You don\'t have access to the specified organization(s).';
+      message = 'You don\'t have access to the specified organization(s).';
     }
     
-    return output;
+    return formatError(message, {
+      showHelp: true,
+      helpCommand: 'bktide orgs',
+      suggestions: [
+        'Check your organization name is correct',
+        'Run "bktide orgs" to see available organizations',
+        'Verify your token has the correct permissions'
+      ]
+    });
   }
   
   private formatNotFoundError(options?: BuildFormatterOptions): string {
-    let output = '';
+    let message = 'No builds found';
     
     if (options?.userName) {
-      output = `No builds found for ${options.userName}`;
+      message = `No builds found for ${options.userName}`;
       if (options?.userEmail || options?.userId) {
-        output += ` (${options.userEmail || options.userId})`;
+        message += ` (${options.userEmail || options.userId})`;
       }
-      output += '.';
-    } else {
-      output = 'No builds found.';
     }
     
+    const suggestions: string[] = [];
     if (!options?.orgSpecified) {
-      output += '\nTry specifying an organization with --org to narrow your search.';
+      suggestions.push('Try specifying an organization with --org <name>');
     }
+    suggestions.push('Check your filters are correct');
+    suggestions.push('Try broadening your search');
     
-    return output;
+    return formatEmptyState(message, suggestions);
   }
   
   private formatApiError(options?: BuildFormatterOptions): string {
-    return options?.errorMessage || 'An API error occurred while fetching builds.';
+    const message = options?.errorMessage || 'Failed to fetch builds from Buildkite';
+    return formatError(message, {
+      showHelp: true,
+      helpCommand: 'bktide builds --help',
+      suggestions: ['This might be a temporary issue. Try again in a moment.']
+    });
   }
   
   private formatGenericError(options?: BuildFormatterOptions): string {
-    return options?.errorMessage || 'An error occurred while fetching builds.';
+    const message = options?.errorMessage || 'An unexpected error occurred';
+    return formatError(message, {
+      showHelp: true,
+      helpCommand: 'bktide builds --help'
+    });
   }
 } 
