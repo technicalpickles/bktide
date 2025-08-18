@@ -357,6 +357,7 @@ program
   .argument('<build>', 'Build reference (org/pipeline/number or @https://buildkite.com/org/pipeline/builds/number)')
   .option('--jobs', 'Show job summary and details')
   .option('--failed', 'Show only failed job details (implies --jobs)')
+  .option('--all-jobs', 'Show all jobs without grouping limit')
   .option('--annotations', 'Show annotation details with context')
   .option('--annotations-full', 'Show complete annotation content')
   .option('--full', 'Show all available information')

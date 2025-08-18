@@ -193,6 +193,8 @@ export const GET_BUILD_SUMMARY = gql`
               startedAt
               finishedAt
               passed
+              parallelGroupIndex
+              parallelGroupTotal
             }
             ... on JobTypeWait {
               id
@@ -281,6 +283,8 @@ export const GET_BUILD_FULL = gql`
               finishedAt
               passed
               retried
+              parallelGroupIndex
+              parallelGroupTotal
               retrySource {
                 ... on JobTypeCommand {
                   id

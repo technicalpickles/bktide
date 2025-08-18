@@ -193,7 +193,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     // Failed jobs summary
     const failedJobs = this.getFailedJobs(build.jobs?.edges);
     if (failedJobs.length > 0) {
-      lines.push(this.formatFailedJobsSummary(failedJobs));
+      lines.push(this.formatFailedJobsSummary(failedJobs, options));
     }
     
     // Annotation summary
@@ -328,7 +328,22 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     lines.push(`  Pipeline: ${build.pipeline?.name || 'Unknown'}`);
     
     if (build.pullRequest) {
-      lines.push(`  Pull Request: #${build.pullRequest.number}`);
+      // Try to construct PR URL from repository URL
+      const repoUrl = build.pipeline?.repository?.url;
+      if (repoUrl && repoUrl.includes('github.com')) {
+        // Extract owner/repo from various GitHub URL formats
+        const match = repoUrl.match(/github\.com[/:]([\w-]+)\/([\w-]+)/);
+        if (match && build.pullRequest.id) {
+          // Extract PR number from GraphQL ID if possible
+          // GitHub PR IDs often contain the number
+          const prUrl = `https://github.com/${match[1]}/${match[2]}/pull/${build.pullRequest.id}`;
+          lines.push(`  Pull Request: ${SEMANTIC_COLORS.url(prUrl)}`);
+        } else {
+          lines.push(`  Pull Request: ${build.pullRequest.id}`);
+        }
+      } else {
+        lines.push(`  Pull Request: ${build.pullRequest.id}`);
+      }
     }
     
     if (build.triggeredFrom) {
@@ -451,10 +466,36 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         const label = this.parseEmoji(job.node.label);
         const duration = this.formatJobDuration(job.node);
         const exitCode = job.node.exitStatus ? `, exit ${job.node.exitStatus}` : '';
+        
+        // Basic job line
         lines.push(`  ${label} (${duration}${exitCode})`);
         
-        if (options?.full && job.node.agent) {
-          lines.push(`    ${SEMANTIC_COLORS.dim(`Agent: ${job.node.agent.name || job.node.agent.hostname}`)}`);
+        // Show additional details if --jobs or --full
+        if (options?.jobs || options?.full) {
+          // Timing details
+          if (job.node.startedAt) {
+            const startTime = new Date(job.node.startedAt).toLocaleTimeString();
+            const endTime = job.node.finishedAt 
+              ? new Date(job.node.finishedAt).toLocaleTimeString()
+              : 'still running';
+            lines.push(`    ${SEMANTIC_COLORS.dim(`⏱️  ${startTime} → ${endTime}`)}`);
+          }
+          
+          // Agent information
+          if (job.node.agent) {
+            const agentInfo = job.node.agent.name || job.node.agent.hostname || 'unknown agent';
+            lines.push(`    ${SEMANTIC_COLORS.dim(`🖥️  Agent: ${agentInfo}`)}`);
+          }
+          
+          // Parallel group info
+          if (job.node.parallelGroupIndex !== undefined && job.node.parallelGroupTotal) {
+            lines.push(`    ${SEMANTIC_COLORS.dim(`📊  Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}`)}`);
+          }
+          
+          // Retry info
+          if (job.node.retried) {
+            lines.push(`    ${SEMANTIC_COLORS.warning('🔄 Retried')}`);
+          }
         }
       }
       lines.push('');
@@ -463,14 +504,16 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     return lines.join('\n').trim();
   }
   
-  private formatFailedJobsSummary(failedJobs: any[]): string {
+  private formatFailedJobsSummary(failedJobs: any[], options?: BuildDetailFormatterOptions): string {
     const lines: string[] = [];
     
     // Group identical jobs by label
     const jobGroups = this.groupJobsByLabel(failedJobs);
     
-    // Show first 10 unique job types
-    const displayGroups = jobGroups.slice(0, 10);
+    // Show all groups if --all-jobs, otherwise limit to 10
+    const displayGroups = options?.allJobs 
+      ? jobGroups 
+      : jobGroups.slice(0, 10);
     
     for (const group of displayGroups) {
       const label = this.parseEmoji(group.label);
@@ -510,10 +553,13 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       }
     }
     
-    // Add summary if there are more job types
-    const remaining = jobGroups.length - displayGroups.length;
-    if (remaining > 0) {
-      lines.push(`   ${SEMANTIC_COLORS.muted(`...and ${remaining} more job types`)}`);
+    // Add summary if there are more job types and not showing all
+    if (!options?.allJobs) {
+      const remaining = jobGroups.length - displayGroups.length;
+      if (remaining > 0) {
+        lines.push(`   ${SEMANTIC_COLORS.muted(`...and ${remaining} more job types`)}`);
+        lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide build <ref> --all-jobs  # show all jobs`));
+      }
     }
     
     return lines.join('\n');

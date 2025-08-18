@@ -11,6 +11,7 @@ export interface ShowBuildOptions extends BaseCommandOptions {
   annotationsFull?: boolean;
   full?: boolean;
   summary?: boolean;
+  allJobs?: boolean;
   buildArg?: string;
 }
 
@@ -35,10 +36,14 @@ export class ShowBuild extends BaseCommand {
     if (options.annotationsFull) {
       adjustedOptions.annotations = true; // --annotations-full implies --annotations
     }
+    if (options.allJobs) {
+      adjustedOptions.jobs = true; // --all-jobs implies --jobs
+    }
     if (options.full) {
       // --full shows everything
       adjustedOptions.jobs = true;
       adjustedOptions.annotations = true;
+      adjustedOptions.allJobs = true; // --full shows all jobs
     }
     
     // Initialize spinner early
