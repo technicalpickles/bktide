@@ -166,12 +166,11 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
     if (options?.truncated) {
       const currentCount = pipelines.length;
       const nextCount = Math.min(currentCount * 2, 500);
-      hints.push(`Results limited to ${currentCount} pipelines`);
       hints.push(`Use --count ${nextCount} to see more`);
     } else if (pipelines.length >= 50) {
       // Large result set, suggest increasing count
       const nextCount = Math.min(pipelines.length * 2, 500);
-      hints.push(`Use --count ${nextCount} to see more pipelines`);
+      hints.push(`Use --count ${nextCount} to limit the number of results`);
     }
     
     // Display hints if any
