@@ -41,7 +41,7 @@ export class Reporter {
     // Tips have their own suppression logic
     if (!this.shouldShowTips()) return;
     // Use dim for tips to make them clearly auxiliary
-    this.writeStdout(this.decorateTip(`💡 ${message}`));
+    this.writeStdout(this.decorateTip(`→ ${message}`));
   }
 
   warn(message: string): void {
