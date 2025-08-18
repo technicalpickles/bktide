@@ -140,4 +140,187 @@ export const GET_BUILD_ANNOTATIONS = gql`
       }
     }
   }
+`;
+
+export const GET_BUILD_SUMMARY = gql`
+  query GetBuildSummary($slug: ID!) {
+    build(slug: $slug) {
+      id
+      number
+      state
+      branch
+      message
+      commit
+      createdAt
+      startedAt
+      finishedAt
+      canceledAt
+      url
+      blockedState
+      createdBy {
+        ... on User {
+          id
+          name
+          email
+          avatar {
+            url
+          }
+        }
+        ... on UnregisteredUser {
+          name
+          email
+        }
+      }
+      pipeline {
+        id
+        name
+        slug
+      }
+      organization {
+        id
+        name
+        slug
+      }
+      jobs(first: 100) {
+        edges {
+          node {
+            ... on JobTypeCommand {
+              id
+              uuid
+              label
+              state
+              exitStatus
+              startedAt
+              finishedAt
+              passed
+            }
+            ... on JobTypeWait {
+              id
+              label
+            }
+            ... on JobTypeTrigger {
+              id
+              label
+              state
+            }
+          }
+        }
+      }
+      annotations(first: 50) {
+        edges {
+          node {
+            id
+            style
+            context
+            body {
+              html
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const GET_BUILD_FULL = gql`
+  query GetBuildFull($slug: ID!) {
+    build(slug: $slug) {
+      id
+      number
+      state
+      branch
+      message
+      commit
+      createdAt
+      startedAt
+      finishedAt
+      canceledAt
+      url
+      blockedState
+      createdBy {
+        ... on User {
+          id
+          name
+          email
+          avatar {
+            url
+          }
+        }
+        ... on UnregisteredUser {
+          name
+          email
+        }
+      }
+      pipeline {
+        id
+        name
+        slug
+        repository {
+          url
+        }
+      }
+      organization {
+        id
+        name
+        slug
+      }
+      pullRequest {
+        id
+      }
+      jobs(first: 100) {
+        edges {
+          node {
+            ... on JobTypeCommand {
+              id
+              uuid
+              label
+              command
+              state
+              exitStatus
+              startedAt
+              finishedAt
+              passed
+              retried
+              retrySource {
+                ... on JobTypeCommand {
+                  id
+                  uuid
+                }
+              }
+              agent {
+                ... on Agent {
+                  id
+                  name
+                  hostname
+                }
+              }
+            }
+            ... on JobTypeWait {
+              id
+              label
+            }
+            ... on JobTypeTrigger {
+              id
+              label
+              state
+            }
+          }
+        }
+      }
+      annotations(first: 100) {
+        edges {
+          node {
+            id
+            style
+            context
+            body {
+              html
+            }
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    }
+  }
 `; 

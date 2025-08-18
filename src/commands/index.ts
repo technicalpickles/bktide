@@ -6,3 +6,4 @@ export * from './ListPipelines.js';
 export * from './ManageToken.js';
 export * from './ListAnnotations.js';
 export * from './GenerateCompletions.js';
+export * from './ShowBuild.js';

@@ -7,7 +7,9 @@ import {
   GET_PIPELINES, 
   GET_BUILDS, 
   GET_VIEWER_BUILDS,
-  GET_BUILD_ANNOTATIONS
+  GET_BUILD_ANNOTATIONS,
+  GET_BUILD_SUMMARY,
+  GET_BUILD_FULL
 } from '../graphql/queries.js';
 // Import generated types
 import { 
@@ -643,6 +645,80 @@ export class BuildkiteClient {
     const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
     if (this.debug) {
       logger.debug(`✅ GraphQL query completed: GetBuildAnnotations (${duration.toFixed(2)}ms)`);
+    }
+
+    return result;
+  }
+
+  public async getBuildSummary(buildSlug: string): Promise<any> {
+    const variables = {
+      slug: buildSlug,
+    };
+
+    if (this.debug) {
+      logger.debug(`🕒 Starting GraphQL query: GetBuildSummary for ${buildSlug}`);
+    }
+
+    // Check if result is in cache
+    if (this.cacheManager) {
+      const cachedResult = await this.cacheManager.get<any>('GET_BUILD_SUMMARY', variables);
+      if (cachedResult) {
+        if (this.debug) {
+          logger.debug(`✅ Served from cache: GetBuildSummary`);
+        }
+        return cachedResult;
+      }
+    }
+
+    const startTime = process.hrtime.bigint();
+    const result = await this.client.request<any>(GET_BUILD_SUMMARY.toString(), variables);
+
+    // Store result in cache if caching is enabled
+    if (this.cacheManager) {
+      await this.cacheManager.set('GET_BUILD_SUMMARY', result, variables);
+    }
+
+    const endTime = process.hrtime.bigint();
+    const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
+    if (this.debug) {
+      logger.debug(`✅ GraphQL query completed: GetBuildSummary (${duration.toFixed(2)}ms)`);
+    }
+
+    return result;
+  }
+
+  public async getBuildFull(buildSlug: string): Promise<any> {
+    const variables = {
+      slug: buildSlug,
+    };
+
+    if (this.debug) {
+      logger.debug(`🕒 Starting GraphQL query: GetBuildFull for ${buildSlug}`);
+    }
+
+    // Check if result is in cache
+    if (this.cacheManager) {
+      const cachedResult = await this.cacheManager.get<any>('GET_BUILD_FULL', variables);
+      if (cachedResult) {
+        if (this.debug) {
+          logger.debug(`✅ Served from cache: GetBuildFull`);
+        }
+        return cachedResult;
+      }
+    }
+
+    const startTime = process.hrtime.bigint();
+    const result = await this.client.request<any>(GET_BUILD_FULL.toString(), variables);
+
+    // Store result in cache if caching is enabled
+    if (this.cacheManager) {
+      await this.cacheManager.set('GET_BUILD_FULL', result, variables);
+    }
+
+    const endTime = process.hrtime.bigint();
+    const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
+    if (this.debug) {
+      logger.debug(`✅ GraphQL query completed: GetBuildFull (${duration.toFixed(2)}ms)`);
     }
 
     return result;

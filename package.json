@@ -82,6 +82,7 @@
     "@napi-rs/keyring": "^1.1.6",
     "chalk": "^5.5.0",
     "commander": "^13.1.0",
+    "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
     "fuse.js": "^7.1.0",
     "graphql": "^16.10.0",

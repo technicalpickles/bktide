@@ -13,7 +13,8 @@ import {
   ListPipelines,
   ManageToken,
   ListAnnotations,
-  GenerateCompletions
+  GenerateCompletions,
+  ShowBuild
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
@@ -275,6 +276,15 @@ program
         logger.debug('Annotations context filter:', mergedOptions.context);
       }
     }
+    else if (commandName === 'build') {
+      // Attach the build argument to options
+      cmd.mergedOptions.buildArg = cmd.args?.[0];
+      
+      if (mergedOptions.debug) {
+        logger.debug('Build arg:', cmd.mergedOptions.buildArg);
+        logger.debug('Build options:', mergedOptions);
+      }
+    }
     
     if (mergedOptions.debug) {
       logger.debug(`Executing command: ${commandName}`);
@@ -339,6 +349,19 @@ program
   .argument('<build>', 'Build reference (org/pipeline/number or @https://buildkite.com/org/pipeline/builds/number)')
   .option('--context <context>', 'Filter annotations by context (e.g., rspec, build-resources)')
   .action(createCommandHandler(ListAnnotations));
+
+// Add build command
+program
+  .command('build')
+  .description('Show details for a specific build')
+  .argument('<build>', 'Build reference (org/pipeline/number or @https://buildkite.com/org/pipeline/builds/number)')
+  .option('--jobs', 'Show job summary and details')
+  .option('--failed', 'Show only failed job details (implies --jobs)')
+  .option('--annotations', 'Show annotation details with context')
+  .option('--annotations-full', 'Show complete annotation content')
+  .option('--full', 'Show all available information')
+  .option('--summary', 'Single-line summary only (for scripts)')
+  .action(createCommandHandler(ShowBuild));
 
 // Add completions command
 program
