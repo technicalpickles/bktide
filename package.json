@@ -1,7 +1,7 @@
 {
   "name": "bktide",
   "version": "1.0.0",
-  "description": "Buildkite CLI tool with shell completions",
+  "description": "Command-line interface for Buildkite CI/CD workflows with rich shell completions (Fish, Bash, Zsh) and Alfred workflow integration for macOS power users",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
