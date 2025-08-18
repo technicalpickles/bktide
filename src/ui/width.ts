@@ -17,8 +17,12 @@ export function stripAnsi(str: string): string {
  * Falls back to 80 columns if not available
  */
 export function termWidth(): number {
+  // Check environment variable first (for testing)
+  const envColumns = process.env.COLUMNS ? parseInt(process.env.COLUMNS, 10) : undefined;
+  const columns = envColumns || process.stdout.columns || 80;
+  
   // Ensure minimum width of 40 for readability
-  return Math.max(40, process.stdout.columns || 80);
+  return Math.max(40, columns);
 }
 
 /**

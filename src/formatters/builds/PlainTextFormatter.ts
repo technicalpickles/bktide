@@ -1,6 +1,7 @@
 import { BaseFormatter, BuildFormatterOptions } from './Formatter.js';
 import { Build } from '../../types/index.js';
 import { renderTable } from '../../ui/table.js';
+import { renderResponsiveTable, isNarrowTerminal, isMobileTerminal } from '../../ui/responsive-table.js';
 import { 
   SEMANTIC_COLORS, 
   formatBuildStatus,
@@ -50,24 +51,42 @@ export class PlainTextFormatter extends BaseFormatter {
     const lines: string[] = [];
     
     // Build a tabular summary view for scan-ability
-    const rows: string[][] = [];
-    
-    // Bold + underlined headers for emphasis
     const headers = ['PIPELINE', 'NUMBER', 'STATE', 'BRANCH'].map(
       h => SEMANTIC_COLORS.heading(h)
     );
-    rows.push(headers);
     
+    const dataRows: string[][] = [];
     builds.forEach((b: Build) => {
-      rows.push([
+      dataRows.push([
         b.pipeline?.slug || SEMANTIC_COLORS.muted('unknown'),
         SEMANTIC_COLORS.identifier(`#${b.number}`),
         formatBuildStatus(b.state || 'UNKNOWN', { useSymbol: false }),
         b.branch || SEMANTIC_COLORS.dim('(no branch)')
       ]);
     });
-    // Use preserveWidths to avoid truncation of colored status text
-    lines.push(renderTable(rows, { preserveWidths: true }));
+    
+    // Use responsive table for narrow terminals
+    if (isNarrowTerminal()) {
+      // Configure columns with priorities for narrow displays
+      const columns = [
+        { header: 'PIPELINE', priority: 3, minWidth: 10, truncate: true },
+        { header: 'NUMBER', priority: 10, minWidth: 6, align: 'right' as const },
+        { header: 'STATE', priority: 9, minWidth: 8 },
+        { header: 'BRANCH', priority: 1, minWidth: 6, truncate: true }
+      ];
+      
+      if (isMobileTerminal()) {
+        // For very narrow terminals, show only most important columns
+        columns[0].priority = 2; // Lower pipeline priority
+        columns[3].priority = 0; // Hide branch on mobile
+      }
+      
+      lines.push(renderResponsiveTable(headers, dataRows, { columns }));
+    } else {
+      // Use standard table for wide terminals
+      const rows: string[][] = [headers, ...dataRows];
+      lines.push(renderTable(rows, { preserveWidths: true }));
+    }
     
     // Summary line (dimmed as auxiliary info)
     lines.push('');

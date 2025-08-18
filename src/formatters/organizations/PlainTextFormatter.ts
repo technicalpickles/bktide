@@ -2,6 +2,7 @@ import { FormatterOptions } from '../BaseFormatter.js';
 import { BaseFormatter } from './Formatter.js';
 import { Organization } from '../../types/index.js';
 import { renderTable } from '../../ui/table.js';
+import { isMobileTerminal } from '../../ui/responsive-table.js';
 import { SEMANTIC_COLORS, formatEmptyState } from '../../ui/theme.js';
 
 export class PlainTextFormatter extends BaseFormatter {
@@ -20,21 +21,30 @@ export class PlainTextFormatter extends BaseFormatter {
 
     const lines: string[] = [];
 
-    // Build table with enhanced headers
-    const rows: string[][] = [];
-    
-    // Bold + underlined headers for emphasis
-    const headers = ['NAME', 'SLUG'].map(h => SEMANTIC_COLORS.heading(h));
-    rows.push(headers);
-    
-    organizations.forEach((org) => {
-      rows.push([
-        org.name || SEMANTIC_COLORS.muted('-'),
-        org.slug || SEMANTIC_COLORS.muted('-')
-      ]);
-    });
+    if (isMobileTerminal()) {
+      // For very narrow terminals, use a vertical list format
+      organizations.forEach((org, i) => {
+        if (i > 0) lines.push(''); // Separator between items
+        lines.push(SEMANTIC_COLORS.heading(org.name || 'Unknown'));
+        lines.push(`  ${SEMANTIC_COLORS.label('Slug:')} ${org.slug || '-'}`);
+      });
+    } else {
+      // Build table with enhanced headers
+      const rows: string[][] = [];
+      
+      // Bold + underlined headers for emphasis
+      const headers = ['NAME', 'SLUG'].map(h => SEMANTIC_COLORS.heading(h));
+      rows.push(headers);
+      
+      organizations.forEach((org) => {
+        rows.push([
+          org.name || SEMANTIC_COLORS.muted('-'),
+          org.slug || SEMANTIC_COLORS.muted('-')
+        ]);
+      });
 
-    lines.push(renderTable(rows, { preserveWidths: true }));
+      lines.push(renderTable(rows, { preserveWidths: true }));
+    }
     
     // Add summary line (dimmed)
     lines.push('');

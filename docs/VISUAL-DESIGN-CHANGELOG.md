@@ -41,6 +41,22 @@ This document tracks the visual design improvements implemented for the bktide C
 - Removed temporary backup and test files
 - Created this changelog
 
+### Phase 5: Responsive Width Handling
+**Completed**: Implemented adaptive display for different terminal widths
+
+- Created `responsive-table.ts` with smart column width calculation
+- Added terminal width detection (environment variable and stdout.columns)
+- Implemented three display modes:
+  - **Wide terminals (80+ cols)**: Full table display with all columns
+  - **Narrow terminals (50-79 cols)**: Responsive tables with intelligent truncation
+  - **Mobile terminals (<50 cols)**: Vertical list format for maximum readability
+- Updated formatters:
+  - **Builds**: Prioritizes NUMBER and STATE columns, truncates long pipeline/branch names
+  - **Pipelines**: Shows NAME and SLUG, uses vertical list on mobile
+  - **Organizations**: Compact display, vertical list on mobile
+- Column prioritization system ensures most important data remains visible
+- Smart truncation with ellipsis (…) for long text
+
 ## Key Design Decisions
 
 ### Color Palette (Colorblind-Safe)
