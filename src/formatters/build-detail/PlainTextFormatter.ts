@@ -3,11 +3,70 @@ import { formatDistanceToNow } from 'date-fns';
 import { htmlToText } from 'html-to-text';
 import { 
   formatEmptyState,
-  formatError
+  formatError,
+  SEMANTIC_COLORS,
+  formatBuildStatus
 } from '../../ui/theme.js';
+
+// Buildkite emoji mappings
+const BUILDKITE_EMOJI: Record<string, string> = {
+  // Testing frameworks
+  ':rspec:': '🧪',
+  ':jest:': '🃏',
+  ':eslint:': '📝',
+  ':rubocop:': '👮',
+  ':cypress:': '🌲',
+  ':playwright:': '🎭',
+  
+  // Tools
+  ':docker:': '🐳',
+  ':kubernetes:': '☸️',
+  ':helm:': '⚓',
+  ':terraform:': '🏗️',
+  ':aws:': '☁️',
+  ':github:': '🐙',
+  ':git:': '📦',
+  
+  // Languages
+  ':ruby:': '💎',
+  ':javascript:': '📜',
+  ':typescript:': '📘',
+  ':python:': '🐍',
+  ':go:': '🐹',
+  ':rust:': '🦀',
+  
+  // Status/Actions
+  ':pipeline:': '🔧',
+  ':console:': '💻',
+  ':database:': '🗄️',
+  ':seeds:': '🌱',
+  ':package:': '📦',
+  ':rocket:': '🚀',
+  ':fire:': '🔥',
+  ':warning:': '⚠️',
+  ':error:': '❌',
+  ':success:': '✅',
+  ':info:': 'ℹ️',
+  
+  // Standard emoji pass-through (common ones)
+  ':smile:': '😊',
+  ':thumbsup:': '👍',
+  ':thumbsdown:': '👎',
+  ':star:': '⭐',
+  ':heart:': '❤️',
+  ':boom:': '💥',
+  ':zap:': '⚡',
+};
 
 export class PlainTextFormatter extends BaseBuildDetailFormatter {
   name = 'plain-text';
+  
+  private parseEmoji(text: string): string {
+    if (!text) return text;
+    return text.replace(/:(\w+):/g, (match) => {
+      return BUILDKITE_EMOJI[match] || match;
+    });
+  }
   
   formatBuildDetail(buildData: BuildDetail | null, options?: BuildDetailFormatterOptions): string {
     // Handle error cases first
@@ -75,7 +134,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       lines.push(this.formatAnnotationSummary(build.annotations.edges));
       
       if (!options?.annotations) {
-        lines.push(`   → bin/bktide build ${build.number} --annotations  # view annotations`);
+        lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide build ${build.number} --annotations  # view annotations`));
       }
     }
     
@@ -119,13 +178,13 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       lines.push(this.formatAnnotationDetails(build.annotations.edges, options));
     }
     
-    // Hints for more info
+    // Hints for more info (no Tips label)
     if (!options?.failed && failedJobs.length > 0) {
       lines.push('');
-      lines.push(`   → bin/bktide build ${build.number} --failed    # failure details`);
+      lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide build ${build.number} --failed  # show failure details`));
     }
     if (!options?.annotations && build.annotations?.edges?.length > 0) {
-      lines.push(`   → bin/bktide build ${build.number} --annotations  # view annotations`);
+      lines.push(SEMANTIC_COLORS.dim(`→ bin/bktide build ${build.number} --annotations  # view annotations`));
     }
     
     return lines.join('\n');
@@ -141,12 +200,13 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     
     // Progress information
     const jobStats = this.getJobStats(build.jobs?.edges);
-    lines.push(`Progress: ${jobStats.completed}/${jobStats.total} complete, ${jobStats.running} running, ${jobStats.queued} queued`);
+    lines.push(`Progress: ${SEMANTIC_COLORS.count(String(jobStats.completed))}/${jobStats.total} complete, ${SEMANTIC_COLORS.info(String(jobStats.running))} running, ${jobStats.queued} queued`);
     
     // Show running jobs
     const runningJobs = this.getRunningJobs(build.jobs?.edges);
     if (runningJobs.length > 0) {
-      lines.push(`Running: ${runningJobs.map(j => j.node.label).join(', ')}`);
+      const labels = runningJobs.map(j => this.parseEmoji(j.node.label)).join(', ');
+      lines.push(`${SEMANTIC_COLORS.info('Running')}: ${labels}`);
     }
     
     // Show job details if requested
@@ -258,10 +318,12 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   
   private formatHeader(build: any): string {
     const status = this.getStatusIcon(build.state);
+    const stateFormatted = formatBuildStatus(build.state, { useSymbol: false });
     const duration = this.formatDuration(build);
     const age = this.formatAge(build.createdAt);
+    const branch = SEMANTIC_COLORS.identifier(build.branch);
     
-    return `${status} #${build.number} ${build.state.toLowerCase()} • ${duration} • ${build.branch} • ${age}`;
+    return `${status} ${SEMANTIC_COLORS.label(`#${build.number}`)} ${stateFormatted} • ${duration} • ${branch} • ${age}`;
   }
   
   private formatCommitInfo(build: any): string {
@@ -276,13 +338,13 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     const counts = this.countAnnotationsByStyle(annotations);
     const parts = [];
     
-    if (counts.ERROR > 0) parts.push(`${counts.ERROR} error${counts.ERROR > 1 ? 's' : ''}`);
-    if (counts.WARNING > 0) parts.push(`${counts.WARNING} warning${counts.WARNING > 1 ? 's' : ''}`);
-    if (counts.INFO > 0) parts.push(`${counts.INFO} info`);
-    if (counts.SUCCESS > 0) parts.push(`${counts.SUCCESS} success`);
+    if (counts.ERROR > 0) parts.push(SEMANTIC_COLORS.error(`${counts.ERROR} error${counts.ERROR > 1 ? 's' : ''}`));
+    if (counts.WARNING > 0) parts.push(SEMANTIC_COLORS.warning(`${counts.WARNING} warning${counts.WARNING > 1 ? 's' : ''}`));
+    if (counts.INFO > 0) parts.push(SEMANTIC_COLORS.info(`${counts.INFO} info`));
+    if (counts.SUCCESS > 0) parts.push(SEMANTIC_COLORS.success(`${counts.SUCCESS} success`));
     
     const total = annotations.length;
-    return `📝 ${total} annotation${total > 1 ? 's' : ''}: ${parts.join(', ')}`;
+    return `📝 ${SEMANTIC_COLORS.count(String(total))} annotation${total > 1 ? 's' : ''}: ${parts.join(', ')}`;
   }
   
   private formatAnnotationDetails(annotations: any[], options?: BuildDetailFormatterOptions): string {
@@ -347,15 +409,17 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       if (stateJobs.length === 0) continue;
       
       const icon = this.getJobStateIcon(state);
-      lines.push(`${icon} ${state} (${stateJobs.length}):`);
+      const stateColored = this.colorizeJobState(state);
+      lines.push(`${icon} ${stateColored} (${SEMANTIC_COLORS.count(String(stateJobs.length))}):`);
       
       for (const job of stateJobs) {
+        const label = this.parseEmoji(job.node.label);
         const duration = this.formatJobDuration(job.node);
         const exitCode = job.node.exitStatus ? `, exit ${job.node.exitStatus}` : '';
-        lines.push(`  ${job.node.label} (${duration}${exitCode})`);
+        lines.push(`  ${label} (${duration}${exitCode})`);
         
         if (options?.full && job.node.agent) {
-          lines.push(`    Agent: ${job.node.agent.name || job.node.agent.hostname}`);
+          lines.push(`    ${SEMANTIC_COLORS.dim(`Agent: ${job.node.agent.name || job.node.agent.hostname}`)}`);
         }
       }
       lines.push('');
@@ -367,12 +431,69 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   private formatFailedJobsSummary(failedJobs: any[]): string {
     const lines: string[] = [];
     
-    for (const job of failedJobs) {
-      const duration = this.formatJobDuration(job.node);
-      lines.push(`   Failed: ${job.node.label} - ran ${duration}`);
+    // Group identical jobs by label
+    const jobGroups = this.groupJobsByLabel(failedJobs);
+    
+    // Show first 10 unique job types
+    const displayGroups = jobGroups.slice(0, 10);
+    
+    for (const group of displayGroups) {
+      const label = this.parseEmoji(group.label);
+      if (group.count === 1) {
+        const duration = this.formatJobDuration(group.jobs[0].node);
+        lines.push(`   ${SEMANTIC_COLORS.error('Failed')}: ${label} - ran ${duration}`);
+      } else {
+        // Multiple jobs with same label
+        const statusInfo = group.allNotStarted 
+          ? 'all not started' 
+          : group.exitCodes.length > 0 
+            ? `exit codes: ${group.exitCodes.join(', ')}`
+            : 'various states';
+        lines.push(`   ${SEMANTIC_COLORS.error('Failed')}: ${label} (${SEMANTIC_COLORS.count(String(group.count))} jobs, ${statusInfo})`);
+      }
+    }
+    
+    // Add summary if there are more job types
+    const remaining = jobGroups.length - displayGroups.length;
+    if (remaining > 0) {
+      lines.push(`   ${SEMANTIC_COLORS.muted(`...and ${remaining} more job types`)}`);
     }
     
     return lines.join('\n');
+  }
+  
+  private groupJobsByLabel(jobs: any[]): any[] {
+    const groups = new Map<string, any>();
+    
+    for (const job of jobs) {
+      const label = job.node.label || 'Unnamed job';
+      if (!groups.has(label)) {
+        groups.set(label, {
+          label,
+          count: 0,
+          jobs: [],
+          exitCodes: new Set<number>(),
+          allNotStarted: true
+        });
+      }
+      
+      const group = groups.get(label)!;
+      group.count++;
+      group.jobs.push(job);
+      
+      if (job.node.exitStatus) {
+        group.exitCodes.add(job.node.exitStatus);
+      }
+      
+      if (job.node.startedAt) {
+        group.allNotStarted = false;
+      }
+    }
+    
+    // Convert to array and sort by count (most failures first)
+    return Array.from(groups.values())
+      .map(g => ({ ...g, exitCodes: Array.from(g.exitCodes) }))
+      .sort((a, b) => b.count - a.count);
   }
   
   private formatDuration(build: any): string {
@@ -411,6 +532,24 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   
   private formatAge(createdAt: string): string {
     return formatDistanceToNow(new Date(createdAt), { addSuffix: true });
+  }
+  
+  private colorizeJobState(state: string): string {
+    switch (state.toLowerCase()) {
+      case 'failed':
+        return SEMANTIC_COLORS.error(state);
+      case 'passed':
+        return SEMANTIC_COLORS.success(state);
+      case 'running':
+        return SEMANTIC_COLORS.info(state);
+      case 'blocked':
+        return SEMANTIC_COLORS.warning(state);
+      case 'skipped':
+      case 'canceled':
+        return SEMANTIC_COLORS.muted(state);
+      default:
+        return state;
+    }
   }
   
   private getStatusIcon(state: string): string {

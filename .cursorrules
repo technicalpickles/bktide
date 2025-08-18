@@ -1,0 +1,105 @@
+# bktide Project Rules
+
+## JavaScript/TypeScript Module System
+
+**CRITICAL**: This project uses ES modules (`"type": "module"` in package.json)
+
+### Always Use ES Module Syntax
+- **ALWAYS use** `import`/`export` syntax
+- **NEVER use** `require()`/`module.exports` syntax
+- This applies to ALL JavaScript and TypeScript files:
+  - Source files (`.ts`, `.js`)
+  - Test scripts (`.js`)
+  - Build scripts
+  - Any temporary test files
+
+### Examples
+
+#### ✅ CORRECT - ES Module Syntax
+```javascript
+// Imports
+import { parseBuildRef } from './dist/utils/parseBuildRef.js';
+import { BuildkiteClient } from './dist/services/BuildkiteClient.js';
+import chalk from 'chalk';
+
+// Exports
+export default myFunction;
+export { myFunction, myVariable };
+```
+
+#### ❌ WRONG - CommonJS Syntax (Will Cause Errors)
+```javascript
+// These will fail with "require is not defined in ES module scope"
+const { parseBuildRef } = require('./dist/utils/parseBuildRef.js');
+const BuildkiteClient = require('./dist/services/BuildkiteClient.js');
+const chalk = require('chalk');
+
+module.exports = myFunction;
+module.exports = { myFunction, myVariable };
+```
+
+### Creating Test Scripts
+
+When creating JavaScript test files, always use this template:
+
+```javascript
+#!/usr/bin/env node
+
+// Use ES module imports
+import { someFunction } from './dist/path/to/module.js';
+
+// Test code
+async function test() {
+  const result = await someFunction('test');
+  console.log(result);
+}
+
+// For async functions, handle properly
+test().catch(console.error);
+```
+
+Run test scripts with: `node test-script.js`
+
+### Import Path Rules
+- Always include `.js` extension in imports (even when importing from `.ts` source files)
+- Use relative paths for local modules: `./dist/...` or `../dist/...`
+- The compiled JavaScript is in the `dist/` directory
+
+### Common Patterns
+
+#### Testing Utility Functions
+```javascript
+import { parseBuildRef } from './dist/utils/parseBuildRef.js';
+import { formatDate } from './dist/utils/textFormatter.js';
+```
+
+#### Testing Services
+```javascript
+import { BuildkiteClient } from './dist/services/BuildkiteClient.js';
+import { CacheManager } from './dist/services/CacheManager.js';
+```
+
+#### Testing Commands
+```javascript
+import { ListBuilds } from './dist/commands/ListBuilds.js';
+import { BaseCommand } from './dist/commands/BaseCommand.js';
+```
+
+## Additional Project Conventions
+
+### Running the CLI
+- Use `bin/bktide` to run the CLI, not `node` directly
+- Example: `bin/bktide builds --org my-org`
+
+### Building the Project
+- Run `npm run build` to compile TypeScript to JavaScript
+- The build output goes to the `dist/` directory
+
+### Shell Environment
+- The user uses Fish shell
+- When testing commands, use Fish syntax when needed
+
+### File Creation
+- Prefer editing existing files over creating new ones
+- Don't create documentation unless explicitly requested
+- Clean up temporary test files after use
