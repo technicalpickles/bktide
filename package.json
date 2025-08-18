@@ -25,7 +25,11 @@
     "release:major": "node scripts/release.js --version major --auto-push",
     "validate:native": "node scripts/validate-native-deps.js",
     "validate:dev": "node scripts/validate-native-deps.js --dev-only",
-    "validate:package": "node scripts/validate-native-deps.js --package-only"
+    "validate:package": "node scripts/validate-native-deps.js --package-only",
+    "completions:install": "npm run build && node dist/index.js completions fish > ~/.config/fish/completions/bktide.fish && echo 'Fish completions installed to ~/.config/fish/completions/bktide.fish'",
+    "completions:install:bash": "npm run build && echo 'Add this to your ~/.bashrc: source <(bktide completions bash)'",
+    "completions:install:zsh": "npm run build && echo 'Add this to your ~/.zshrc: source <(bktide completions zsh)'",
+    "completions:generate": "npm run build && node dist/index.js completions"
   },
   "keywords": [
     "cli",
@@ -47,6 +51,7 @@
   "files": [
     "dist",
     "icons",
+    "completions",
     "README.md",
     "LICENSE",
     "bin/alfred-entrypoint",

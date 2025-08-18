@@ -5,3 +5,4 @@ export * from './ListBuilds.js';
 export * from './ListPipelines.js';
 export * from './ManageToken.js';
 export * from './ListAnnotations.js';
+export * from './GenerateCompletions.js';

@@ -12,7 +12,8 @@ import {
   ListBuilds,
   ListPipelines,
   ManageToken,
-  ListAnnotations
+  ListAnnotations,
+  GenerateCompletions
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
@@ -338,6 +339,16 @@ program
   .argument('<build>', 'Build reference (org/pipeline/number or @https://buildkite.com/org/pipeline/builds/number)')
   .option('--context <context>', 'Filter annotations by context (e.g., rspec, build-resources)')
   .action(createCommandHandler(ListAnnotations));
+
+// Add completions command
+program
+  .command('completions [shell]')
+  .description('Generate shell completions')
+  .action(async (shell) => {
+    const handler = new GenerateCompletions();
+    const exitCode = await handler.execute({ shell, quiet: program.opts().quiet, debug: program.opts().debug });
+    process.exitCode = exitCode;
+  });
 
 program
   .command('boom')
