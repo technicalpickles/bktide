@@ -2,6 +2,7 @@ import { FormatterOptions, AbstractFormatter } from '../BaseFormatter.js';
 import { PipelineFormatter } from './Formatter.js';
 import { Pipeline } from '../../types/index.js';
 import { renderTable } from '../../ui/table.js';
+import { SEMANTIC_COLORS, formatEmptyState } from '../../ui/theme.js';
 
 export class PlainTextFormatter extends AbstractFormatter implements PipelineFormatter {
   constructor() {
@@ -11,7 +12,10 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
   formatPipelines(pipelines: Pipeline[], organizations: string[], options?: FormatterOptions): string {
     // If no organizations are found, handle that case
     if (organizations.length === 0) {
-      return 'No organizations found.';
+      return formatEmptyState(
+        'No organizations found',
+        ['Check your API token has the correct permissions']
+      );
     }
     
     return this.format(pipelines, this.formatPipelinesImpl.bind(this, organizations), options);
@@ -21,43 +25,55 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
     const output: string[] = [];
     
     if (pipelines.length === 0) {
-      output.push('No pipelines found.');
-      if (organizations.length === 1) {
-        output.push(`No pipelines found in organization ${organizations[0]}.`);
-      } else {
-        output.push(`No pipelines found across ${organizations.length} organizations.`);
-      }
-      return output.join('\n');
-    }
-    
-    if (organizations.length === 1) {
-      output.push(`Pipelines for ${organizations[0]} (${pipelines.length} total):`);
-    } else {
-      output.push(`Pipelines across your organizations (${pipelines.length} total):`);
+      const message = organizations.length === 1
+        ? `No pipelines found in organization ${SEMANTIC_COLORS.label(organizations[0])}`
+        : `No pipelines found across ${organizations.length} organizations`;
+      
+      return formatEmptyState(message, [
+        'Check the organization name is correct',
+        'Verify you have access to pipelines in this organization'
+      ]);
     }
 
     // Build table rows
     const rows: string[][] = [];
     if (organizations.length > 1) {
-      rows.push(['ORGANIZATION', 'NAME', 'SLUG']);
+      // Bold + underlined headers
+      const headers = ['ORGANIZATION', 'NAME', 'SLUG'].map(h => SEMANTIC_COLORS.heading(h));
+      rows.push(headers);
       pipelines.forEach((p: Pipeline) => {
-        rows.push([p.organization || '-', p.name || '-', p.slug || '-']);
+        rows.push([
+          p.organization || SEMANTIC_COLORS.muted('-'),
+          p.name || SEMANTIC_COLORS.muted('-'),
+          p.slug || SEMANTIC_COLORS.muted('-')
+        ]);
       });
     } else {
-      rows.push(['NAME', 'SLUG']);
+      // Bold + underlined headers
+      const headers = ['NAME', 'SLUG'].map(h => SEMANTIC_COLORS.heading(h));
+      rows.push(headers);
       pipelines.forEach((p: Pipeline) => {
-        rows.push([p.name || '-', p.slug || '-']);
+        rows.push([
+          p.name || SEMANTIC_COLORS.muted('-'),
+          p.slug || SEMANTIC_COLORS.muted('-')
+        ]);
       });
     }
 
-    // Compute column widths and render table
-    output.push(renderTable(rows));
+    // Render table with preserved widths
+    output.push(renderTable(rows, { preserveWidths: true }));
     
-    // Summary line showing total pipelines listed
-    output.push(`Showing ${pipelines.length} pipelines.`);
-    
-    if (organizations.length > 1) {
-      output.push(`\nSearched across ${organizations.length} organizations. Use --org to filter to a specific organization.`);
+    // Summary line (dimmed)
+    output.push('');
+    if (organizations.length === 1) {
+      output.push(SEMANTIC_COLORS.dim(
+        `${SEMANTIC_COLORS.count(pipelines.length.toString())} pipelines in ${organizations[0]}`
+      ));
+    } else {
+      output.push(SEMANTIC_COLORS.dim(
+        `${SEMANTIC_COLORS.count(pipelines.length.toString())} pipelines across ${organizations.length} organizations`
+      ));
+      output.push(SEMANTIC_COLORS.dim('Use --org to filter to a specific organization'));
     }
     
     return output.join('\n');
