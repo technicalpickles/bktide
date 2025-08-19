@@ -711,18 +711,17 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
                               state === 'Failed' ? SEMANTIC_COLORS.error(label) :
                               state === 'Running' ? SEMANTIC_COLORS.info(label) :
                               state === 'Blocked' ? SEMANTIC_COLORS.warning(label) : label;
-          // Basic step line
-          lines.push(`  ${coloredLabel} ${SEMANTIC_COLORS.dim(`(${duration})`)}`);
+          
+          // Add parallel info inline if present
+          const parallelInfo = (job.node.parallelGroupIndex !== undefined && job.node.parallelGroupTotal) 
+            ? ` ${SEMANTIC_COLORS.dim(`[Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}]`)}`
+            : '';
+          
+          // Basic step line with optional parallel info
+          lines.push(`  ${coloredLabel} ${SEMANTIC_COLORS.dim(`(${duration})`)}${parallelInfo}`);
           
           // Show additional details if --jobs or --full and single step
           if ((options?.jobs || options?.full) && !group.isParallelGroup) {
-            // Removed timing details line per user request
-            
-            // Parallel group info (for single parallel job)
-            if (job.node.parallelGroupIndex !== undefined && job.node.parallelGroupTotal) {
-              lines.push(`    ${SEMANTIC_COLORS.dim(`═  Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}`)}`);
-            }
-            
             // Retry info
             if (job.node.retried) {
               lines.push(`    ${SEMANTIC_COLORS.warning(`${getProgressIcon('RETRY')} Retried`)}`);
