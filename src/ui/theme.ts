@@ -414,7 +414,7 @@ export const ANNOTATION_ICONS = {
   },
   INFO: {
     emoji: 'ℹ️',
-    utf8: 'ⓘ',     // U+24D8 Circled Latin small letter i
+    utf8: 'ℹ',      // U+2139 Information source (no circle)
     ascii: '[INFO]'
   },
   SUCCESS: {
@@ -457,6 +457,11 @@ export const PROGRESS_ICONS = {
     emoji: '🚫',
     utf8: '⊘',     // U+2298 Circled division slash
     ascii: '[BLOCKED]'
+  },
+  PARALLEL: {
+    emoji: '📊',
+    utf8: '═',     // U+2550 Box drawings double horizontal
+    ascii: '[||]'
   }
 };
 

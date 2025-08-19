@@ -10,7 +10,8 @@ import {
   TipStyle,
   getStateIcon,
   getAnnotationIcon,
-  getProgressIcon
+  getProgressIcon,
+  BUILD_STATUS_THEME
 } from '../../ui/theme.js';
 
 // Standard emoji mappings only
@@ -154,11 +155,14 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   }
   
   private formatSummaryLine(build: any): string {
-    const status = this.getStatusIcon(build.state);
+    const statusIcon = this.getStatusIcon(build.state);
+    const coloredIcon = this.colorizeStatusIcon(statusIcon, build.state);
     const duration = this.formatDuration(build);
     const age = this.formatAge(build.createdAt);
+    const stateFormatted = formatBuildStatus(build.state, { useSymbol: false });
+    const branch = SEMANTIC_COLORS.identifier(build.branch);
     
-    return `${status} #${build.number} ${build.state.toLowerCase()} • ${duration} • ${build.branch} • ${age}`;
+    return `${coloredIcon} ${SEMANTIC_COLORS.label(`#${build.number}`)} ${stateFormatted} • ${duration} • ${branch} • ${age}`;
   }
   
   private formatPassedBuild(build: any, options?: BuildDetailFormatterOptions): string {
@@ -410,13 +414,15 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   }
   
   private formatHeader(build: any): string {
-    const status = this.getStatusIcon(build.state);
+    const statusIcon = this.getStatusIcon(build.state);
+    // Apply appropriate color to the icon based on the state
+    const coloredIcon = this.colorizeStatusIcon(statusIcon, build.state);
     const stateFormatted = formatBuildStatus(build.state, { useSymbol: false });
     const duration = this.formatDuration(build);
     const age = this.formatAge(build.createdAt);
     const branch = SEMANTIC_COLORS.identifier(build.branch);
     
-    return `${status} ${SEMANTIC_COLORS.label(`#${build.number}`)} ${stateFormatted} • ${duration} • ${branch} • ${age}`;
+    return `${coloredIcon} ${SEMANTIC_COLORS.label(`#${build.number}`)} ${stateFormatted} • ${duration} • ${branch} • ${age}`;
   }
   
   private formatCommitInfo(build: any): string {
@@ -443,7 +449,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     if (counts.INFO > 0) countParts.push(SEMANTIC_COLORS.info(`${counts.INFO} info`));
     if (counts.SUCCESS > 0) countParts.push(SEMANTIC_COLORS.success(`${counts.SUCCESS} success`));
     
-    lines.push(`📝 ${SEMANTIC_COLORS.count(String(total))} annotation${total > 1 ? 's' : ''}: ${countParts.join(', ')}`);
+    lines.push(`${getAnnotationIcon('DEFAULT')} ${SEMANTIC_COLORS.count(String(total))} annotation${total > 1 ? 's' : ''}: ${countParts.join(', ')}`);
     
     // List each annotation with style and context
     const grouped = this.groupAnnotationsByStyle(annotations);
@@ -547,7 +553,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
           
           // Parallel group info
           if (job.node.parallelGroupIndex !== undefined && job.node.parallelGroupTotal) {
-            lines.push(`    ${SEMANTIC_COLORS.dim(`📊  Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}`)}`);
+            lines.push(`    ${SEMANTIC_COLORS.dim(`${getProgressIcon('PARALLEL')}  Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}`)}`);
           }
           
           // Retry info
@@ -792,6 +798,15 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       default:
         return style.toLowerCase();
     }
+  }
+  
+  private colorizeStatusIcon(icon: string, state: string): string {
+    const upperState = state.toUpperCase();
+    const theme = BUILD_STATUS_THEME[upperState as keyof typeof BUILD_STATUS_THEME];
+    if (!theme) {
+      return SEMANTIC_COLORS.muted(icon);
+    }
+    return theme.color(icon);
   }
   
   private getJobStats(jobs: any[]): any {
