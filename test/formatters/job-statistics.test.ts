@@ -196,6 +196,52 @@ describe('Job Statistics and State Handling', () => {
     });
   });
 
+  describe('groupJobsByState', () => {
+    it('should put BROKEN jobs in Skipped group, not Failed', () => {
+      const jobs = [
+        { node: { state: 'BROKEN', passed: false, label: ':jest: Jest' } },
+        { node: { state: 'FINISHED', passed: false, label: ':rspec: RSpec' } },
+        { node: { state: 'FINISHED', passed: true, label: ':test: Test' } },
+        { node: { state: 'SKIPPED', label: ':skip: Skipped' } },
+      ];
+      
+      // @ts-ignore - accessing private method for testing
+      const grouped = formatter.groupJobsByState(jobs);
+      
+      expect(grouped['Failed']).toHaveLength(1);
+      expect(grouped['Failed'][0].node.label).toBe(':rspec: RSpec');
+      
+      expect(grouped['Skipped']).toHaveLength(2);
+      expect(grouped['Skipped'][0].node.label).toBe(':jest: Jest');
+      expect(grouped['Skipped'][1].node.label).toBe(':skip: Skipped');
+      
+      expect(grouped['Passed']).toHaveLength(1);
+      expect(grouped['Passed'][0].node.label).toBe(':test: Test');
+    });
+
+    it('should not show BROKEN jobs in Failed section when using --failed flag', () => {
+      const jobs = [
+        { node: { state: 'BROKEN', passed: false, label: ':jest: Jest' } },
+        { node: { state: 'BROKEN', passed: false, label: ':jest: Jest 2' } },
+        { node: { state: 'FINISHED', passed: false, label: ':rspec: RSpec' } },
+      ];
+      
+      // When --failed flag is used, getFailedJobs filters out BROKEN
+      // @ts-ignore - accessing private method for testing
+      const failedJobs = formatter.getFailedJobs(jobs);
+      
+      expect(failedJobs).toHaveLength(1);
+      expect(failedJobs[0].node.label).toBe(':rspec: RSpec');
+      
+      // Then groupJobsByState only sees the actual failed jobs
+      // @ts-ignore - accessing private method for testing
+      const grouped = formatter.groupJobsByState(failedJobs);
+      
+      expect(grouped['Failed']).toHaveLength(1);
+      expect(grouped['Skipped']).toHaveLength(0); // BROKEN jobs filtered out
+    });
+  });
+
   describe('Real-world scenario: Build #1290672', () => {
     it('should handle first 100 jobs being all BROKEN correctly', () => {
       // Simulate the actual case where first 100 are all BROKEN Jest jobs

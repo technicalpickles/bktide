@@ -1066,7 +1066,8 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         grouped['Running'].push(job);
       } else if (state === 'BLOCKED') {
         grouped['Blocked'].push(job);
-      } else if (state === 'SKIPPED' || state === 'CANCELED') {
+      } else if (state === 'SKIPPED' || state === 'CANCELED' || state === 'BROKEN') {
+        // BROKEN jobs are skipped due to branch conditionals
         grouped['Skipped'].push(job);
       } else if (state === 'FINISHED' || state === 'COMPLETED') {
         // For finished jobs without exit status, check passed field
@@ -1077,7 +1078,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         }
       } else if (state === 'PASSED' || job.node.passed === true) {
         grouped['Passed'].push(job);
-      } else if (state === 'FAILED' || state === 'BROKEN' || job.node.passed === false) {
+      } else if (state === 'FAILED') {
         grouped['Failed'].push(job);
       }
     }
