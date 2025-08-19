@@ -650,7 +650,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       filteredJobs = this.getFailedJobs(jobs);
     }
     
-    // Group jobs by state
+    // Group jobs by state first
     const grouped = this.groupJobsByState(filteredJobs);
     
     for (const [state, stateJobs] of Object.entries(grouped)) {
@@ -658,34 +658,67 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       
       const icon = this.getJobStateIcon(state);
       const stateColored = this.colorizeJobState(state);
+      
+      // Collapse parallel jobs with same label
+      const collapsedGroups = this.collapseParallelJobs(stateJobs);
+      
       lines.push(`${icon} ${stateColored} (${SEMANTIC_COLORS.count(String(stateJobs.length))}):`);
       
-      for (const job of stateJobs) {
-        const label = this.parseEmoji(job.node.label);
-        const duration = this.formatJobDuration(job.node);
-        
-        // Basic job line
-        lines.push(`  ${label} (${duration})`);
-        
-        // Show additional details if --jobs or --full
-        if (options?.jobs || options?.full) {
-          // Timing details
-          if (job.node.startedAt) {
-            const startTime = new Date(job.node.startedAt).toLocaleTimeString();
-            const endTime = job.node.finishedAt 
-              ? new Date(job.node.finishedAt).toLocaleTimeString()
-              : 'still running';
-            lines.push(`    ${SEMANTIC_COLORS.dim(`${getProgressIcon('TIMING')}  ${startTime} → ${endTime}`)}`);
-          }
+      for (const group of collapsedGroups) {
+        if (group.isParallelGroup && group.jobs.length > 1) {
+          // Collapsed parallel group display
+          const label = this.parseEmoji(group.label);
+          const total = group.parallelTotal || group.jobs.length;
+          const passedCount = group.jobs.filter(j => this.isJobPassed(j.node)).length;
+          const failedCount = group.jobs.filter(j => this.isJobFailed(j.node)).length;
           
-          // Parallel group info
-          if (job.node.parallelGroupIndex !== undefined && job.node.parallelGroupTotal) {
-            lines.push(`    ${SEMANTIC_COLORS.dim(`${getProgressIcon('PARALLEL')}  Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}`)}`);
+          // Show summary line for parallel group
+          if (failedCount > 0) {
+            // If there are failures, show breakdown
+            lines.push(`  ${label} (${passedCount}/${total} passed, ${failedCount} failed)`);
+            // Show failed jobs individually
+            const failedJobs = group.jobs.filter(j => this.isJobFailed(j.node));
+            for (const job of failedJobs) {
+              const duration = this.formatJobDuration(job.node);
+              const parallelInfo = job.node.parallelGroupIndex !== undefined 
+                ? ` [Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}]`
+                : '';
+              lines.push(`    ${SEMANTIC_COLORS.error('↳ Failed')}: ${duration}${parallelInfo}`);
+            }
+          } else {
+            // All passed/running/blocked - just show summary
+            const avgDuration = this.calculateAverageDuration(group.jobs);
+            lines.push(`  ${label} (${total} parallel jobs, avg: ${avgDuration})`);
           }
+        } else {
+          // Single job or non-parallel group - display as before
+          const job = group.jobs[0];
+          const label = this.parseEmoji(job.node.label);
+          const duration = this.formatJobDuration(job.node);
           
-          // Retry info
-          if (job.node.retried) {
-            lines.push(`    ${SEMANTIC_COLORS.warning(`${getProgressIcon('RETRY')} Retried`)}`);
+          // Basic job line
+          lines.push(`  ${label} (${duration})`);
+          
+          // Show additional details if --jobs or --full and single job
+          if ((options?.jobs || options?.full) && !group.isParallelGroup) {
+            // Timing details
+            if (job.node.startedAt) {
+              const startTime = new Date(job.node.startedAt).toLocaleTimeString();
+              const endTime = job.node.finishedAt 
+                ? new Date(job.node.finishedAt).toLocaleTimeString()
+                : 'still running';
+              lines.push(`    ${SEMANTIC_COLORS.dim(`${getProgressIcon('TIMING')}  ${startTime} → ${endTime}`)}`);
+            }
+            
+            // Parallel group info (for single parallel job)
+            if (job.node.parallelGroupIndex !== undefined && job.node.parallelGroupTotal) {
+              lines.push(`    ${SEMANTIC_COLORS.dim(`${getProgressIcon('PARALLEL')}  Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}`)}`);
+            }
+            
+            // Retry info
+            if (job.node.retried) {
+              lines.push(`    ${SEMANTIC_COLORS.warning(`${getProgressIcon('RETRY')} Retried`)}`);
+            }
           }
         }
       }
@@ -1084,6 +1117,109 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     }
     
     return grouped;
+  }
+  
+  private collapseParallelJobs(jobs: any[]): Array<{ 
+    label: string; 
+    jobs: any[]; 
+    isParallelGroup: boolean;
+    parallelTotal?: number;
+  }> {
+    const groups: Map<string, any[]> = new Map();
+    
+    // Group jobs by label
+    for (const job of jobs) {
+      const label = job.node.label || 'Unnamed';
+      if (!groups.has(label)) {
+        groups.set(label, []);
+      }
+      groups.get(label)!.push(job);
+    }
+    
+    // Convert to array and determine if each group is a parallel group
+    const result = [];
+    for (const [label, groupJobs] of groups.entries()) {
+      // Check if this is a parallel group (multiple jobs with same label and parallel info)
+      const hasParallelInfo = groupJobs.some(j => 
+        j.node.parallelGroupIndex !== undefined && j.node.parallelGroupTotal !== undefined
+      );
+      
+      const isParallelGroup = hasParallelInfo && groupJobs.length > 1;
+      
+      // Get the total from the first job if available
+      const parallelTotal = groupJobs[0]?.node?.parallelGroupTotal;
+      
+      result.push({
+        label,
+        jobs: groupJobs,
+        isParallelGroup,
+        parallelTotal
+      });
+    }
+    
+    return result;
+  }
+  
+  private isJobPassed(job: any): boolean {
+    const state = job.state?.toUpperCase();
+    
+    if (job.exitStatus !== null && job.exitStatus !== undefined) {
+      return parseInt(job.exitStatus, 10) === 0;
+    }
+    
+    if (state === 'PASSED') return true;
+    if (state === 'FINISHED' || state === 'COMPLETED') {
+      return job.passed === true;
+    }
+    
+    return job.passed === true;
+  }
+  
+  private isJobFailed(job: any): boolean {
+    const state = job.state?.toUpperCase();
+    
+    if (job.exitStatus !== null && job.exitStatus !== undefined) {
+      return parseInt(job.exitStatus, 10) !== 0;
+    }
+    
+    if (state === 'FAILED') return true;
+    if (state === 'FINISHED' || state === 'COMPLETED') {
+      return job.passed === false;
+    }
+    
+    return false;
+  }
+  
+  private calculateAverageDuration(jobs: any[]): string {
+    const durationsMs = jobs
+      .filter(j => j.node.startedAt && j.node.finishedAt)
+      .map(j => {
+        const start = new Date(j.node.startedAt).getTime();
+        const end = new Date(j.node.finishedAt).getTime();
+        return end - start;
+      });
+    
+    if (durationsMs.length === 0) {
+      return 'unknown';
+    }
+    
+    const avgMs = durationsMs.reduce((a, b) => a + b, 0) / durationsMs.length;
+    const avgSeconds = Math.floor(avgMs / 1000);
+    
+    if (avgSeconds < 60) {
+      return `${avgSeconds}s`;
+    }
+    
+    const minutes = Math.floor(avgSeconds / 60);
+    const seconds = avgSeconds % 60;
+    
+    if (minutes < 60) {
+      return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+    }
+    
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
   }
   
   private countAnnotationsByStyle(annotations: any[]): Record<string, number> {
