@@ -17,6 +17,42 @@ npm run dev:compiled -- <command> [options]
 
 ## UI Guidelines
 
+### Icon System
+
+The project uses a centralized icon system with three display modes for different terminal capabilities:
+
+**Icon Display Modes:**
+- **UTF-8 (default)**: Clean symbols like ✓, ✗, ◷ that work universally
+- **Emoji**: Full emoji support (✅, ❌, 🔄) via `BKTIDE_EMOJI=1` or `--emoji`
+- **ASCII**: Plain text ([OK], [FAIL]) via `BKTIDE_ASCII=1` or `--ascii`
+
+**Usage in Code:**
+```typescript
+import { getStateIcon, getAnnotationIcon, getProgressIcon } from '../ui/theme.js';
+
+// Use theme functions for icons
+const icon = getStateIcon('PASSED');  // Returns ✓ (or ✅ in emoji mode, [OK] in ASCII)
+lines.push(`${icon} Build passed`);
+
+// Available functions:
+// - getStateIcon(state) - Build/job states (PASSED, FAILED, RUNNING, etc.)
+// - getAnnotationIcon(style) - Annotation styles (ERROR, WARNING, INFO, SUCCESS)
+// - getProgressIcon(type) - Debug indicators (TIMING, STARTING, SUCCESS_LOG, etc.)
+
+// ❌ AVOID hard-coding emoji
+lines.push(`✅ Build passed`);  // Don't do this
+```
+
+**Examples:**
+```typescript
+// In formatters
+const statusIcon = getStateIcon(build.state);
+const annotationIcon = getAnnotationIcon('ERROR');
+
+// In debug logging
+logger.debug(`${getProgressIcon('SUCCESS_LOG')} Operation completed`);
+```
+
 ### Tip and Hint Formatting
 
 When displaying tips or hints to users, use the standardized `formatTips` utility:

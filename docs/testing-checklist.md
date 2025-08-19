@@ -115,6 +115,13 @@ Test each command with different output formats:
   - [ ] Spinners show for indeterminate operations
   - [ ] Progress bars show for operations with known totals (multi-org, token validation)
 
+### Icon Display Modes
+- [ ] Default mode shows UTF-8 symbols (✓, ✗, ◷, etc.)
+- [ ] `BKTIDE_EMOJI=1` or `--emoji` shows emoji (✅, ❌, 🔄, etc.)
+- [ ] `BKTIDE_ASCII=1` or `--ascii` shows ASCII ([OK], [FAIL], [>>>], etc.)
+- [ ] Debug output uses appropriate icons for each mode
+- [ ] Icons display correctly in different terminal emulators
+
 ### Alfred Integration
 - [ ] Workflow import completes without errors
 - [ ] All commands appear in Alfred search

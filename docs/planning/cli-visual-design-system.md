@@ -211,7 +211,7 @@ Need help? Run: bktide token --help      <- chalk.dim.italic
 ### Level 1: Critical (Highest Priority)
 - **Use:** Errors, failures, urgent warnings
 - **Style:** `chalk.rgb(255, 140, 0)` (orange) + `chalk.bold`
-- **Symbol:** ✖ or ⚠
+- **Symbol:** ✗ (UTF-8), ❌ (emoji), or [FAIL] (ASCII)
 
 ### Level 2: Primary Information
 - **Use:** Main data, headings, key results
@@ -221,7 +221,7 @@ Need help? Run: bktide token --help      <- chalk.dim.italic
 ### Level 3: Standard Information  
 - **Use:** Regular data values, normal text
 - **Style:** Default terminal color
-- **Symbol:** Contextual (✓, •, →)
+- **Symbol:** Contextual (✓ for success, → for arrows, • for bullets)
 
 ### Level 4: Secondary Information
 - **Use:** Supplementary data, counts, metadata
@@ -231,7 +231,7 @@ Need help? Run: bktide token --help      <- chalk.dim.italic
 ### Level 5: Auxiliary (Lowest Priority)
 - **Use:** Tips, hints, help text, empty states
 - **Style:** `chalk.dim` or `chalk.gray`
-- **Symbol:** 💡 for tips (also dimmed)
+- **Symbol:** → for tips (also dimmed)
 
 ## Responsive Design Considerations
 
@@ -267,6 +267,29 @@ if (!colorEnabled) {
   return '[PASSED]' instead of colored 'PASSED'
   return '**Heading**' instead of bold.underline
 }
+```
+
+## Icon System
+
+The CLI supports three icon display modes to accommodate different terminal capabilities:
+
+### UTF-8 Mode (Default)
+Clean, universal symbols that work in most modern terminals:
+- ✓ (success), ✗ (error), ⚠ (warning), ↻ (running), ◷ (starting)
+
+### Emoji Mode
+Colorful emoji for enhanced visual appeal (opt-in via `BKTIDE_EMOJI=1`):
+- ✅ (success), ❌ (error), ⚠️ (warning), 🔄 (running), 🕒 (starting)
+
+### ASCII Mode  
+Plain text fallbacks for legacy terminals (opt-in via `BKTIDE_ASCII=1`):
+- [OK] (success), [FAIL] (error), [WARN] (warning), [RUN] (running), [>>>] (starting)
+
+### Implementation
+```typescript
+// Use centralized theme functions
+import { getStateIcon } from '../ui/theme.js';
+const icon = getStateIcon('PASSED'); // Returns appropriate icon for current mode
 ```
 
 ## Testing & Validation

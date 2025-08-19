@@ -2,6 +2,7 @@ import fetch from 'node-fetch';
 import { CacheManager } from './CacheManager.js';
 import { createHash } from 'crypto';
 import { logger } from './logger.js';
+import { getProgressIcon } from '../ui/theme.js';
 
 export interface BuildkiteRestClientOptions {
   baseUrl?: string;
@@ -112,7 +113,7 @@ export class BuildkiteRestClient {
       const cached = await this.cacheManager.get(cacheKey, cacheType as any);
       if (cached) {
         if (this.debug) {
-          logger.debug(`✅ Served from cache: REST ${endpoint}`);
+          logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served from cache: REST ${endpoint}`);
         }
         return cached as T;
       }
@@ -120,10 +121,10 @@ export class BuildkiteRestClient {
 
     const startTime = process.hrtime.bigint();
     if (this.debug) {
-      logger.debug(`🕒 Starting REST API request: GET ${endpoint}`);
-      logger.debug(`🕒 Request URL: ${url.toString()}`);
+      logger.debug(`${getProgressIcon('STARTING')} Starting REST API request: GET ${endpoint}`);
+      logger.debug(`${getProgressIcon('STARTING')} Request URL: ${url.toString()}`);
       if (params) {
-        logger.debug(`🕒 Request params: ${JSON.stringify(params)}`);
+        logger.debug(`${getProgressIcon('STARTING')} Request params: ${JSON.stringify(params)}`);
       }
     }
     
@@ -182,7 +183,7 @@ export class BuildkiteRestClient {
       const endTime = process.hrtime.bigint();
       const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
       if (this.debug) {
-        logger.debug(`✅ REST API request completed: GET ${endpoint} (${duration.toFixed(2)}ms)`);
+        logger.debug(`${getProgressIcon('SUCCESS_LOG')} REST API request completed: GET ${endpoint} (${duration.toFixed(2)}ms)`);
       }
       
       return data;
@@ -237,7 +238,7 @@ export class BuildkiteRestClient {
     const endpoint = `/organizations/${org}/builds`;
     const startTime = process.hrtime.bigint();
     if (this.debug) {
-      logger.debug(`🕒 Fetching builds for organization: ${org}`);
+      logger.debug(`${getProgressIcon('STARTING')} Fetching builds for organization: ${org}`);
     }
     
     const builds = await this.get<any[]>(endpoint, params as Record<string, string>);
@@ -245,7 +246,7 @@ export class BuildkiteRestClient {
     const endTime = process.hrtime.bigint();
     const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
     if (this.debug) {
-      logger.debug(`✅ Retrieved ${builds.length} builds for ${org} (${duration.toFixed(2)}ms)`);
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} Retrieved ${builds.length} builds for ${org} (${duration.toFixed(2)}ms)`);
     }
     
     return builds;

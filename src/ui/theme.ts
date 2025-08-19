@@ -342,4 +342,187 @@ export function shouldDecorate(format?: string): boolean {
   return f !== 'json' && f !== 'alfred' && colorEnabled();
 }
 
+/**
+ * Icon Display Modes
+ */
+export enum IconMode {
+  EMOJI = 'emoji',    // Full emoji support
+  UTF8 = 'utf8',      // UTF-8 symbols (no emoji)
+  ASCII = 'ascii'     // ASCII-only fallback
+}
+
+/**
+ * Build and Job State Icons
+ * Each has emoji, UTF-8, and ASCII alternatives
+ */
+export const STATE_ICONS = {
+  PASSED: {
+    emoji: '✅',
+    utf8: '✓',     // U+2713 Check mark
+    ascii: '[OK]'
+  },
+  FAILED: {
+    emoji: '❌',
+    utf8: '✗',     // U+2717 Ballot X
+    ascii: '[FAIL]'
+  },
+  RUNNING: {
+    emoji: '🔄',
+    utf8: '↻',     // U+21BB Clockwise arrow
+    ascii: '[RUN]'
+  },
+  BLOCKED: {
+    emoji: '⏸️',
+    utf8: '‖',     // U+2016 Double vertical line
+    ascii: '[BLOCK]'
+  },
+  CANCELED: {
+    emoji: '🚫',
+    utf8: '⊘',     // U+2298 Circled division slash
+    ascii: '[CANCEL]'
+  },
+  SCHEDULED: {
+    emoji: '📅',
+    utf8: '⏰',     // U+23F0 Alarm clock
+    ascii: '[SCHED]'
+  },
+  SKIPPED: {
+    emoji: '⏭️',
+    utf8: '»',     // U+00BB Right-pointing double angle
+    ascii: '[SKIP]'
+  },
+  UNKNOWN: {
+    emoji: '❓',
+    utf8: '?',     // Regular question mark
+    ascii: '[?]'
+  }
+};
+
+/**
+ * Annotation Style Icons
+ */
+export const ANNOTATION_ICONS = {
+  ERROR: {
+    emoji: '❌',
+    utf8: '✗',     // U+2717 Ballot X
+    ascii: '[ERR]'
+  },
+  WARNING: {
+    emoji: '⚠️',
+    utf8: '⚠',     // U+26A0 Warning sign (without emoji variant)
+    ascii: '[WARN]'
+  },
+  INFO: {
+    emoji: 'ℹ️',
+    utf8: 'ⓘ',     // U+24D8 Circled Latin small letter i
+    ascii: '[INFO]'
+  },
+  SUCCESS: {
+    emoji: '✅',
+    utf8: '✓',     // U+2713 Check mark
+    ascii: '[OK]'
+  },
+  DEFAULT: {
+    emoji: '📝',
+    utf8: '◆',     // U+25C6 Black diamond
+    ascii: '[NOTE]'
+  }
+};
+
+/**
+ * Progress and Debug Icons
+ */
+export const PROGRESS_ICONS = {
+  TIMING: {
+    emoji: '⏱️',
+    utf8: '⧗',     // U+29D7 Black hourglass
+    ascii: '[TIME]'
+  },
+  STARTING: {
+    emoji: '🕒',
+    utf8: '◷',     // U+25F7 White circle with upper right quadrant
+    ascii: '[>>>]'
+  },
+  RETRY: {
+    emoji: '🔄',
+    utf8: '↻',     // U+21BB Clockwise arrow
+    ascii: '[RETRY]'
+  },
+  SUCCESS_LOG: {
+    emoji: '✅',
+    utf8: '✓',     // U+2713 Check mark
+    ascii: '[✓]'
+  },
+  BLOCKED_MESSAGE: {
+    emoji: '🚫',
+    utf8: '⊘',     // U+2298 Circled division slash
+    ascii: '[BLOCKED]'
+  }
+};
+
+/**
+ * Get current icon mode based on environment and flags
+ */
+export function getIconMode(): IconMode {
+  // Check command-line flags first
+  if (process.argv.includes('--ascii')) {
+    return IconMode.ASCII;
+  }
+  if (process.argv.includes('--emoji')) {
+    return IconMode.EMOJI;
+  }
+  
+  // Check environment variables
+  if (process.env.BKTIDE_ASCII === '1') {
+    return IconMode.ASCII;
+  }
+  if (process.env.BKTIDE_EMOJI === '1') {
+    return IconMode.EMOJI;
+  }
+  
+  // Default to UTF-8 symbols (clean, universal, works in most modern terminals)
+  // ASCII is only used if explicitly requested via flag or env var
+  return IconMode.UTF8;
+}
+
+/**
+ * Helper to get icon based on current mode
+ */
+export function getIcon(iconDef: { emoji: string; utf8: string; ascii: string }): string {
+  const mode = getIconMode();
+  switch (mode) {
+    case IconMode.ASCII:
+      return iconDef.ascii;
+    case IconMode.UTF8:
+      return iconDef.utf8;
+    default:
+      return iconDef.emoji;
+  }
+}
+
+/**
+ * Get state icon for build/job states
+ */
+export function getStateIcon(state: string): string {
+  const upperState = state.toUpperCase().replace('CANCELING', 'CANCELED');
+  const iconDef = STATE_ICONS[upperState as keyof typeof STATE_ICONS] || STATE_ICONS.UNKNOWN;
+  return getIcon(iconDef);
+}
+
+/**
+ * Get annotation style icon
+ */
+export function getAnnotationIcon(style: string): string {
+  const upperStyle = style.toUpperCase();
+  const iconDef = ANNOTATION_ICONS[upperStyle as keyof typeof ANNOTATION_ICONS] || ANNOTATION_ICONS.DEFAULT;
+  return getIcon(iconDef);
+}
+
+/**
+ * Get progress/debug icon
+ */
+export function getProgressIcon(type: keyof typeof PROGRESS_ICONS): string {
+  return getIcon(PROGRESS_ICONS[type]);
+}
+
 

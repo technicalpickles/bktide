@@ -57,6 +57,22 @@ This document tracks the visual design improvements implemented for the bktide C
 - Column prioritization system ensures most important data remains visible
 - Smart truncation with ellipsis (…) for long text
 
+### Phase 6: Icon System Consolidation
+**Completed**: Centralized all emoji and icons into theme system with three display modes
+
+- Created comprehensive icon system in `src/ui/theme.ts`:
+  - **STATE_ICONS**: Build/job states (passed, failed, running, blocked, etc.)
+  - **ANNOTATION_ICONS**: Annotation styles (error, warning, info, success)
+  - **PROGRESS_ICONS**: Debug logging and progress indicators
+- Implemented three display modes:
+  - **UTF-8 Mode** (default): Clean symbols (✓, ✗, ◷) for universal compatibility
+  - **Emoji Mode**: Full emoji support (✅, ❌, 🔄) for colorful displays
+  - **ASCII Mode**: Plain text ([OK], [FAIL], [>>>]) for legacy terminals
+- Added environment variables: `BKTIDE_EMOJI=1` and `BKTIDE_ASCII=1`
+- Added command-line flags: `--emoji` and `--ascii`
+- Replaced all hard-coded emoji throughout codebase
+- Updated debug logging to use theme icons
+
 ## Key Design Decisions
 
 ### Color Palette (Colorblind-Safe)
@@ -73,13 +89,38 @@ This document tracks the visual design improvements implemented for the bktide C
 4. **Secondary** (Metadata) - Semantic colors
 5. **Auxiliary** (Tips) - Dimmed text
 
-### Symbols
+### Icon System
+Three display modes for different terminal capabilities:
+
+#### UTF-8 Mode (Default)
 - ✓ Success/Passed
-- ✖ Error/Failed
+- ✗ Error/Failed
 - ⚠ Warning/Blocked
 - ↻ Running/Active
+- ◷ Starting/Loading
+- ⧗ Timing/Duration
 - → Tip indicator
 - − Skipped/Inactive
+
+#### Emoji Mode (opt-in via `BKTIDE_EMOJI=1`)
+- ✅ Success/Passed
+- ❌ Error/Failed
+- ⚠️ Warning/Blocked
+- 🔄 Running/Active
+- 🕒 Starting/Loading
+- ⏱️ Timing/Duration
+- → Tip indicator
+- ⏭️ Skipped/Inactive
+
+#### ASCII Mode (opt-in via `BKTIDE_ASCII=1`)
+- [OK] Success/Passed
+- [FAIL] Error/Failed
+- [WARN] Warning/Blocked
+- [RUN] Running/Active
+- [>>>] Starting/Loading
+- [TIME] Timing/Duration
+- -> Tip indicator
+- [SKIP] Skipped/Inactive
 
 ## Accessibility Features
 
@@ -97,10 +138,11 @@ This document tracks the visual design improvements implemented for the bktide C
 ## Files Modified
 
 ### Core Theme System
-- `src/ui/theme.ts` - Enhanced with semantic colors and helpers
+- `src/ui/theme.ts` - Enhanced with semantic colors, helpers, and comprehensive icon system
 - `src/ui/reporter.ts` - Updated tip display with dimming
 - `src/ui/table.ts` - Fixed ANSI code handling for colored text
 - `src/ui/width.ts` - Added `stripAnsi()` function
+- `src/ui/symbols.ts` - Maintains backward compatibility for symbol exports
 
 ### Formatters Updated
 - `src/formatters/builds/PlainTextFormatter.ts`
@@ -108,6 +150,11 @@ This document tracks the visual design improvements implemented for the bktide C
 - `src/formatters/pipelines/PlainTextFormatter.ts`
 - `src/formatters/annotations/PlainTextFormatter.ts`
 - `src/formatters/viewer/PlainTextFormatter.ts`
+- `src/formatters/build-detail/PlainTextFormatter.ts` - Updated to use theme icons
+
+### Services Updated (Icon Consolidation)
+- `src/services/BuildkiteClient.ts` - Debug logging uses theme icons
+- `src/services/BuildkiteRestClient.ts` - Debug logging uses theme icons
 
 ### Documentation
 - `README.md` - Added Visual Features section
@@ -125,6 +172,11 @@ This document tracks the visual design improvements implemented for the bktide C
 - ✅ Table alignment maintained with colored text
 - ✅ Empty states show helpful suggestions
 - ✅ Error messages provide actionable guidance
+- ✅ UTF-8 icon mode displays clean symbols by default
+- ✅ Emoji mode (BKTIDE_EMOJI=1) shows colorful emoji
+- ✅ ASCII mode (BKTIDE_ASCII=1) provides text fallbacks
+- ✅ Debug logging uses centralized icon system
+- ✅ All hard-coded emoji replaced with theme functions
 
 ## Future Enhancements (Optional)
 

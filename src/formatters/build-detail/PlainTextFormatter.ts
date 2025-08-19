@@ -7,7 +7,10 @@ import {
   SEMANTIC_COLORS,
   formatBuildStatus,
   formatTips,
-  TipStyle
+  TipStyle,
+  getStateIcon,
+  getAnnotationIcon,
+  getProgressIcon
 } from '../../ui/theme.js';
 
 // Standard emoji mappings only
@@ -292,13 +295,13 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     // Blocked information
     const blockedJobs = this.getBlockedJobs(build.jobs?.edges);
     if (blockedJobs.length > 0) {
-      lines.push(`🚫 Blocked: "${blockedJobs[0].node.label}" (manual unblock required)`);
+      lines.push(`${getProgressIcon('BLOCKED_MESSAGE')} Blocked: "${blockedJobs[0].node.label}" (manual unblock required)`);
     }
     
     // Show jobs summary
     const jobStats = this.getJobStats(build.jobs?.edges);
     if (jobStats.completed > 0) {
-      lines.push(`✅ ${jobStats.completed} jobs passed before block`);
+      lines.push(`${getStateIcon('PASSED')} ${jobStats.completed} jobs passed before block`);
     }
     
     // Annotation summary
@@ -499,11 +502,11 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     
     // Summary line
     const parts = [];
-    if (jobStats.passed > 0) parts.push(`✅ ${jobStats.passed} passed`);
-    if (jobStats.failed > 0) parts.push(`❌ ${jobStats.failed} failed`);
-    if (jobStats.running > 0) parts.push(`🔄 ${jobStats.running} running`);
-    if (jobStats.blocked > 0) parts.push(`⏸️ ${jobStats.blocked} blocked`);
-    if (jobStats.skipped > 0) parts.push(`⏭️ ${jobStats.skipped} skipped`);
+    if (jobStats.passed > 0) parts.push(`${getStateIcon('PASSED')} ${jobStats.passed} passed`);
+    if (jobStats.failed > 0) parts.push(`${getStateIcon('FAILED')} ${jobStats.failed} failed`);
+    if (jobStats.running > 0) parts.push(`${getStateIcon('RUNNING')} ${jobStats.running} running`);
+    if (jobStats.blocked > 0) parts.push(`${getStateIcon('BLOCKED')} ${jobStats.blocked} blocked`);
+    if (jobStats.skipped > 0) parts.push(`${getStateIcon('SKIPPED')} ${jobStats.skipped} skipped`);
     
     lines.push(`Jobs: ${parts.join('  ')}`);
     lines.push('');
@@ -539,7 +542,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
             const endTime = job.node.finishedAt 
               ? new Date(job.node.finishedAt).toLocaleTimeString()
               : 'still running';
-            lines.push(`    ${SEMANTIC_COLORS.dim(`⏱️  ${startTime} → ${endTime}`)}`);
+            lines.push(`    ${SEMANTIC_COLORS.dim(`${getProgressIcon('TIMING')}  ${startTime} → ${endTime}`)}`);
           }
           
           // Parallel group info
@@ -549,7 +552,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
           
           // Retry info
           if (job.node.retried) {
-            lines.push(`    ${SEMANTIC_COLORS.warning('🔄 Retried')}`);
+            lines.push(`    ${SEMANTIC_COLORS.warning(`${getProgressIcon('RETRY')} Retried`)}`);
           }
         }
       }
@@ -765,42 +768,15 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   }
   
   private getStatusIcon(state: string): string {
-    const icons: Record<string, string> = {
-      'PASSED': '✅',
-      'FAILED': '❌',
-      'RUNNING': '🔄',
-      'BLOCKED': '⏸️',
-      'CANCELED': '🚫',
-      'SCHEDULED': '📅',
-      'SKIPPED': '⏭️'
-    };
-    
-    return icons[state] || '❓';
+    return getStateIcon(state);
   }
   
   private getJobStateIcon(state: string): string {
-    const icons: Record<string, string> = {
-      'passed': '✅',
-      'failed': '❌',
-      'running': '🔄',
-      'blocked': '⏸️',
-      'canceled': '🚫',
-      'scheduled': '📅',
-      'skipped': '⏭️'
-    };
-    
-    return icons[state.toLowerCase()] || '❓';
+    return getStateIcon(state);
   }
   
   private getAnnotationIcon(style: string): string {
-    const icons: Record<string, string> = {
-      'ERROR': '❌',
-      'WARNING': '⚠️',
-      'INFO': 'ℹ️',
-      'SUCCESS': '✅'
-    };
-    
-    return icons[style.toUpperCase()] || '📝';
+    return getAnnotationIcon(style);
   }
   
   private colorizeAnnotationStyle(style: string): string {

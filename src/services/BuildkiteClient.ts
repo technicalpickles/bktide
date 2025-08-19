@@ -1,5 +1,6 @@
 import { GraphQLClient } from 'graphql-request';
 import { CacheManager } from './CacheManager.js';
+import { getProgressIcon } from '../ui/theme.js';
 // Import the queries - we'll use them for both string queries and typed SDK
 import { 
   GET_VIEWER, 
@@ -122,7 +123,7 @@ export class BuildkiteClient {
       const startTime = process.hrtime.bigint();
       const operationName = query.match(/query\s+(\w+)?/)?.[1] || 'UnnamedQuery';
       if (this.debug) {
-        logger.debug(`🕒 Starting GraphQL query: ${operationName}`);
+        logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL query: ${operationName}`);
       }
       
       // Check if result is in cache
@@ -134,7 +135,7 @@ export class BuildkiteClient {
         
         if (cachedResult) {
           if (this.debug) {
-            logger.debug(`✅ Served from cache: ${operationName}`);
+            logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served from cache: ${operationName}`);
           }
           return cachedResult;
         }
@@ -150,7 +151,7 @@ export class BuildkiteClient {
       const endTime = process.hrtime.bigint();
       const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
       if (this.debug) {
-        logger.debug(`✅ GraphQL query completed: ${operationName} (${duration.toFixed(2)}ms)`);
+        logger.debug(`${getProgressIcon('SUCCESS_LOG')} GraphQL query completed: ${operationName} (${duration.toFixed(2)}ms)`);
       }
       
       return response;
@@ -231,7 +232,7 @@ export class BuildkiteClient {
       const startTime = process.hrtime.bigint();
       const operationName = mutation.match(/mutation\s+(\w+)?/)?.[1] || 'UnnamedMutation';
       if (this.debug) {
-        logger.debug(`🕒 Starting GraphQL mutation: ${operationName}`);
+        logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL mutation: ${operationName}`);
       }
       
       const result = await this.client.request<T>(mutation, variables);
@@ -248,7 +249,7 @@ export class BuildkiteClient {
       
       const endTime = process.hrtime.bigint();
       const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
-      logger.debug(`✅ GraphQL mutation completed: ${operationName} (${duration.toFixed(2)}ms)`);
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} GraphQL mutation completed: ${operationName} (${duration.toFixed(2)}ms)`);
       
       return result;
     } catch (error) {
@@ -265,7 +266,7 @@ export class BuildkiteClient {
     try {
       const startTime = process.hrtime.bigint();
       if (this.debug) {
-        logger.debug(`🕒 Starting GraphQL query: getViewerOrganizationSlugs`);
+        logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL query: getViewerOrganizationSlugs`);
       }
       
       // Get the organizations using our query
@@ -310,7 +311,7 @@ export class BuildkiteClient {
       const endTime = process.hrtime.bigint();
       const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
       if (this.debug) {
-        logger.debug(`✅ Found ${slugs.length} organizations (${duration.toFixed(2)}ms)`);
+        logger.debug(`${getProgressIcon('SUCCESS_LOG')} Found ${slugs.length} organizations (${duration.toFixed(2)}ms)`);
       }
       
       return slugs;
@@ -368,7 +369,7 @@ export class BuildkiteClient {
    */
   public async getViewer(): Promise<GetViewerQuery> {
     if (this.debug) {
-      logger.debug(`🕒 Starting GraphQL query: GetViewer`);
+      logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL query: GetViewer`);
     }
 
     // Check if result is in cache
@@ -376,7 +377,7 @@ export class BuildkiteClient {
       const cachedResult = await this.cacheManager.get<GetViewerQuery>(GET_VIEWER.toString(), {});
       if (cachedResult) {
         if (this.debug) {
-          logger.debug(`✅ Served from cache: GetViewer`);
+          logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served from cache: GetViewer`);
         }
         return cachedResult;
       }
@@ -393,7 +394,7 @@ export class BuildkiteClient {
     const endTime = process.hrtime.bigint();
     const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
     if (this.debug) {
-      logger.debug(`✅ GraphQL query completed: GetViewer (${duration.toFixed(2)}ms)`);
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} GraphQL query completed: GetViewer (${duration.toFixed(2)}ms)`);
     }
 
     return result;
@@ -405,7 +406,7 @@ export class BuildkiteClient {
    */
   public async getOrganizations(): Promise<Array<{ id: string; name: string; slug: string; }>> {
     if (this.debug) {
-      logger.debug(`🕒 Starting GraphQL query: GetOrganizations`);
+      logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL query: GetOrganizations`);
     }
 
     // Check if result is in cache
@@ -413,7 +414,7 @@ export class BuildkiteClient {
       const cachedResult = await this.cacheManager.get<GetOrganizationsQuery>(GET_ORGANIZATIONS.toString(), {});
       if (cachedResult) {
         if (this.debug) {
-          logger.debug(`✅ Served from cache: GetOrganizations`);
+          logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served from cache: GetOrganizations`);
         }
         return this.processOrganizationsResponse(cachedResult);
       }
@@ -430,7 +431,7 @@ export class BuildkiteClient {
     const endTime = process.hrtime.bigint();
     const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
     if (this.debug) {
-      logger.debug(`✅ GraphQL query completed: GetOrganizations (${duration.toFixed(2)}ms)`);
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} GraphQL query completed: GetOrganizations (${duration.toFixed(2)}ms)`);
     }
 
     return this.processOrganizationsResponse(result);
@@ -477,7 +478,7 @@ export class BuildkiteClient {
     };
 
     if (this.debug) {
-      logger.debug(`🕒 Starting GraphQL query: GetPipelines for ${organizationSlug}`);
+      logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL query: GetPipelines for ${organizationSlug}`);
     }
 
     // Check if result is in cache
@@ -485,7 +486,7 @@ export class BuildkiteClient {
       const cachedResult = await this.cacheManager.get<GetPipelinesQuery>(GET_PIPELINES.toString(), variables);
       if (cachedResult) {
         if (this.debug) {
-          logger.debug(`✅ Served from cache: GetPipelines`);
+          logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served from cache: GetPipelines`);
         }
         return cachedResult;
       }
@@ -502,7 +503,7 @@ export class BuildkiteClient {
     const endTime = process.hrtime.bigint();
     const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
     if (this.debug) {
-      logger.debug(`✅ GraphQL query completed: GetPipelines (${duration.toFixed(2)}ms)`);
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} GraphQL query completed: GetPipelines (${duration.toFixed(2)}ms)`);
     }
 
     return result;
@@ -527,7 +528,7 @@ export class BuildkiteClient {
     };
 
     if (this.debug) {
-      logger.debug(`🕒 Starting GraphQL query: GetBuilds for ${pipelineSlug} in ${organizationSlug}`);
+      logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL query: GetBuilds for ${pipelineSlug} in ${organizationSlug}`);
     }
 
     // Check if result is in cache
@@ -535,7 +536,7 @@ export class BuildkiteClient {
       const cachedResult = await this.cacheManager.get<GetBuildsQuery>(GET_BUILDS.toString(), variables);
       if (cachedResult) {
         if (this.debug) {
-          logger.debug(`✅ Served from cache: GetBuilds`);
+          logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served from cache: GetBuilds`);
         }
         return cachedResult;
       }
@@ -552,7 +553,7 @@ export class BuildkiteClient {
     const endTime = process.hrtime.bigint();
     const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
     if (this.debug) {
-      logger.debug(`✅ GraphQL query completed: GetBuilds (${duration.toFixed(2)}ms)`);
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} GraphQL query completed: GetBuilds (${duration.toFixed(2)}ms)`);
     }
 
     return result;
@@ -569,7 +570,7 @@ export class BuildkiteClient {
     };
 
     if (this.debug) {
-      logger.debug(`🕒 Starting GraphQL query: GetViewerBuilds`);
+      logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL query: GetViewerBuilds`);
     }
 
     // Check if result is in cache
@@ -577,7 +578,7 @@ export class BuildkiteClient {
       const cachedResult = await this.cacheManager.get<GetViewerBuildsQuery>(GET_VIEWER_BUILDS.toString(), variables);
       if (cachedResult) {
         if (this.debug) {
-          logger.debug(`✅ Served from cache: GetViewerBuilds`);
+          logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served from cache: GetViewerBuilds`);
         }
         return cachedResult;
       }
@@ -594,7 +595,7 @@ export class BuildkiteClient {
     const endTime = process.hrtime.bigint();
     const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
     if (this.debug) {
-      logger.debug(`✅ GraphQL query completed: GetViewerBuilds (${duration.toFixed(2)}ms)`);
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} GraphQL query completed: GetViewerBuilds (${duration.toFixed(2)}ms)`);
     }
 
     return result;
@@ -619,7 +620,7 @@ export class BuildkiteClient {
     };
 
     if (this.debug) {
-      logger.debug(`🕒 Starting GraphQL query: GetBuildAnnotations for ${buildSlug}`);
+      logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL query: GetBuildAnnotations for ${buildSlug}`);
     }
 
     // Check if result is in cache
@@ -627,7 +628,7 @@ export class BuildkiteClient {
       const cachedResult = await this.cacheManager.get<any>(GET_BUILD_ANNOTATIONS.toString(), variables);
       if (cachedResult) {
         if (this.debug) {
-          logger.debug(`✅ Served from cache: GetBuildAnnotations`);
+          logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served from cache: GetBuildAnnotations`);
         }
         return cachedResult;
       }
@@ -644,7 +645,7 @@ export class BuildkiteClient {
     const endTime = process.hrtime.bigint();
     const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
     if (this.debug) {
-      logger.debug(`✅ GraphQL query completed: GetBuildAnnotations (${duration.toFixed(2)}ms)`);
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} GraphQL query completed: GetBuildAnnotations (${duration.toFixed(2)}ms)`);
     }
 
     return result;
@@ -656,7 +657,7 @@ export class BuildkiteClient {
     };
 
     if (this.debug) {
-      logger.debug(`🕒 Starting GraphQL query: GetBuildSummary for ${buildSlug}`);
+      logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL query: GetBuildSummary for ${buildSlug}`);
     }
 
     // Check if result is in cache
@@ -664,7 +665,7 @@ export class BuildkiteClient {
       const cachedResult = await this.cacheManager.get<any>('GET_BUILD_SUMMARY', variables);
       if (cachedResult) {
         if (this.debug) {
-          logger.debug(`✅ Served from cache: GetBuildSummary`);
+          logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served from cache: GetBuildSummary`);
         }
         return cachedResult;
       }
@@ -681,7 +682,7 @@ export class BuildkiteClient {
     const endTime = process.hrtime.bigint();
     const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
     if (this.debug) {
-      logger.debug(`✅ GraphQL query completed: GetBuildSummary (${duration.toFixed(2)}ms)`);
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} GraphQL query completed: GetBuildSummary (${duration.toFixed(2)}ms)`);
     }
 
     return result;
@@ -693,7 +694,7 @@ export class BuildkiteClient {
     };
 
     if (this.debug) {
-      logger.debug(`🕒 Starting GraphQL query: GetBuildFull for ${buildSlug}`);
+      logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL query: GetBuildFull for ${buildSlug}`);
     }
 
     // Check if result is in cache
@@ -701,7 +702,7 @@ export class BuildkiteClient {
       const cachedResult = await this.cacheManager.get<any>('GET_BUILD_FULL', variables);
       if (cachedResult) {
         if (this.debug) {
-          logger.debug(`✅ Served from cache: GetBuildFull`);
+          logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served from cache: GetBuildFull`);
         }
         return cachedResult;
       }
@@ -718,7 +719,7 @@ export class BuildkiteClient {
     const endTime = process.hrtime.bigint();
     const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
     if (this.debug) {
-      logger.debug(`✅ GraphQL query completed: GetBuildFull (${duration.toFixed(2)}ms)`);
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} GraphQL query completed: GetBuildFull (${duration.toFixed(2)}ms)`);
     }
 
     return result;
