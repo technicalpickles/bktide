@@ -1005,6 +1005,11 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     return jobs.filter(job => {
       const state = job.node.state?.toUpperCase();
       
+      // BROKEN jobs are skipped/not run, not failed
+      if (state === 'BROKEN' || state === 'SKIPPED') {
+        return false;
+      }
+      
       // If we have an exit status, use that as the source of truth
       // Note: exitStatus comes as a string from Buildkite API
       if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
@@ -1012,8 +1017,13 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         return exitCode !== 0;
       }
       
-      // Otherwise fall back to state (BROKEN jobs are skipped, not failed)
-      return state === 'FAILED' || job.node.passed === false;
+      // For FINISHED jobs, check the passed field
+      if (state === 'FINISHED') {
+        return job.node.passed === false;
+      }
+      
+      // Otherwise check if explicitly failed
+      return state === 'FAILED';
     });
   }
   
