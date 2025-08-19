@@ -955,7 +955,8 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       } else if (state === 'CANCELED' || state === 'CANCELLED') {
         stats.canceled++;
         stats.completed++;
-      } else if (state === 'SKIPPED') {
+      } else if (state === 'SKIPPED' || state === 'BROKEN') {
+        // BROKEN jobs are functionally skipped - they don't run due to conditions not matching
         stats.skipped++;
         stats.completed++;
       } else if (state === 'SCHEDULED' || state === 'ASSIGNED') {
@@ -972,7 +973,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       } else if (state === 'PASSED' || job.node.passed === true) {
         stats.passed++;
         stats.completed++;
-      } else if (state === 'FAILED' || state === 'BROKEN' || job.node.passed === false) {
+      } else if (state === 'FAILED' || job.node.passed === false) {
         stats.failed++;
         stats.completed++;
       }
@@ -994,8 +995,8 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         return exitCode !== 0;
       }
       
-      // Otherwise fall back to state
-      return state === 'FAILED' || state === 'BROKEN' || job.node.passed === false;
+      // Otherwise fall back to state (BROKEN jobs are skipped, not failed)
+      return state === 'FAILED' || job.node.passed === false;
     });
   }
   
