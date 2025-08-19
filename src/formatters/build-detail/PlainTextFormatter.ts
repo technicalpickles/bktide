@@ -481,7 +481,13 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       for (const job of stateJobs) {
         const label = this.parseEmoji(job.node.label);
         const duration = this.formatJobDuration(job.node);
-        const exitCode = job.node.exitStatus ? `, exit ${job.node.exitStatus}` : '';
+        // Only show non-zero exit codes (convert string to number)
+        const exitCodeNum = job.node.exitStatus !== null && job.node.exitStatus !== undefined
+          ? parseInt(job.node.exitStatus, 10)
+          : null;
+        const exitCode = (exitCodeNum && exitCodeNum !== 0) 
+          ? `, exit ${exitCodeNum}` 
+          : '';
         
         // Basic job line
         lines.push(`  ${label} (${duration}${exitCode})`);
@@ -562,11 +568,12 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
           statusParts.push(`${group.stateCounts.other} other`);
         }
         
-        // Add exit codes if available
-        if (group.exitCodes.length > 0) {
-          const exitCodeStr = group.exitCodes.length === 1 
-            ? `exit ${group.exitCodes[0]}`
-            : `exits: ${group.exitCodes.join(', ')}`;
+        // Add non-zero exit codes if available
+        const nonZeroExitCodes = group.exitCodes.filter((code: number) => code !== 0);
+        if (nonZeroExitCodes.length > 0) {
+          const exitCodeStr = nonZeroExitCodes.length === 1 
+            ? `exit ${nonZeroExitCodes[0]}`
+            : `exits: ${nonZeroExitCodes.join(', ')}`;
           statusParts.push(exitCodeStr);
         }
         
@@ -637,15 +644,35 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         group.parallelTotal = job.node.parallelGroupTotal;
       }
       
-      // Track exit codes
+      // Track exit codes (convert string to number)
       if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
-        group.exitCodes.add(job.node.exitStatus);
+        const exitCode = parseInt(job.node.exitStatus, 10);
+        group.exitCodes.add(exitCode);
       }
       
       // Count by state
       const state = job.node.state?.toUpperCase();
-      if (!job.node.startedAt) {
+      
+      // Use exit status as source of truth when available
+      // Note: exitStatus comes as a string from Buildkite API
+      if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
+        const exitCode = parseInt(job.node.exitStatus, 10);
+        if (exitCode === 0) {
+          group.stateCounts.passed++;
+        } else {
+          group.stateCounts.failed++;
+        }
+      } else if (!job.node.startedAt) {
         group.stateCounts.notStarted++;
+      } else if (state === 'FINISHED' || state === 'COMPLETED') {
+        // For finished jobs without exit status, check passed field
+        if (job.node.passed === true) {
+          group.stateCounts.passed++;
+        } else if (job.node.passed === false) {
+          group.stateCounts.failed++;
+        } else {
+          group.stateCounts.other++;
+        }
       } else if (state === 'FAILED') {
         group.stateCounts.failed++;
       } else if (state === 'BROKEN') {
@@ -775,12 +802,17 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     for (const job of jobs) {
       const state = job.node.state?.toUpperCase() || '';
       
-      if (state === 'PASSED' || (job.node.passed === true && state !== 'BROKEN')) {
-        stats.passed++;
-        stats.completed++;
-      } else if (state === 'FAILED' || state === 'BROKEN' || (job.node.exitStatus && job.node.exitStatus !== 0) || job.node.passed === false) {
-        stats.failed++;
-        stats.completed++;
+      // If we have an exit status, use that as the source of truth
+      // Note: exitStatus comes as a string from Buildkite API
+      if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
+        const exitCode = parseInt(job.node.exitStatus, 10);
+        if (exitCode === 0) {
+          stats.passed++;
+          stats.completed++;
+        } else {
+          stats.failed++;
+          stats.completed++;
+        }
       } else if (state === 'RUNNING') {
         stats.running++;
       } else if (state === 'BLOCKED') {
@@ -790,6 +822,21 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         stats.completed++;
       } else if (state === 'SCHEDULED' || state === 'ASSIGNED') {
         stats.queued++;
+      } else if (state === 'FINISHED' || state === 'COMPLETED') {
+        // For finished jobs without exit status, check passed field
+        if (job.node.passed === true) {
+          stats.passed++;
+          stats.completed++;
+        } else if (job.node.passed === false) {
+          stats.failed++;
+          stats.completed++;
+        }
+      } else if (state === 'PASSED' || job.node.passed === true) {
+        stats.passed++;
+        stats.completed++;
+      } else if (state === 'FAILED' || state === 'BROKEN' || job.node.passed === false) {
+        stats.failed++;
+        stats.completed++;
       }
     }
     
@@ -801,7 +848,16 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     
     return jobs.filter(job => {
       const state = job.node.state?.toUpperCase();
-      return state === 'FAILED' || state === 'BROKEN' || (job.node.exitStatus && job.node.exitStatus !== 0) || job.node.passed === false;
+      
+      // If we have an exit status, use that as the source of truth
+      // Note: exitStatus comes as a string from Buildkite API
+      if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
+        const exitCode = parseInt(job.node.exitStatus, 10);
+        return exitCode !== 0;
+      }
+      
+      // Otherwise fall back to state
+      return state === 'FAILED' || state === 'BROKEN' || job.node.passed === false;
     });
   }
   
@@ -831,16 +887,32 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     for (const job of jobs) {
       const state = job.node.state?.toUpperCase() || '';
       
-      if (state === 'FAILED' || state === 'BROKEN' || (job.node.exitStatus && job.node.exitStatus !== 0) || job.node.passed === false) {
-        grouped['Failed'].push(job);
-      } else if (state === 'PASSED' || (job.node.passed === true && state !== 'BROKEN')) {
-        grouped['Passed'].push(job);
+      // If we have an exit status, use that as the source of truth
+      // Note: exitStatus comes as a string from Buildkite API
+      if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
+        const exitCode = parseInt(job.node.exitStatus, 10);
+        if (exitCode === 0) {
+          grouped['Passed'].push(job);
+        } else {
+          grouped['Failed'].push(job);
+        }
       } else if (state === 'RUNNING') {
         grouped['Running'].push(job);
       } else if (state === 'BLOCKED') {
         grouped['Blocked'].push(job);
       } else if (state === 'SKIPPED' || state === 'CANCELED') {
         grouped['Skipped'].push(job);
+      } else if (state === 'FINISHED' || state === 'COMPLETED') {
+        // For finished jobs without exit status, check passed field
+        if (job.node.passed === true) {
+          grouped['Passed'].push(job);
+        } else if (job.node.passed === false) {
+          grouped['Failed'].push(job);
+        }
+      } else if (state === 'PASSED' || job.node.passed === true) {
+        grouped['Passed'].push(job);
+      } else if (state === 'FAILED' || state === 'BROKEN' || job.node.passed === false) {
+        grouped['Failed'].push(job);
       }
     }
     
