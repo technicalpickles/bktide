@@ -1,0 +1,296 @@
+{
+  "builds": {
+    "states": {
+      "values": [
+        {
+          "value": "RUNNING",
+          "frequency": 0.9,
+          "count": 9
+        },
+        {
+          "value": "SCHEDULED",
+          "frequency": 0.1,
+          "count": 1
+        }
+      ],
+      "total": 10
+    },
+    "branches": {
+      "common": {
+        "values": [
+          {
+            "value": "main",
+            "frequency": 0.4,
+            "count": 4
+          },
+          {
+            "value": "CMRC",
+            "frequency": 0.1,
+            "count": 1
+          },
+          {
+            "value": "add",
+            "frequency": 0.1,
+            "count": 1
+          },
+          {
+            "value": "kwang",
+            "frequency": 0.1,
+            "count": 1
+          },
+          {
+            "value": "url",
+            "frequency": 0.1,
+            "count": 1
+          },
+          {
+            "value": "de",
+            "frequency": 0.1,
+            "count": 1
+          },
+          {
+            "value": "ambi",
+            "frequency": 0.1,
+            "count": 1
+          }
+        ],
+        "total": 10
+      },
+      "formats": {
+        "feature": 0,
+        "bugfix": 0,
+        "release": 0,
+        "main": 0.4,
+        "custom": 0.6
+      },
+      "averageLength": 24.5
+    },
+    "messagePatterns": {
+      "averageLength": 77.9,
+      "hasEmoji": 0,
+      "conventionalCommits": 0.2,
+      "commonPrefixes": {
+        "values": [
+          {
+            "value": "chore",
+            "frequency": 0.2,
+            "count": 2
+          },
+          {
+            "value": "includes",
+            "frequency": 0.2,
+            "count": 2
+          },
+          {
+            "value": "exec",
+            "frequency": 0.1,
+            "count": 1
+          },
+          {
+            "value": "[BINS",
+            "frequency": 0.1,
+            "count": 1
+          },
+          {
+            "value": "Deploy",
+            "frequency": 0.1,
+            "count": 1
+          },
+          {
+            "value": "[NOT",
+            "frequency": 0.1,
+            "count": 1
+          },
+          {
+            "value": "Swap",
+            "frequency": 0.1,
+            "count": 1
+          },
+          {
+            "value": "BEN",
+            "frequency": 0.1,
+            "count": 1
+          }
+        ],
+        "total": 10
+      },
+      "githubRefs": 0.1,
+      "jiraRefs": 0.2,
+      "multiline": 0.2
+    },
+    "numberRange": {
+      "min": 31741,
+      "max": 1294245
+    },
+    "duration": {
+      "min": 0,
+      "max": 0,
+      "median": 0,
+      "p95": 0,
+      "average": 0
+    },
+    "jobCounts": {
+      "values": [
+        {
+          "value": 0,
+          "frequency": 1,
+          "count": 10
+        }
+      ],
+      "total": 10
+    },
+    "annotationCounts": {
+      "values": [
+        {
+          "value": 0,
+          "frequency": 1,
+          "count": 10
+        }
+      ],
+      "total": 10
+    },
+    "creatorPatterns": {
+      "nameFormats": {
+        "values": [
+          {
+            "value": "lowercase",
+            "frequency": 1,
+            "count": 10
+          }
+        ],
+        "total": 10
+      },
+      "domains": {
+        "values": [],
+        "total": 0
+      },
+      "botUsers": 0
+    }
+  },
+  "pipelines": {
+    "slugFormats": {
+      "values": [
+        {
+          "value": "kebab-case",
+          "frequency": 0.8,
+          "count": 4
+        },
+        {
+          "value": "lowercase",
+          "frequency": 0.2,
+          "count": 1
+        }
+      ],
+      "total": 5
+    },
+    "nameLength": {
+      "min": 9,
+      "max": 35,
+      "average": 22.4
+    },
+    "defaultBranches": {
+      "values": [
+        {
+          "value": "main",
+          "frequency": 1,
+          "count": 5
+        }
+      ],
+      "total": 5
+    },
+    "hasDescription": 0.4,
+    "repositoryProviders": {
+      "values": [
+        {
+          "value": "github",
+          "frequency": 1,
+          "count": 5
+        }
+      ],
+      "total": 5
+    },
+    "visibility": {
+      "values": [
+        {
+          "value": "PRIVATE",
+          "frequency": 1,
+          "count": 5
+        }
+      ],
+      "total": 5
+    }
+  },
+  "jobs": {
+    "states": {
+      "values": [],
+      "total": 0
+    },
+    "labelPatterns": {
+      "values": [],
+      "total": 0
+    },
+    "exitStatusDistribution": {
+      "values": [],
+      "total": 0
+    },
+    "retryRates": {
+      "automatic": 0,
+      "manual": 0
+    },
+    "parallelGroups": {
+      "values": [],
+      "total": 0
+    },
+    "durationPatterns": {
+      "min": 0,
+      "max": 0,
+      "median": 0,
+      "p95": 0,
+      "average": 0
+    }
+  },
+  "organizations": {
+    "slugFormats": {
+      "values": [
+        {
+          "value": "lowercase",
+          "frequency": 1,
+          "count": 1
+        }
+      ],
+      "total": 1
+    },
+    "nameLength": {
+      "min": 5,
+      "max": 5,
+      "average": 5
+    },
+    "pipelineCount": {
+      "values": [
+        {
+          "value": 0,
+          "frequency": 1,
+          "count": 1
+        }
+      ],
+      "total": 1
+    },
+    "memberCount": {
+      "values": [
+        {
+          "value": 0,
+          "frequency": 1,
+          "count": 1
+        }
+      ],
+      "total": 1
+    }
+  },
+  "extracted": "2025-08-19T18:54:45.178Z",
+  "sampleSize": {
+    "builds": 10,
+    "pipelines": 5,
+    "jobs": 0,
+    "organizations": 1
+  }
+}

@@ -1,0 +1,50 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Hybrid Mocking Example > Snapshot Testing with Sanitization > should generate consistent snapshots with sanitized data 1`] = `
+[
+  {
+    "branch": "main",
+    "commit": "COMMIT_SHA",
+    "createdAt": "2024-01-01T00:00:00Z",
+    "createdBy": undefined,
+    "finishedAt": "2024-01-01T00:00:00Z",
+    "id": "BUILD_ID",
+    "message": "Test commit message",
+    "number": 1000,
+    "organization": {
+      "name": "Test Org",
+      "slug": "test-org",
+    },
+    "pipeline": {
+      "name": "Test Pipeline",
+      "slug": "test-pipeline",
+    },
+    "startedAt": "2024-01-01T00:00:00Z",
+    "state": "PASSED",
+    "url": "https://buildkite.com/org/pipeline/builds/123",
+    "webUrl": "https://buildkite.com/org/pipeline/builds/123",
+  },
+  {
+    "branch": "main",
+    "commit": "COMMIT_SHA",
+    "createdAt": "2024-01-01T00:00:00Z",
+    "createdBy": undefined,
+    "finishedAt": "2024-01-01T00:00:00Z",
+    "id": "BUILD_ID",
+    "message": "Test commit message",
+    "number": 1001,
+    "organization": {
+      "name": "Test Org",
+      "slug": "test-org",
+    },
+    "pipeline": {
+      "name": "Test Pipeline",
+      "slug": "test-pipeline",
+    },
+    "startedAt": "2024-01-01T00:00:00Z",
+    "state": "FAILED",
+    "url": "https://buildkite.com/org/pipeline/builds/123",
+    "webUrl": "https://buildkite.com/org/pipeline/builds/123",
+  },
+]
+`;

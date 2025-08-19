@@ -103,22 +103,48 @@ export class ShowBuild extends BaseCommand {
   
   private async fetchBuildData(buildSlug: string, options: ShowBuildOptions): Promise<any> {
     // Determine what data we need to fetch based on options
-    const needsJobs = options.jobs || options.failed || options.full;
+    const needsAllJobs = options.jobs || options.failed || options.full;
     const needsAnnotations = options.annotations || options.annotationsFull || options.full;
     
     if (options.debug) {
       logger.debug('Fetching build data', {
         buildSlug,
-        needsJobs,
+        needsAllJobs,
         needsAnnotations,
         full: options.full
       });
     }
     
-    // Fetch the appropriate level of detail
-    if (options.full || needsJobs) {
-      return await this.client.getBuildFull(buildSlug);
+    // Use the new pagination-aware method when we need all jobs
+    if (needsAllJobs) {
+      // Show progress when fetching many jobs (only in plain format)
+      const progressCallback = options.format === 'plain' || !options.format
+        ? (fetched: number, total?: number) => {
+            const totalStr = total ? `/${total}` : '';
+            process.stderr.write(`\rFetching jobs: ${fetched}${totalStr}...`);
+          }
+        : undefined;
+      
+      const buildData = await this.client.getBuildSummaryWithAllJobs(buildSlug, {
+        fetchAllJobs: true,
+        onProgress: progressCallback
+      });
+      
+      // Clear the progress line
+      if (progressCallback) {
+        process.stderr.write('\r\x1b[K'); // Clear the line
+      }
+      
+      // If we need full details (like command text), fetch that separately
+      if (options.full) {
+        // For now, getBuildFull still provides more detailed fields
+        // In the future, we could enhance the pagination query to include these
+        return await this.client.getBuildFull(buildSlug);
+      }
+      
+      return buildData;
     } else {
+      // Just get the summary with first 100 jobs
       return await this.client.getBuildSummary(buildSlug);
     }
   }

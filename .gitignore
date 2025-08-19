@@ -42,6 +42,11 @@ Thumbs.db
 # Coverage directory
 coverage/
 
+# Test fixtures and recordings
+test/fixtures/recordings/  # Polly.js recordings with potential sensitive data
+test/fixtures/snapshots/   # Vitest snapshots
+# NOTE: test/fixtures/data-patterns.json can be committed (contains only patterns, no sensitive data)
+
 # npm cache
 .npm
 

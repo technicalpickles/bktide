@@ -10,7 +10,8 @@ import {
   GET_VIEWER_BUILDS,
   GET_BUILD_ANNOTATIONS,
   GET_BUILD_SUMMARY,
-  GET_BUILD_FULL
+  GET_BUILD_FULL,
+  GET_BUILD_JOBS_PAGE
 } from '../graphql/queries.js';
 // Import generated types
 import { 
@@ -723,5 +724,118 @@ export class BuildkiteClient {
     }
 
     return result;
+  }
+
+  /**
+   * Fetch remaining job pages for a build
+   * Uses the initial data from GET_BUILD_SUMMARY and only fetches additional pages
+   * @param buildSlug The build slug
+   * @param initialJobs Jobs already fetched from GET_BUILD_SUMMARY
+   * @param initialPageInfo PageInfo from GET_BUILD_SUMMARY
+   * @param options Pagination options
+   * @returns Complete job list including initial and additional jobs
+   */
+  public async fetchRemainingJobs(
+    buildSlug: string,
+    initialJobs: any[],
+    initialPageInfo: { hasNextPage: boolean; endCursor: string | null },
+    options?: {
+      onProgress?: (fetched: number, total?: number) => void;
+    }
+  ): Promise<{ jobs: any[], totalCount: number }> {
+    // Start with the jobs we already have
+    const allJobs = [...initialJobs];
+    let cursor = initialPageInfo.endCursor;
+    let hasMore = initialPageInfo.hasNextPage;
+    
+    if (!hasMore) {
+      // No additional pages needed
+      return { jobs: allJobs, totalCount: allJobs.length };
+    }
+    
+    if (this.debug) {
+      logger.debug(`Build has additional job pages, starting pagination from cursor: ${cursor?.substring(0, 20)}...`);
+    }
+    
+    while (hasMore && cursor) {
+      const variables = {
+        slug: buildSlug,
+        first: 100,
+        after: cursor
+      };
+      
+      if (this.debug) {
+        logger.debug(`Fetching additional jobs page: cursor=${cursor?.substring(0, 20)}...`);
+      }
+      
+      // Use the lightweight page query
+      const result = await this.query<any>(
+        GET_BUILD_JOBS_PAGE.toString(),
+        variables
+      );
+      
+      const jobEdges = result.build?.jobs?.edges || [];
+      allJobs.push(...jobEdges);
+      
+      // Update pagination info
+      cursor = result.build?.jobs?.pageInfo?.endCursor || null;
+      hasMore = result.build?.jobs?.pageInfo?.hasNextPage || false;
+      
+      // Report progress if callback provided
+      if (options?.onProgress) {
+        const totalCount = result.build?.jobs?.count || allJobs.length;
+        options.onProgress(allJobs.length, totalCount);
+      }
+      
+      if (this.debug) {
+        logger.debug(`Fetched ${jobEdges.length} additional jobs, total: ${allJobs.length}`);
+      }
+    }
+    
+    return { jobs: allJobs, totalCount: allJobs.length };
+  }
+
+  /**
+   * Enhanced getBuildSummary that supports complete job fetching
+   */
+  public async getBuildSummaryWithAllJobs(
+    buildSlug: string,
+    options?: {
+      fetchAllJobs?: boolean;
+      onProgress?: (fetched: number, total?: number) => void;
+    }
+  ): Promise<any> {
+    // Fetch initial build data with first 100 jobs
+    const buildData = await this.getBuildSummary(buildSlug);
+    
+    // Check if we need to fetch additional job pages
+    const jobsData = buildData.build?.jobs;
+    const pageInfo = jobsData?.pageInfo;
+    
+    if (!options?.fetchAllJobs || !pageInfo?.hasNextPage) {
+      // Either we don't want all jobs, or there are no more pages
+      return buildData;
+    }
+    
+    // Fetch remaining job pages
+    const { jobs: allJobs, totalCount } = await this.fetchRemainingJobs(
+      buildSlug,
+      jobsData.edges,
+      pageInfo,
+      { onProgress: options.onProgress }
+    );
+    
+    // Merge the complete job list into the build data
+    return {
+      ...buildData,
+      build: {
+        ...buildData.build,
+        jobs: {
+          edges: allJobs,
+          pageInfo: { hasNextPage: false, endCursor: null },
+          count: totalCount
+        }
+      }
+    };
   }
 }

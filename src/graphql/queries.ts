@@ -2,6 +2,7 @@
  * Common GraphQL queries for the Buildkite API
  */
 import { gql } from 'graphql-request';
+import { JOB_SUMMARY_FIELDS, JOB_DETAIL_FIELDS } from './fragments/index.js';
 
 export const GET_VIEWER = gql`
   query GetViewer {
@@ -184,29 +185,14 @@ export const GET_BUILD_SUMMARY = gql`
       jobs(first: 100) {
         edges {
           node {
-            ... on JobTypeCommand {
-              id
-              uuid
-              label
-              state
-              exitStatus
-              startedAt
-              finishedAt
-              passed
-              parallelGroupIndex
-              parallelGroupTotal
-            }
-            ... on JobTypeWait {
-              id
-              label
-            }
-            ... on JobTypeTrigger {
-              id
-              label
-              state
-            }
+            ...JobSummaryFields
           }
         }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        count
       }
       annotations(first: 50) {
         edges {
@@ -222,6 +208,7 @@ export const GET_BUILD_SUMMARY = gql`
       }
     }
   }
+  ${JOB_SUMMARY_FIELDS}
 `;
 
 export const GET_BUILD_FULL = gql`
@@ -272,44 +259,14 @@ export const GET_BUILD_FULL = gql`
       jobs(first: 100) {
         edges {
           node {
-            ... on JobTypeCommand {
-              id
-              uuid
-              label
-              command
-              state
-              exitStatus
-              startedAt
-              finishedAt
-              passed
-              retried
-              parallelGroupIndex
-              parallelGroupTotal
-              retrySource {
-                ... on JobTypeCommand {
-                  id
-                  uuid
-                }
-              }
-              agent {
-                ... on Agent {
-                  id
-                  name
-                  hostname
-                }
-              }
-            }
-            ... on JobTypeWait {
-              id
-              label
-            }
-            ... on JobTypeTrigger {
-              id
-              label
-              state
-            }
+            ...JobDetailFields
           }
         }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        count
       }
       annotations(first: 100) {
         edges {
@@ -327,4 +284,26 @@ export const GET_BUILD_FULL = gql`
       }
     }
   }
+  ${JOB_DETAIL_FIELDS}
+`;
+
+export const GET_BUILD_JOBS_PAGE = gql`
+  query GetBuildJobsPage($slug: ID!, $first: Int!, $after: String) {
+    build(slug: $slug) {
+      id
+      jobs(first: $first, after: $after) {
+        edges {
+          node {
+            ...JobSummaryFields
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        count
+      }
+    }
+  }
+  ${JOB_SUMMARY_FIELDS}
 `; 

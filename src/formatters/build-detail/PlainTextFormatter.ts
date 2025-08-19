@@ -183,7 +183,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       if (build.annotations?.edges?.length > 0) {
         lines.push(''); // Add space between annotations and steps
       }
-      lines.push(this.formatJobSummary(build.jobs.edges, build.state));
+      lines.push(this.formatJobSummary(build.jobs, build.state));
       
       if (!options?.annotations) {
         lines.push('');
@@ -224,7 +224,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       if (build.annotations?.edges?.length > 0) {
         lines.push(''); // Add space between annotations and steps
       }
-      lines.push(this.formatJobSummary(build.jobs.edges, build.state));
+      lines.push(this.formatJobSummary(build.jobs, build.state));
     }
     
     // Failed jobs details (only show if there are failed jobs)
@@ -255,6 +255,10 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     if (!options?.annotations && build.annotations?.edges?.length > 0) {
       allHints.push('Use --annotations to view annotation details');
     }
+    // Add hint about incomplete job data if truncated
+    if (!options?.jobs && build.jobs?.pageInfo?.hasNextPage) {
+      allHints.push('Use --jobs to fetch all job data (currently showing first 100 only)');
+    }
     
     // Display all hints together
     if (allHints.length > 0) {
@@ -283,7 +287,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       if (build.annotations?.edges?.length > 0) {
         lines.push(''); // Add space between annotations and steps
       }
-      lines.push(this.formatJobSummary(build.jobs.edges, build.state));
+      lines.push(this.formatJobSummary(build.jobs, build.state));
     }
     
     // Show running jobs
@@ -332,7 +336,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       if (build.annotations?.edges?.length > 0) {
         lines.push(''); // Add space between annotations and steps
       }
-      lines.push(this.formatJobSummary(build.jobs.edges, build.state));
+      lines.push(this.formatJobSummary(build.jobs, build.state));
     }
     
     // Blocked information
@@ -375,7 +379,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       if (build.annotations?.edges?.length > 0) {
         lines.push(''); // Add space between annotations and steps
       }
-      lines.push(this.formatJobSummary(build.jobs.edges, build.state));
+      lines.push(this.formatJobSummary(build.jobs, build.state));
     }
     
     // Canceled information
@@ -527,7 +531,8 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     return lines.join('\n');
   }
   
-  private formatJobSummary(jobs: any[], buildState: string): string {
+  private formatJobSummary(jobsData: any, buildState: string): string {
+    const jobs = jobsData?.edges;
     if (!jobs || jobs.length === 0) {
       return '';
     }
@@ -549,7 +554,19 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
                  buildState === 'RUNNING' ? getStateIcon('RUNNING') :
                  buildState === 'PASSED' ? getStateIcon('PASSED') :
                  buildState === 'BLOCKED' ? getStateIcon('BLOCKED') : '•';
-    lines.push(`${icon} ${SEMANTIC_COLORS.count(String(jobStats.total))} step${jobStats.total > 1 ? 's' : ''}: ${countParts.join(', ')}`);
+    // Check if we have partial data
+    const hasMorePages = jobsData?.pageInfo?.hasNextPage;
+    const totalCount = jobsData?.count;
+    
+    if (hasMorePages) {
+      const showing = jobs.length;
+      const total = totalCount || `${showing}+`;
+      lines.push(`${icon} Showing ${SEMANTIC_COLORS.count(String(showing))} of ${SEMANTIC_COLORS.count(String(total))} steps: ${countParts.join(', ')}`);
+      lines.push(SEMANTIC_COLORS.warning('⚠️  Showing first 100 jobs only (more available)'));
+      lines.push(SEMANTIC_COLORS.dim('  → Use --jobs to fetch all job data and see accurate statistics'));
+    } else {
+      lines.push(`${icon} ${SEMANTIC_COLORS.count(String(jobStats.total))} step${jobStats.total > 1 ? 's' : ''}: ${countParts.join(', ')}`);
+    }
     
     // For failed builds, show the specific failed job names
     if (buildState === 'FAILED') {
