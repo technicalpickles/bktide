@@ -152,7 +152,7 @@ describe('Job Statistics and State Handling', () => {
       expect(summary).toContain('Showing 100 of 608 steps');
       expect(summary).not.toContain('skipped'); // Skipped jobs not shown
       expect(summary).not.toContain('100 failed');
-      expect(summary).toContain('Showing first 100 jobs only');
+      expect(summary).toContain('Showing first 100 steps only');
     });
 
     it('should not show truncation warning when all jobs are present', () => {
@@ -271,7 +271,7 @@ describe('Job Statistics and State Handling', () => {
       
       // Should show truncation warning
       expect(summary).toContain('Showing 100 of 608 steps');
-      expect(summary).toContain('Use --jobs to fetch all job data');
+      expect(summary).toContain('Use --jobs to fetch all step data');
       
       // Should NOT show Jest as a failed job
       expect(summary).not.toMatch(/✗ :jest: Jest.*\d+.*failed/);
