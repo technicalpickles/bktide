@@ -255,9 +255,9 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     if (!options?.annotations && build.annotations?.edges?.length > 0) {
       allHints.push('Use --annotations to view annotation details');
     }
-    // Add hint about incomplete job data if truncated
+    // Add hint about incomplete step data if truncated
     if (!options?.jobs && build.jobs?.pageInfo?.hasNextPage) {
-      allHints.push('Use --jobs to fetch all job data (currently showing first 100 only)');
+      allHints.push('Use --jobs to fetch all step data (currently showing first 100 only)');
     }
     
     // Display all hints together
@@ -441,8 +441,8 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     
     lines.push('');
     
-    // Jobs section
-    lines.push('Jobs:');
+    // Steps section
+    lines.push('Steps:');
     lines.push(this.formatJobDetails(build.jobs?.edges, { ...options, full: true }));
     
     // Annotations section
@@ -562,8 +562,8 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       const showing = jobs.length;
       const total = totalCount || `${showing}+`;
       lines.push(`${icon} Showing ${SEMANTIC_COLORS.count(String(showing))} of ${SEMANTIC_COLORS.count(String(total))} steps: ${countParts.join(', ')}`);
-      lines.push(SEMANTIC_COLORS.warning('⚠️  Showing first 100 jobs only (more available)'));
-      lines.push(SEMANTIC_COLORS.dim('  → Use --jobs to fetch all job data and see accurate statistics'));
+      lines.push(SEMANTIC_COLORS.warning('⚠️  Showing first 100 steps only (more available)'));
+      lines.push(SEMANTIC_COLORS.dim('  → Use --jobs to fetch all step data and see accurate statistics'));
     } else {
       lines.push(`${icon} ${SEMANTIC_COLORS.count(String(jobStats.total))} step${jobStats.total > 1 ? 's' : ''}: ${countParts.join(', ')}`);
     }
@@ -627,7 +627,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   
   private formatJobDetails(jobs: any[], options?: BuildDetailFormatterOptions): string {
     if (!jobs || jobs.length === 0) {
-      return 'No jobs found';
+      return 'No steps found';
     }
     
     const lines: string[] = [];
@@ -641,7 +641,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     if (jobStats.blocked > 0) parts.push(`${getStateIcon('BLOCKED')} ${jobStats.blocked} blocked`);
     // Don't show skipped jobs in summary
     
-    lines.push(`Jobs: ${parts.join('  ')}`);
+    lines.push(`Steps: ${parts.join('  ')}`);
     lines.push('');
     
     // Filter jobs based on options
@@ -675,20 +675,30 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
           // Show summary line for parallel group
           if (failedCount > 0) {
             // If there are failures, show breakdown
-            lines.push(`  ${label} (${passedCount}/${total} passed, ${failedCount} failed)`);
-            // Show failed jobs individually
+            // Apply state color to label
+            const coloredLabel = state === 'Failed' ? SEMANTIC_COLORS.error(label) : 
+                                state === 'Passed' ? SEMANTIC_COLORS.success(label) :
+                                state === 'Running' ? SEMANTIC_COLORS.info(label) :
+                                state === 'Blocked' ? SEMANTIC_COLORS.warning(label) : label;
+            lines.push(`  ${coloredLabel} ${SEMANTIC_COLORS.dim(`(${passedCount}/${total} passed, ${failedCount} failed)`)}`);
+            // Show failed steps individually
             const failedJobs = group.jobs.filter(j => this.isJobFailed(j.node));
             for (const job of failedJobs) {
               const duration = this.formatJobDuration(job.node);
               const parallelInfo = job.node.parallelGroupIndex !== undefined 
-                ? ` [Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}]`
+                ? ` ${SEMANTIC_COLORS.dim(`[Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}]`)}`
                 : '';
-              lines.push(`    ${SEMANTIC_COLORS.error('↳ Failed')}: ${duration}${parallelInfo}`);
+              lines.push(`    ${SEMANTIC_COLORS.error('↳ Failed')}: ${SEMANTIC_COLORS.dim(duration)}${parallelInfo}`);
             }
           } else {
             // All passed/running/blocked - just show summary
             const avgDuration = this.calculateAverageDuration(group.jobs);
-            lines.push(`  ${label} (${total} parallel jobs, avg: ${avgDuration})`);
+            // Apply state color to label
+            const coloredLabel = state === 'Passed' ? SEMANTIC_COLORS.success(label) : 
+                                state === 'Failed' ? SEMANTIC_COLORS.error(label) :
+                                state === 'Running' ? SEMANTIC_COLORS.info(label) :
+                                state === 'Blocked' ? SEMANTIC_COLORS.warning(label) : label;
+            lines.push(`  ${coloredLabel} ${SEMANTIC_COLORS.dim(`(${total} parallel steps, avg: ${avgDuration})`)}`);
           }
         } else {
           // Single job or non-parallel group - display as before
@@ -696,23 +706,21 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
           const label = this.parseEmoji(job.node.label);
           const duration = this.formatJobDuration(job.node);
           
-          // Basic job line
-          lines.push(`  ${label} (${duration})`);
+          // Apply state color to label
+          const coloredLabel = state === 'Passed' ? SEMANTIC_COLORS.success(label) : 
+                              state === 'Failed' ? SEMANTIC_COLORS.error(label) :
+                              state === 'Running' ? SEMANTIC_COLORS.info(label) :
+                              state === 'Blocked' ? SEMANTIC_COLORS.warning(label) : label;
+          // Basic step line
+          lines.push(`  ${coloredLabel} ${SEMANTIC_COLORS.dim(`(${duration})`)}`);
           
-          // Show additional details if --jobs or --full and single job
+          // Show additional details if --jobs or --full and single step
           if ((options?.jobs || options?.full) && !group.isParallelGroup) {
-            // Timing details
-            if (job.node.startedAt) {
-              const startTime = new Date(job.node.startedAt).toLocaleTimeString();
-              const endTime = job.node.finishedAt 
-                ? new Date(job.node.finishedAt).toLocaleTimeString()
-                : 'still running';
-              lines.push(`    ${SEMANTIC_COLORS.dim(`${getProgressIcon('TIMING')}  ${startTime} → ${endTime}`)}`);
-            }
+            // Removed timing details line per user request
             
             // Parallel group info (for single parallel job)
             if (job.node.parallelGroupIndex !== undefined && job.node.parallelGroupTotal) {
-              lines.push(`    ${SEMANTIC_COLORS.dim(`${getProgressIcon('PARALLEL')}  Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}`)}`);
+              lines.push(`    ${SEMANTIC_COLORS.dim(`═  Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}`)}`);
             }
             
             // Retry info
