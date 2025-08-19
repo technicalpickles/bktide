@@ -171,10 +171,10 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     // Header line
     lines.push(this.formatHeader(build));
     lines.push(this.formatCommitInfo(build));
+    lines.push(''); // Blank line after commit info
     
     // Show annotations summary if present
     if (build.annotations?.edges?.length > 0) {
-      lines.push('');
       lines.push(this.formatAnnotationSummary(build.annotations.edges));
       
       if (!options?.annotations) {
@@ -419,18 +419,38 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     const coloredIcon = this.colorizeStatusIcon(statusIcon, build.state);
     const stateFormatted = formatBuildStatus(build.state, { useSymbol: false });
     const duration = this.formatDuration(build);
-    const age = this.formatAge(build.createdAt);
-    const branch = SEMANTIC_COLORS.identifier(build.branch);
     
-    return `${coloredIcon} ${SEMANTIC_COLORS.label(`#${build.number}`)} ${stateFormatted} • ${duration} • ${branch} • ${age}`;
+    // Get first line of commit message
+    const message = build.message || 'No commit message';
+    const firstLineMessage = message.split('\n')[0];
+    const truncatedMessage = firstLineMessage.length > 80 ? firstLineMessage.substring(0, 77) + '...' : firstLineMessage;
+    
+    return `${coloredIcon} ${stateFormatted} ${truncatedMessage} ${SEMANTIC_COLORS.dim(`#${build.number}`)} ${SEMANTIC_COLORS.dim(duration)}`;
   }
   
   private formatCommitInfo(build: any): string {
     const shortSha = build.commit ? build.commit.substring(0, 7) : 'unknown';
-    const message = build.message || 'No commit message';
-    const truncatedMessage = message.length > 60 ? message.substring(0, 57) + '...' : message;
+    const branch = SEMANTIC_COLORS.identifier(build.branch);
+    const age = this.formatAge(build.createdAt);
     
-    return `   "${truncatedMessage}" (${shortSha})`;
+    // Get author information
+    const author = build.createdBy?.name || build.createdBy?.email || 'Unknown';
+    
+    // Calculate indentation to align with commit message
+    // Map each state to its proper indentation (icon + space + state text + space)
+    const indentMap: Record<string, number> = {
+      'PASSED': 9,      // ✓ PASSED 
+      'FAILED': 9,      // ✗ FAILED 
+      'RUNNING': 10,    // ⟳ RUNNING 
+      'BLOCKED': 10,    // ◼ BLOCKED 
+      'CANCELED': 11,   // ⊘ CANCELED 
+      'SCHEDULED': 12,  // ⏱ SCHEDULED 
+      'SKIPPED': 10,    // ⊙ SKIPPED 
+    };
+    
+    const indent = ' '.repeat(indentMap[build.state] || 9);
+    
+    return `${indent}${author} • ${branch} • ${shortSha} • ${SEMANTIC_COLORS.dim(`Created ${age}`)}`;
   }
   
   private formatAnnotationSummary(annotations: any[]): string {
