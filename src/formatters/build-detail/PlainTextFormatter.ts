@@ -183,7 +183,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     // Show annotations detail if requested
     if (options?.annotations) {
       lines.push('');
-      lines.push(this.formatAnnotationDetails(build.annotations.edges, options));
+      lines.push(this.formatAnnotationDetails(build.annotations.edges));
     }
     
     return lines.join('\n');
@@ -221,7 +221,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     // Show annotations detail if requested
     if (options?.annotations) {
       lines.push('');
-      lines.push(this.formatAnnotationDetails(build.annotations.edges, options));
+      lines.push(this.formatAnnotationDetails(build.annotations.edges));
     }
     
     // Collect all hints for more info
@@ -260,10 +260,22 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       lines.push(`${SEMANTIC_COLORS.info('Running')}: ${labels}`);
     }
     
+    // Annotation summary
+    if (build.annotations?.edges?.length > 0) {
+      lines.push('');
+      lines.push(this.formatAnnotationSummary(build.annotations.edges));
+    }
+    
     // Show job details if requested
     if (options?.jobs) {
       lines.push('');
       lines.push(this.formatJobDetails(build.jobs?.edges, options));
+    }
+    
+    // Show annotations detail if requested
+    if (options?.annotations) {
+      lines.push('');
+      lines.push(this.formatAnnotationDetails(build.annotations.edges));
     }
     
     return lines.join('\n');
@@ -289,10 +301,22 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       lines.push(`✅ ${jobStats.completed} jobs passed before block`);
     }
     
+    // Annotation summary
+    if (build.annotations?.edges?.length > 0) {
+      lines.push('');
+      lines.push(this.formatAnnotationSummary(build.annotations.edges));
+    }
+    
     // Show job details if requested
     if (options?.jobs) {
       lines.push('');
       lines.push(this.formatJobDetails(build.jobs?.edges, options));
+    }
+    
+    // Show annotations detail if requested
+    if (options?.annotations) {
+      lines.push('');
+      lines.push(this.formatAnnotationDetails(build.annotations.edges));
     }
     
     return lines.join('\n');
@@ -376,7 +400,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     if (build.annotations?.edges?.length > 0) {
       lines.push('');
       lines.push('Annotations:');
-      lines.push(this.formatAnnotationDetails(build.annotations.edges, { ...options, annotationsFull: true }));
+      lines.push(this.formatAnnotationDetails(build.annotations.edges));
     }
     
     return lines.join('\n');
@@ -401,46 +425,68 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   }
   
   private formatAnnotationSummary(annotations: any[]): string {
-    const counts = this.countAnnotationsByStyle(annotations);
-    const parts = [];
+    if (!annotations || annotations.length === 0) {
+      return '';
+    }
     
-    if (counts.ERROR > 0) parts.push(SEMANTIC_COLORS.error(`${counts.ERROR} error${counts.ERROR > 1 ? 's' : ''}`));
-    if (counts.WARNING > 0) parts.push(SEMANTIC_COLORS.warning(`${counts.WARNING} warning${counts.WARNING > 1 ? 's' : ''}`));
-    if (counts.INFO > 0) parts.push(SEMANTIC_COLORS.info(`${counts.INFO} info`));
-    if (counts.SUCCESS > 0) parts.push(SEMANTIC_COLORS.success(`${counts.SUCCESS} success`));
-    
+    const lines: string[] = [];
     const total = annotations.length;
-    return `📝 ${SEMANTIC_COLORS.count(String(total))} annotation${total > 1 ? 's' : ''}: ${parts.join(', ')}`;
+    
+    // Header with count
+    const counts = this.countAnnotationsByStyle(annotations);
+    const countParts = [];
+    if (counts.ERROR > 0) countParts.push(SEMANTIC_COLORS.error(`${counts.ERROR} error${counts.ERROR > 1 ? 's' : ''}`));
+    if (counts.WARNING > 0) countParts.push(SEMANTIC_COLORS.warning(`${counts.WARNING} warning${counts.WARNING > 1 ? 's' : ''}`));
+    if (counts.INFO > 0) countParts.push(SEMANTIC_COLORS.info(`${counts.INFO} info`));
+    if (counts.SUCCESS > 0) countParts.push(SEMANTIC_COLORS.success(`${counts.SUCCESS} success`));
+    
+    lines.push(`📝 ${SEMANTIC_COLORS.count(String(total))} annotation${total > 1 ? 's' : ''}: ${countParts.join(', ')}`);
+    
+    // List each annotation with style and context
+    const grouped = this.groupAnnotationsByStyle(annotations);
+    const styleOrder = ['ERROR', 'WARNING', 'INFO', 'SUCCESS'];
+    
+    for (const style of styleOrder) {
+      if (grouped[style]) {
+        for (const annotation of grouped[style]) {
+          const icon = this.getAnnotationIcon(style);
+          const context = annotation.node.context || 'default';
+          const styleColored = this.colorizeAnnotationStyle(style);
+          lines.push(`   ${icon} ${styleColored}: ${context}`);
+        }
+      }
+    }
+    
+    return lines.join('\n');
   }
   
-  private formatAnnotationDetails(annotations: any[], options?: BuildDetailFormatterOptions): string {
+  private formatAnnotationDetails(annotations: any[]): string {
     const lines: string[] = [];
     
     // Group annotations by style
     const grouped = this.groupAnnotationsByStyle(annotations);
+    const styleOrder = ['ERROR', 'WARNING', 'INFO', 'SUCCESS'];
     
-    for (const [style, items] of Object.entries(grouped)) {
-      for (const annotation of items) {
-        const icon = this.getAnnotationIcon(style);
-        const context = annotation.node.context || 'default';
-        
-        if (options?.annotationsFull) {
-          // Full content
-          lines.push(`${icon} ${style} [${context}]:`);
+    for (const style of styleOrder) {
+      if (grouped[style]) {
+        for (const annotation of grouped[style]) {
+          const icon = this.getAnnotationIcon(style);
+          const context = annotation.node.context || 'default';
+          const styleColored = this.colorizeAnnotationStyle(style);
+          
+          // When showing annotation details, always show the body text
+          lines.push(`${icon} ${styleColored}: ${context}`);
           const body = htmlToText(annotation.node.body?.html || '', {
             wordwrap: 80,
             preserveNewlines: true
           });
           lines.push(body.split('\n').map(l => `   ${l}`).join('\n'));
           lines.push('');
-        } else {
-          // Summary only
-          lines.push(`${icon} ${style} [${context}]`);
         }
       }
     }
     
-    return lines.join('\n');
+    return lines.join('\n').trim();
   }
   
   private formatJobDetails(jobs: any[], options?: BuildDetailFormatterOptions): string {
@@ -755,6 +801,21 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     };
     
     return icons[style.toUpperCase()] || '📝';
+  }
+  
+  private colorizeAnnotationStyle(style: string): string {
+    switch (style.toUpperCase()) {
+      case 'ERROR':
+        return SEMANTIC_COLORS.error(style.toLowerCase());
+      case 'WARNING':
+        return SEMANTIC_COLORS.warning(style.toLowerCase());
+      case 'INFO':
+        return SEMANTIC_COLORS.info(style.toLowerCase());
+      case 'SUCCESS':
+        return SEMANTIC_COLORS.success(style.toLowerCase());
+      default:
+        return style.toLowerCase();
+    }
   }
   
   private getJobStats(jobs: any[]): any {
