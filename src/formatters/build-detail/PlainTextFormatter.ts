@@ -176,6 +176,14 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     // Show annotations summary if present
     if (build.annotations?.edges?.length > 0) {
       lines.push(this.formatAnnotationSummary(build.annotations.edges));
+    }
+    
+    // Jobs summary
+    if (build.jobs?.edges?.length > 0) {
+      if (build.annotations?.edges?.length > 0) {
+        lines.push(''); // Add space between annotations and steps
+      }
+      lines.push(this.formatJobSummary(build.jobs.edges, build.state));
       
       if (!options?.annotations) {
         lines.push('');
@@ -204,19 +212,28 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     lines.push(this.formatCommitInfo(build));
     lines.push('');
     
-    // Failed jobs summary
-    const failedJobs = this.getFailedJobs(build.jobs?.edges);
     const allHints: string[] = [];
     
-    if (failedJobs.length > 0) {
+    // Annotation summary (first, as it appears first in UI)
+    if (build.annotations?.edges?.length > 0) {
+      lines.push(this.formatAnnotationSummary(build.annotations.edges));
+    }
+    
+    // Jobs summary
+    if (build.jobs?.edges?.length > 0) {
+      if (build.annotations?.edges?.length > 0) {
+        lines.push(''); // Add space between annotations and steps
+      }
+      lines.push(this.formatJobSummary(build.jobs.edges, build.state));
+    }
+    
+    // Failed jobs details (only show if there are failed jobs)
+    const failedJobs = this.getFailedJobs(build.jobs?.edges);
+    if (failedJobs.length > 0 && (options?.failed || options?.jobs)) {
+      lines.push('');
       const { summary, hints } = this.formatFailedJobsSummaryWithHints(failedJobs, options);
       lines.push(summary);
       allHints.push(...hints);
-    }
-    
-    // Annotation summary
-    if (build.annotations?.edges?.length > 0) {
-      lines.push(this.formatAnnotationSummary(build.annotations.edges));
     }
     
     // Show detailed job info if requested
@@ -256,9 +273,18 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     lines.push(this.formatCommitInfo(build));
     lines.push('');
     
-    // Progress information
-    const jobStats = this.getJobStats(build.jobs?.edges);
-    lines.push(`Progress: ${SEMANTIC_COLORS.count(String(jobStats.completed))}/${jobStats.total} complete, ${SEMANTIC_COLORS.info(String(jobStats.running))} running, ${jobStats.queued} queued`);
+    // Annotations first (if any)
+    if (build.annotations?.edges?.length > 0) {
+      lines.push(this.formatAnnotationSummary(build.annotations.edges));
+    }
+    
+    // Jobs summary with progress
+    if (build.jobs?.edges?.length > 0) {
+      if (build.annotations?.edges?.length > 0) {
+        lines.push(''); // Add space between annotations and steps
+      }
+      lines.push(this.formatJobSummary(build.jobs.edges, build.state));
+    }
     
     // Show running jobs
     const runningJobs = this.getRunningJobs(build.jobs?.edges);
@@ -296,22 +322,24 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     lines.push(this.formatCommitInfo(build));
     lines.push('');
     
+    // Annotations first (if any)
+    if (build.annotations?.edges?.length > 0) {
+      lines.push(this.formatAnnotationSummary(build.annotations.edges));
+    }
+    
+    // Jobs summary
+    if (build.jobs?.edges?.length > 0) {
+      if (build.annotations?.edges?.length > 0) {
+        lines.push(''); // Add space between annotations and steps
+      }
+      lines.push(this.formatJobSummary(build.jobs.edges, build.state));
+    }
+    
     // Blocked information
     const blockedJobs = this.getBlockedJobs(build.jobs?.edges);
     if (blockedJobs.length > 0) {
-      lines.push(`${getProgressIcon('BLOCKED_MESSAGE')} Blocked: "${blockedJobs[0].node.label}" (manual unblock required)`);
-    }
-    
-    // Show jobs summary
-    const jobStats = this.getJobStats(build.jobs?.edges);
-    if (jobStats.completed > 0) {
-      lines.push(`${getStateIcon('PASSED')} ${jobStats.completed} jobs passed before block`);
-    }
-    
-    // Annotation summary
-    if (build.annotations?.edges?.length > 0) {
       lines.push('');
-      lines.push(this.formatAnnotationSummary(build.annotations.edges));
+      lines.push(`${getProgressIcon('BLOCKED_MESSAGE')} Blocked: "${blockedJobs[0].node.label}" (manual unblock required)`);
     }
     
     // Show job details if requested
@@ -337,15 +365,25 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     lines.push(this.formatCommitInfo(build));
     lines.push('');
     
+    // Annotations first (if any)
+    if (build.annotations?.edges?.length > 0) {
+      lines.push(this.formatAnnotationSummary(build.annotations.edges));
+    }
+    
+    // Jobs summary
+    if (build.jobs?.edges?.length > 0) {
+      if (build.annotations?.edges?.length > 0) {
+        lines.push(''); // Add space between annotations and steps
+      }
+      lines.push(this.formatJobSummary(build.jobs.edges, build.state));
+    }
+    
     // Canceled information
     if (build.createdBy) {
+      lines.push('');
       const creator = build.createdBy.name || build.createdBy.email;
       lines.push(`Canceled by: ${creator}`);
     }
-    
-    // Show jobs summary
-    const jobStats = this.getJobStats(build.jobs?.edges);
-    lines.push(`Completed: ${jobStats.completed}/${jobStats.total} jobs before cancellation`);
     
     // Show job details if requested
     if (options?.jobs) {
@@ -483,6 +521,58 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
           const styleColored = this.colorizeAnnotationStyle(style);
           lines.push(`   ${icon} ${styleColored}: ${context}`);
         }
+      }
+    }
+    
+    return lines.join('\n');
+  }
+  
+  private formatJobSummary(jobs: any[], buildState: string): string {
+    if (!jobs || jobs.length === 0) {
+      return '';
+    }
+    
+    const lines: string[] = [];
+    const jobStats = this.getJobStats(jobs);
+    
+    // Build summary parts based on job states
+    const countParts = [];
+    if (jobStats.failed > 0) countParts.push(SEMANTIC_COLORS.error(`${jobStats.failed} failed`));
+    if (jobStats.passed > 0) countParts.push(SEMANTIC_COLORS.success(`${jobStats.passed} passed`));
+    if (jobStats.running > 0) countParts.push(SEMANTIC_COLORS.info(`${jobStats.running} running`));
+    if (jobStats.blocked > 0) countParts.push(SEMANTIC_COLORS.warning(`${jobStats.blocked} blocked`));
+    if (jobStats.skipped > 0) countParts.push(SEMANTIC_COLORS.muted(`${jobStats.skipped} skipped`));
+    if (jobStats.canceled > 0) countParts.push(SEMANTIC_COLORS.muted(`${jobStats.canceled} canceled`));
+    
+    // Use appropriate icon based on build state
+    const icon = buildState === 'FAILED' ? getStateIcon('FAILED') : 
+                 buildState === 'RUNNING' ? getStateIcon('RUNNING') :
+                 buildState === 'PASSED' ? getStateIcon('PASSED') :
+                 buildState === 'BLOCKED' ? getStateIcon('BLOCKED') : '•';
+    lines.push(`${icon} ${SEMANTIC_COLORS.count(String(jobStats.total))} step${jobStats.total > 1 ? 's' : ''}: ${countParts.join(', ')}`);
+    
+    // For failed builds, show the specific failed job names
+    if (buildState === 'FAILED') {
+      const failedJobs = this.getFailedJobs(jobs);
+      const jobGroups = this.groupJobsByLabel(failedJobs);
+      
+      // Show up to 3 failed job types
+      const displayGroups = jobGroups.slice(0, 3);
+      for (const group of displayGroups) {
+        const label = this.parseEmoji(group.label);
+        const icon = getStateIcon('FAILED');
+        
+        if (group.parallelTotal > 0) {
+          lines.push(`   ${icon} ${label} (${group.stateCounts.failed || 0}/${group.parallelTotal} failed)`);
+        } else if (group.count > 1) {
+          lines.push(`   ${icon} ${label} (${group.stateCounts.failed || 0} failed)`);
+        } else {
+          lines.push(`   ${icon} ${label}`);
+        }
+      }
+      
+      if (jobGroups.length > 3) {
+        lines.push(`   ${SEMANTIC_COLORS.muted(`...and ${jobGroups.length - 3} more`)}`);
       }
     }
     
@@ -837,6 +927,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       running: 0,
       blocked: 0,
       skipped: 0,
+      canceled: 0,
       queued: 0,
       completed: 0
     };
@@ -861,7 +952,10 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         stats.running++;
       } else if (state === 'BLOCKED') {
         stats.blocked++;
-      } else if (state === 'SKIPPED' || state === 'CANCELED') {
+      } else if (state === 'CANCELED' || state === 'CANCELLED') {
+        stats.canceled++;
+        stats.completed++;
+      } else if (state === 'SKIPPED') {
         stats.skipped++;
         stats.completed++;
       } else if (state === 'SCHEDULED' || state === 'ASSIGNED') {
