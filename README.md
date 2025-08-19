@@ -50,9 +50,24 @@ See [Shell Completions Guide](docs/shell-completions.md) for detailed installati
 - [Development Guide](docs/development.md) - Information about running and developing the CLI
 - [Authentication](docs/authentication.md) - How to authenticate with Buildkite
 - [Caching](docs/caching.md) - Information about the CLI's caching system
+- [Testing Guide](docs/testing-guide.md) - Running tests and testing strategy
+- [API Reference](docs/api-reference.md) - Complete command reference
+- [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 - [Alfred Integration (Overview)](docs/alfred.md) - What the Alfred integration does and quick usage
 - [Alfred Installation](docs/alfred-installation.md) - End-user install, configuration, and troubleshooting
 - [Alfred Development](docs/alfred-development.md) - Packaging, wrapper behavior, metadata, and workflow wiring
+
+## Testing
+
+Run the test suite with:
+```bash
+npm test                       # Run all tests
+npm run test:watch            # Watch mode for development  
+npm run test:coverage         # Generate coverage report
+npm run test:extract-patterns # Extract patterns from real data (requires token)
+```
+
+See [Testing Guide](docs/testing/README.md) for details on the hybrid testing strategy.
 
 ## Usage
 
@@ -139,6 +154,33 @@ bktide annotations https://buildkite.com/gusto/zenpayroll/builds/1287418 --forma
 
 # Combine filtering and formatting
 bktide annotations gusto/zenpayroll/1287418 --context build-resources --format json
+```
+
+### Show Build Details
+
+View detailed information about a specific build including jobs and annotations.
+
+```bash
+# View build by slug format
+bktide build org/pipeline/123
+
+# View build by URL format
+bktide build @https://buildkite.com/org/pipeline/builds/123
+```
+
+Additional options:
+```bash
+# Fetch all jobs (handles pagination for large builds)
+bktide build org/pipeline/123 --jobs
+
+# Show failure details and error summaries
+bktide build org/pipeline/123 --failed
+
+# Include full annotation content
+bktide build org/pipeline/123 --annotations
+
+# Combine options for comprehensive view
+bktide build org/pipeline/123 --jobs --failed --annotations
 ```
 
 ### Generate Shell Completions

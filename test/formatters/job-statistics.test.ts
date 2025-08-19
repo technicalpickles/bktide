@@ -9,7 +9,7 @@ describe('Job Statistics and State Handling', () => {
   });
 
   describe('getJobStats', () => {
-    it('should count BROKEN jobs as skipped, not failed', () => {
+    it('should not count BROKEN jobs as failed', () => {
       const jobs = [
         { node: { state: 'BROKEN', passed: false, exitStatus: null } },
         { node: { state: 'BROKEN', passed: false, exitStatus: null } },
@@ -19,8 +19,10 @@ describe('Job Statistics and State Handling', () => {
       // @ts-ignore - accessing private method for testing
       const stats = formatter.getJobStats(jobs);
       
-      expect(stats.skipped).toBe(3);
+      // BROKEN jobs are not failed
       expect(stats.failed).toBe(0);
+      // We still track skipped internally for stats, just don't display
+      expect(stats.skipped).toBe(3);
       expect(stats.total).toBe(3);
     });
 
@@ -148,7 +150,7 @@ describe('Job Statistics and State Handling', () => {
       const summary = formatter.formatJobSummary(jobsData, 'FAILED');
       
       expect(summary).toContain('Showing 100 of 608 steps');
-      expect(summary).toContain('100 skipped');
+      expect(summary).not.toContain('skipped'); // Skipped jobs not shown
       expect(summary).not.toContain('100 failed');
       expect(summary).toContain('Showing first 100 jobs only');
     });
@@ -172,7 +174,7 @@ describe('Job Statistics and State Handling', () => {
       expect(summary).not.toContain('first 100 jobs only');
       expect(summary).toContain('1 failed');
       expect(summary).toContain('1 passed');
-      expect(summary).toContain('1 skipped');
+      expect(summary).not.toContain('skipped'); // Skipped jobs not shown
     });
 
     it('should not show BROKEN jobs in failed job list for failed builds', () => {
@@ -197,7 +199,7 @@ describe('Job Statistics and State Handling', () => {
   });
 
   describe('groupJobsByState', () => {
-    it('should put BROKEN jobs in Skipped group, not Failed', () => {
+    it('should not include BROKEN/SKIPPED jobs in any group', () => {
       const jobs = [
         { node: { state: 'BROKEN', passed: false, label: ':jest: Jest' } },
         { node: { state: 'FINISHED', passed: false, label: ':rspec: RSpec' } },
@@ -211,9 +213,8 @@ describe('Job Statistics and State Handling', () => {
       expect(grouped['Failed']).toHaveLength(1);
       expect(grouped['Failed'][0].node.label).toBe(':rspec: RSpec');
       
-      expect(grouped['Skipped']).toHaveLength(2);
-      expect(grouped['Skipped'][0].node.label).toBe(':jest: Jest');
-      expect(grouped['Skipped'][1].node.label).toBe(':skip: Skipped');
+      // Skipped group should not exist since we don't display them
+      expect(grouped['Skipped']).toBeUndefined();
       
       expect(grouped['Passed']).toHaveLength(1);
       expect(grouped['Passed'][0].node.label).toBe(':test: Test');
@@ -238,7 +239,7 @@ describe('Job Statistics and State Handling', () => {
       const grouped = formatter.groupJobsByState(failedJobs);
       
       expect(grouped['Failed']).toHaveLength(1);
-      expect(grouped['Skipped']).toHaveLength(0); // BROKEN jobs filtered out
+      expect(grouped['Skipped']).toBeUndefined(); // No Skipped group at all
     });
   });
 
@@ -265,7 +266,7 @@ describe('Job Statistics and State Handling', () => {
       const summary = formatter.formatJobSummary(jobsData, 'FAILED');
       
       // Should show as skipped, not failed
-      expect(summary).toContain('100 skipped');
+      expect(summary).not.toContain('skipped'); // Skipped jobs not shown
       expect(summary).not.toContain('100 failed');
       
       // Should show truncation warning
@@ -303,7 +304,7 @@ describe('Job Statistics and State Handling', () => {
       expect(summary).toContain('608 steps');
       expect(summary).toContain('2 failed');
       expect(summary).toContain('416 passed');
-      expect(summary).toContain('187 skipped'); // 165 BROKEN + 22 SKIPPED
+      expect(summary).not.toContain('skipped'); // Skipped jobs not shown
       
       // Should show the actual failed jobs
       expect(summary).toContain(':rspec: RSpec');

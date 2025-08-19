@@ -546,7 +546,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     if (jobStats.passed > 0) countParts.push(SEMANTIC_COLORS.success(`${jobStats.passed} passed`));
     if (jobStats.running > 0) countParts.push(SEMANTIC_COLORS.info(`${jobStats.running} running`));
     if (jobStats.blocked > 0) countParts.push(SEMANTIC_COLORS.warning(`${jobStats.blocked} blocked`));
-    if (jobStats.skipped > 0) countParts.push(SEMANTIC_COLORS.muted(`${jobStats.skipped} skipped`));
+    // Don't show skipped jobs
     if (jobStats.canceled > 0) countParts.push(SEMANTIC_COLORS.muted(`${jobStats.canceled} canceled`));
     
     // Use appropriate icon based on build state
@@ -639,7 +639,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     if (jobStats.failed > 0) parts.push(`${getStateIcon('FAILED')} ${jobStats.failed} failed`);
     if (jobStats.running > 0) parts.push(`${getStateIcon('RUNNING')} ${jobStats.running} running`);
     if (jobStats.blocked > 0) parts.push(`${getStateIcon('BLOCKED')} ${jobStats.blocked} blocked`);
-    if (jobStats.skipped > 0) parts.push(`${getStateIcon('SKIPPED')} ${jobStats.skipped} skipped`);
+    // Don't show skipped jobs in summary
     
     lines.push(`Jobs: ${parts.join('  ')}`);
     lines.push('');
@@ -1044,8 +1044,8 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       'Failed': [],
       'Passed': [],
       'Running': [],
-      'Blocked': [],
-      'Skipped': []
+      'Blocked': []
+      // Don't include Skipped - we don't display them
     };
     
     if (!jobs) return grouped;
@@ -1067,8 +1067,8 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       } else if (state === 'BLOCKED') {
         grouped['Blocked'].push(job);
       } else if (state === 'SKIPPED' || state === 'CANCELED' || state === 'BROKEN') {
-        // BROKEN jobs are skipped due to branch conditionals
-        grouped['Skipped'].push(job);
+        // Don't display skipped/broken/canceled jobs - they're not shown in Buildkite UI
+        // Skip these entirely
       } else if (state === 'FINISHED' || state === 'COMPLETED') {
         // For finished jobs without exit status, check passed field
         if (job.node.passed === true) {

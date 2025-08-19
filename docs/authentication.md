@@ -7,9 +7,9 @@ You can authenticate with Buildkite in several ways:
    npm run dev -- viewer --token YOUR_BUILDKITE_API_TOKEN
    ```
 
-2. Setting the `BK_TOKEN` environment variable:
+2. Setting the `BUILDKITE_API_TOKEN` environment variable:
    ```bash
-   export BK_TOKEN=YOUR_BUILDKITE_API_TOKEN
+   export BUILDKITE_API_TOKEN=YOUR_BUILDKITE_API_TOKEN
    npm run dev -- viewer
    ```
 
@@ -45,7 +45,7 @@ You can also use the `--save-token` flag with any command to save the token used
 npm run dev -- viewer --token YOUR_BUILDKITE_API_TOKEN --save-token
 
 # Use and store a token from the environment variable
-# (requires BK_TOKEN to be set)
+# (requires BUILDKITE_API_TOKEN to be set)
 npm run dev -- viewer --save-token
 ```
 
