@@ -227,15 +227,6 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       lines.push(this.formatJobSummary(build.jobs, build.state));
     }
     
-    // Failed jobs details (only show if there are failed jobs)
-    const failedJobs = this.getFailedJobs(build.jobs?.edges);
-    if (failedJobs.length > 0 && (options?.failed || options?.jobs)) {
-      lines.push('');
-      const { summary, hints } = this.formatFailedJobsSummaryWithHints(failedJobs, options);
-      lines.push(summary);
-      allHints.push(...hints);
-    }
-    
     // Show detailed job info if requested
     if (options?.jobs || options?.failed) {
       lines.push('');
@@ -249,6 +240,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     }
     
     // Collect all hints for more info
+    const failedJobs = this.getFailedJobs(build.jobs?.edges);
     if (!options?.failed && failedJobs.length > 0) {
       allHints.push('Use --failed to show failure details');
     }
@@ -579,12 +571,17 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         const label = this.parseEmoji(group.label);
         const icon = getStateIcon('FAILED');
         
+        // Get duration for display
+        const duration = group.count === 1 && group.jobs[0]?.node 
+          ? ` ${SEMANTIC_COLORS.dim(`- ran ${this.formatJobDuration(group.jobs[0].node)}`)}`
+          : '';
+        
         if (group.parallelTotal > 0) {
-          lines.push(`   ${icon} ${label} (${group.stateCounts.failed || 0}/${group.parallelTotal} failed)`);
+          lines.push(`   ${icon} ${label} ${SEMANTIC_COLORS.dim(`(${group.stateCounts.failed || 0}/${group.parallelTotal} failed)`)}`);
         } else if (group.count > 1) {
-          lines.push(`   ${icon} ${label} (${group.stateCounts.failed || 0} failed)`);
+          lines.push(`   ${icon} ${label} ${SEMANTIC_COLORS.dim(`(${group.stateCounts.failed || 0} failed)`)}`);
         } else {
-          lines.push(`   ${icon} ${label}`);
+          lines.push(`   ${icon} ${label}${duration}`);
         }
       }
       
@@ -735,78 +732,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     return lines.join('\n').trim();
   }
   
-  private formatFailedJobsSummaryWithHints(failedJobs: any[], options?: BuildDetailFormatterOptions): { summary: string; hints: string[] } {
-    const hints: string[] = [];
-    const summary = this.formatFailedJobsSummary(failedJobs, options, hints);
-    return { summary, hints };
-  }
-  
-  private formatFailedJobsSummary(failedJobs: any[], options?: BuildDetailFormatterOptions, hints?: string[]): string {
-    const lines: string[] = [];
-    
-    // Group identical jobs by label
-    const jobGroups = this.groupJobsByLabel(failedJobs);
-    
-    // Show all groups if --all-jobs, otherwise limit to 10
-    const displayGroups = options?.allJobs 
-      ? jobGroups 
-      : jobGroups.slice(0, 10);
-    
-    for (const group of displayGroups) {
-      const label = this.parseEmoji(group.label);
-      if (group.count === 1) {
-        const duration = this.formatJobDuration(group.jobs[0].node);
-        lines.push(`   ${SEMANTIC_COLORS.error('Failed')}: ${label} - ran ${duration}`);
-      } else {
-        // Multiple jobs with same label - show detailed breakdown
-        const statusParts = [];
-        
-        if (group.stateCounts.failed > 0) {
-          statusParts.push(`${group.stateCounts.failed} failed`);
-        }
-        if (group.stateCounts.broken > 0) {
-          statusParts.push(`${group.stateCounts.broken} broken`);
-        }
-        if (group.stateCounts.notStarted > 0) {
-          statusParts.push(`${group.stateCounts.notStarted} not started`);
-        }
-        if (group.stateCounts.passed > 0) {
-          statusParts.push(`${group.stateCounts.passed} passed`);
-        }
-        if (group.stateCounts.other > 0) {
-          statusParts.push(`${group.stateCounts.other} other`);
-        }
-        
-        const statusInfo = statusParts.join(', ') || 'various states';
-        
-        // Show parallel info if it's a parallel job group
-        const parallelInfo = group.parallelTotal > 0 ? ` (${group.count}/${group.parallelTotal} parallel)` : ` (${SEMANTIC_COLORS.count(String(group.count))} jobs)`;
-        lines.push(`   ${SEMANTIC_COLORS.error('Failed')}: ${label}${parallelInfo}: ${statusInfo}`);
-      }
-    }
-    
-    // Add summary if there are more job types and not showing all
-    if (!options?.allJobs) {
-      const remaining = jobGroups.length - displayGroups.length;
-      if (remaining > 0) {
-        lines.push(`   ${SEMANTIC_COLORS.muted(`...and ${remaining} more job types`)}`);
-        
-        // If hints array is provided, add hint there; otherwise format inline
-        if (hints) {
-          hints.push('Use --all-jobs to show all jobs');
-        } else {
-          lines.push('');
-          const tips = formatTips(
-            ['Use --all-jobs to show all jobs'],
-            TipStyle.GROUPED
-          );
-          lines.push(tips);
-        }
-      }
-    }
-    
-    return lines.join('\n');
-  }
+
   
   private groupJobsByLabel(jobs: any[]): any[] {
     const groups = new Map<string, any>();
