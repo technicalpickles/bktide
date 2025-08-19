@@ -199,8 +199,12 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     
     // Failed jobs summary
     const failedJobs = this.getFailedJobs(build.jobs?.edges);
+    const allHints: string[] = [];
+    
     if (failedJobs.length > 0) {
-      lines.push(this.formatFailedJobsSummary(failedJobs, options));
+      const { summary, hints } = this.formatFailedJobsSummaryWithHints(failedJobs, options);
+      lines.push(summary);
+      allHints.push(...hints);
     }
     
     // Annotation summary
@@ -220,18 +224,18 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       lines.push(this.formatAnnotationDetails(build.annotations.edges, options));
     }
     
-    // Hints for more info
-    const hints: string[] = [];
+    // Collect all hints for more info
     if (!options?.failed && failedJobs.length > 0) {
-      hints.push('Use --failed to show failure details');
+      allHints.push('Use --failed to show failure details');
     }
     if (!options?.annotations && build.annotations?.edges?.length > 0) {
-      hints.push('Use --annotations to view annotation details');
+      allHints.push('Use --annotations to view annotation details');
     }
     
-    if (hints.length > 0) {
+    // Display all hints together
+    if (allHints.length > 0) {
       lines.push('');
-      lines.push(formatTips(hints, TipStyle.GROUPED));
+      lines.push(formatTips(allHints, TipStyle.GROUPED));
     }
     
     return lines.join('\n');
@@ -516,7 +520,13 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     return lines.join('\n').trim();
   }
   
-  private formatFailedJobsSummary(failedJobs: any[], options?: BuildDetailFormatterOptions): string {
+  private formatFailedJobsSummaryWithHints(failedJobs: any[], options?: BuildDetailFormatterOptions): { summary: string; hints: string[] } {
+    const hints: string[] = [];
+    const summary = this.formatFailedJobsSummary(failedJobs, options, hints);
+    return { summary, hints };
+  }
+  
+  private formatFailedJobsSummary(failedJobs: any[], options?: BuildDetailFormatterOptions, hints?: string[]): string {
     const lines: string[] = [];
     
     // Group identical jobs by label
@@ -561,7 +571,10 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         }
         
         const statusInfo = statusParts.join(', ') || 'various states';
-        lines.push(`   ${SEMANTIC_COLORS.error('Failed')}: ${label} (${SEMANTIC_COLORS.count(String(group.count))} jobs: ${statusInfo})`);
+        
+        // Show parallel info if it's a parallel job group
+        const parallelInfo = group.parallelTotal > 0 ? ` (${group.count}/${group.parallelTotal} parallel)` : ` (${SEMANTIC_COLORS.count(String(group.count))} jobs)`;
+        lines.push(`   ${SEMANTIC_COLORS.error('Failed')}: ${label}${parallelInfo}: ${statusInfo}`);
       }
     }
     
@@ -570,12 +583,18 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       const remaining = jobGroups.length - displayGroups.length;
       if (remaining > 0) {
         lines.push(`   ${SEMANTIC_COLORS.muted(`...and ${remaining} more job types`)}`);
-        lines.push('');
-        const tips = formatTips(
-          ['Use --all-jobs to show all jobs'],
-          TipStyle.GROUPED
-        );
-        lines.push(tips);
+        
+        // If hints array is provided, add hint there; otherwise format inline
+        if (hints) {
+          hints.push('Use --all-jobs to show all jobs');
+        } else {
+          lines.push('');
+          const tips = formatTips(
+            ['Use --all-jobs to show all jobs'],
+            TipStyle.GROUPED
+          );
+          lines.push(tips);
+        }
       }
     }
     
@@ -586,13 +605,19 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     const groups = new Map<string, any>();
     
     for (const job of jobs) {
-      const label = job.node.label || 'Unnamed job';
-      if (!groups.has(label)) {
-        groups.set(label, {
-          label,
+      const fullLabel = job.node.label || 'Unnamed job';
+      
+      // Strip parallel job index from label for grouping
+      // e.g., "deposit_and_filing_schedule_calculator rspec (1/22)" -> "deposit_and_filing_schedule_calculator rspec"
+      const baseLabel = fullLabel.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
+      
+      if (!groups.has(baseLabel)) {
+        groups.set(baseLabel, {
+          label: baseLabel,
           count: 0,
           jobs: [],
           exitCodes: new Set<number>(),
+          parallelTotal: 0,
           stateCounts: {
             failed: 0,
             broken: 0,
@@ -603,9 +628,14 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         });
       }
       
-      const group = groups.get(label)!;
+      const group = groups.get(baseLabel)!;
       group.count++;
       group.jobs.push(job);
+      
+      // Track the maximum parallel total for this job group
+      if (job.node.parallelGroupTotal && job.node.parallelGroupTotal > group.parallelTotal) {
+        group.parallelTotal = job.node.parallelGroupTotal;
+      }
       
       // Track exit codes
       if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
