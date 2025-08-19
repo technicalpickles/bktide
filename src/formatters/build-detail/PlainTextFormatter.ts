@@ -481,16 +481,9 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       for (const job of stateJobs) {
         const label = this.parseEmoji(job.node.label);
         const duration = this.formatJobDuration(job.node);
-        // Only show non-zero exit codes (convert string to number)
-        const exitCodeNum = job.node.exitStatus !== null && job.node.exitStatus !== undefined
-          ? parseInt(job.node.exitStatus, 10)
-          : null;
-        const exitCode = (exitCodeNum && exitCodeNum !== 0) 
-          ? `, exit ${exitCodeNum}` 
-          : '';
         
         // Basic job line
-        lines.push(`  ${label} (${duration}${exitCode})`);
+        lines.push(`  ${label} (${duration})`);
         
         // Show additional details if --jobs or --full
         if (options?.jobs || options?.full) {
@@ -501,12 +494,6 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
               ? new Date(job.node.finishedAt).toLocaleTimeString()
               : 'still running';
             lines.push(`    ${SEMANTIC_COLORS.dim(`⏱️  ${startTime} → ${endTime}`)}`);
-          }
-          
-          // Agent information
-          if (job.node.agent) {
-            const agentInfo = job.node.agent.name || job.node.agent.hostname || 'unknown agent';
-            lines.push(`    ${SEMANTIC_COLORS.dim(`🖥️  Agent: ${agentInfo}`)}`);
           }
           
           // Parallel group info
@@ -568,15 +555,6 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
           statusParts.push(`${group.stateCounts.other} other`);
         }
         
-        // Add non-zero exit codes if available
-        const nonZeroExitCodes = group.exitCodes.filter((code: number) => code !== 0);
-        if (nonZeroExitCodes.length > 0) {
-          const exitCodeStr = nonZeroExitCodes.length === 1 
-            ? `exit ${nonZeroExitCodes[0]}`
-            : `exits: ${nonZeroExitCodes.join(', ')}`;
-          statusParts.push(exitCodeStr);
-        }
-        
         const statusInfo = statusParts.join(', ') || 'various states';
         
         // Show parallel info if it's a parallel job group
@@ -623,7 +601,6 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
           label: baseLabel,
           count: 0,
           jobs: [],
-          exitCodes: new Set<number>(),
           parallelTotal: 0,
           stateCounts: {
             failed: 0,
@@ -644,11 +621,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         group.parallelTotal = job.node.parallelGroupTotal;
       }
       
-      // Track exit codes (convert string to number)
-      if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
-        const exitCode = parseInt(job.node.exitStatus, 10);
-        group.exitCodes.add(exitCode);
-      }
+
       
       // Count by state
       const state = job.node.state?.toUpperCase();
@@ -686,7 +659,6 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     
     // Convert to array and sort by count (most failures first)
     return Array.from(groups.values())
-      .map(g => ({ ...g, exitCodes: Array.from(g.exitCodes) }))
       .sort((a, b) => b.count - a.count);
   }
   
