@@ -5,7 +5,9 @@ alwaysApply: true
 
 # Error Handling & Debugging
 
-## Error Handling Strategy
+
+
+## Essential Error Handling Pattern
 
 ### Command-Level Error Handling
 ```typescript

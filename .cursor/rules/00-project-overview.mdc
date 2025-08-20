@@ -5,6 +5,12 @@ alwaysApply: true
 
 # bktide CLI - Buildkite GraphQL/REST CLI Tool
 
+> **For complete project documentation, user guides, and reference materials, see:**
+> - [User Documentation](docs/user/) - Installation, usage, troubleshooting
+> - [Developer Documentation](docs/developer/) - Development setup, architecture, testing
+> - [Reference Documentation](docs/reference/) - Commands, configuration, changelogs
+> - [Documentation Overview](docs/README.md) - Complete documentation structure
+
 This is a TypeScript CLI for interacting with the Buildkite GraphQL and REST APIs.
 
 ## Project Purpose

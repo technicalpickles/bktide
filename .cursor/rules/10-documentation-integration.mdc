@@ -1,0 +1,154 @@
+# Documentation Integration
+
+## Documentation Structure Reference
+
+The project uses a well-organized documentation structure in `docs/`:
+
+### 📖 [User Documentation](docs/user/)
+**For end users** - Installation, usage, troubleshooting
+- **Getting Started**: Authentication, shell completions, caching
+- **Alfred Integration**: Overview, installation, troubleshooting  
+- **Troubleshooting**: Common issues and solutions
+
+### 👨‍💻 [Developer Documentation](docs/developer/)
+**For contributors** - Development setup, architecture, testing
+- **Development Guide**: Setup, coding standards, architecture
+- **Testing**: Strategy, patterns, test coverage
+- **Contributing**: Guidelines for contributing changes
+- **Planning**: Active design decisions and planning documents
+
+### 📚 [Reference Documentation](docs/reference/)
+**For everyone** - Reference materials, changelogs, process docs
+- **Changelogs**: What changed and when
+- **Release Process**: How releases work
+- **Commands**: Complete command reference (TODO)
+- **Configuration**: All options and settings (TODO)
+
+### 📦 [Archive](docs/archive/)
+**Historical context** - Old planning docs, migrations, progress tracking
+
+## When to Reference vs. Duplicate
+
+### ✅ Reference Documentation When:
+- **Detailed explanations** - Complex concepts, step-by-step guides
+- **User-facing content** - Installation, usage, troubleshooting
+- **Historical context** - Planning decisions, migration guides
+- **Complete references** - All command options, configuration details
+- **Process documentation** - Release procedures, contribution guidelines
+
+### ✅ Keep in Cursor Rules When:
+- **Quick reference patterns** - Code snippets, implementation templates
+- **Decision trees** - When to use GraphQL vs REST, error handling flows
+- **Development workflow** - Iterative steps, validation commands
+- **Critical constraints** - ES module requirements, type safety rules
+- **Immediate context** - Project-specific conventions that affect every change
+
+## Documentation Integration Patterns
+
+### Single Documentation Reference
+Since all cursor rules are `alwaysApply: true`, documentation references are consolidated in the project overview rule. Individual rules focus on essential patterns only.
+
+### Reference Documentation in Cursor Rules
+```typescript
+// ✅ Good - Keep only essential patterns in cursor rules
+// Detailed explanations are in the documentation referenced in 00-project-overview.mdc
+
+export class MyCommand extends BaseCommand {
+  async execute(options: MyCommandOptions): Promise<number> {
+    try {
+      await this.ensureInitialized();
+      // ... implementation
+      return 0;
+    } catch (error) {
+      this.handleError(error, options.debug);
+      return 1;
+    }
+  }
+}
+```
+
+### Documentation Structure
+The project overview rule contains a comprehensive reference to all documentation sections:
+
+- **User Documentation**: Installation, usage, troubleshooting
+- **Developer Documentation**: Development setup, architecture, testing  
+- **Reference Documentation**: Commands, configuration, changelogs
+- **Documentation Overview**: Complete documentation structure
+
+## Documentation Contribution Guidelines
+
+### When Adding New Content
+1. **Choose the right location** using the documentation classification guide
+2. **Reference from cursor rules** for patterns and quick reference
+3. **Keep cursor rules focused** on immediate development context
+4. **Update both** when patterns change significantly
+
+### Documentation Maintenance
+- **Cursor rules**: Update when implementation patterns change
+- **User docs**: Update when features change or new issues arise
+- **Developer docs**: Update when architecture or processes change
+- **Reference docs**: Update when commands, config, or APIs change
+
+## Quick Documentation Decision Tree
+
+**Is this for end users?**
+- Yes → `docs/user/` + reference from cursor rules
+
+**Is this a detailed explanation or process?**
+- Yes → `docs/developer/` + reference from cursor rules
+
+**Is this a quick pattern or constraint?**
+- Yes → Keep in cursor rules, reference docs for details
+
+**Is this historical or completed work?**
+- Yes → `docs/archive/` + reference from cursor rules
+
+## Examples of Good Integration
+
+### Cursor Rule Pattern (Keep)
+```typescript
+// Essential pattern for every command
+export class MyCommand extends BaseCommand {
+  async execute(options: MyCommandOptions): Promise<number> {
+    try {
+      await this.ensureInitialized();
+      // ... implementation
+      return 0;
+    } catch (error) {
+      this.handleError(error, options.debug);
+      return 1;
+    }
+  }
+}
+```
+
+### Documentation Reference (Reference)
+```markdown
+## Error Handling Patterns
+
+For complete error handling strategies, debugging setup, and logging configuration, see:
+- [Error Handling & Debugging](docs/developer/development.md#error-handling--debugging)
+- [Testing Error Conditions](docs/developer/testing/README.md#testing-error-conditions)
+- [User Troubleshooting](docs/user/troubleshooting.md)
+```
+
+### Cursor Rule Constraint (Keep)
+```typescript
+// CRITICAL: This project uses ES modules
+// ALWAYS use import/export syntax, NEVER use require/module.exports
+import { MyClass } from './MyClass.js';
+export { MyClass };
+```
+
+### Documentation Detail (Reference)
+```markdown
+## ES Module Configuration
+
+For complete ES module setup, TypeScript configuration, and troubleshooting, see:
+- [Development Setup](docs/developer/development.md#running-the-cli)
+- [TypeScript Configuration](docs/developer/development.md#typescript-setup)
+```
+description:
+globs:
+alwaysApply: false
+---

@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Testing Strategy
 
-## Manual Testing Requirements
+## Essential Testing Requirements
 
 ### Test All Code Paths
 When implementing a new feature, test:
