@@ -13,6 +13,8 @@ import {
   getProgressIcon,
   BUILD_STATUS_THEME
 } from '../../ui/theme.js';
+import { useAscii } from '../../ui/symbols.js';
+import { termWidth } from '../../ui/width.js';
 
 // Standard emoji mappings only
 // Only map universally recognized emoji codes, not Buildkite-specific ones
@@ -595,31 +597,98 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   
   private formatAnnotationDetails(annotations: any[]): string {
     const lines: string[] = [];
+    const isAscii = useAscii();
+    const terminalWidth = termWidth();
+    
+    // Box drawing characters
+    const boxChars = isAscii ? {
+      horizontal: '-',
+      vertical: '|'
+    } : {
+      horizontal: '─',
+      vertical: '│'
+    };
+    
+    // Create a horizontal divider with padding and centering
+    const createDivider = (width: number = 80) => {
+      const padding = 2; // 1 space on each side
+      const maxWidth = Math.min(width, terminalWidth - padding);
+      const dividerLength = Math.max(20, maxWidth - padding); // Minimum 20 chars
+      const divider = boxChars.horizontal.repeat(dividerLength);
+      
+      // Center the divider within the terminal width
+      const totalPadding = terminalWidth - dividerLength;
+      const leftPadding = Math.floor(totalPadding / 2);
+      const spaces = ' '.repeat(Math.max(0, leftPadding));
+      
+      return SEMANTIC_COLORS.dim(spaces + divider);
+    };
     
     // Group annotations by style
     const grouped = this.groupAnnotationsByStyle(annotations);
     const styleOrder = ['ERROR', 'WARNING', 'INFO', 'SUCCESS'];
     
+    let annotationIndex = 0;
     for (const style of styleOrder) {
       if (grouped[style]) {
         for (const annotation of grouped[style]) {
+          // Add divider between annotations (but not before the first one)
+          if (annotationIndex > 0) {
+            lines.push('');
+            lines.push(createDivider());
+            lines.push('');
+          }
+          
           const icon = this.getAnnotationIcon(style);
           const context = annotation.node.context || 'default';
-          const styleColored = this.colorizeAnnotationStyle(style);
+          const colorFn = this.getStyleColorFunction(style);
           
-          // When showing annotation details, always show the body text
-          lines.push(`${icon} ${styleColored}: ${context}`);
+          // Single line header with pipe: "│ ℹ info: test-mapping-build"
+          const pipe = colorFn(boxChars.vertical);
+          const header = `${pipe} ${icon} ${style.toLowerCase()}: ${context}`;
+          lines.push(header);
+          
+          // Add blank line with pipe for visual continuity
+          lines.push(pipe);
+          
+          // Format the body HTML with proper HTML/markdown handling
           const body = htmlToText(annotation.node.body?.html || '', {
             wordwrap: 80,
             preserveNewlines: true
           });
-          lines.push(body.split('\n').map(l => `   ${l}`).join('\n'));
-          lines.push('');
+          
+          // Add vertical pipes to the left of the body content for visual continuity
+          // Use the same color as the header for the pipes
+          const bodyLines = body.split('\n');
+          bodyLines.forEach((line) => {
+            const paddedLine = line ? ` ${line}` : '';
+            lines.push(`${pipe}${paddedLine}`);
+          });
+          
+          annotationIndex++;
         }
       }
     }
     
+    // Add summary footer for multiple annotations
+    if (annotations.length > 1) {
+      lines.push('');
+      lines.push(createDivider());
+      lines.push('');
+      lines.push(SEMANTIC_COLORS.dim(`${SEMANTIC_COLORS.count(annotations.length.toString())} annotations found`));
+    }
+    
     return lines.join('\n').trim();
+  }
+  
+  private getStyleColorFunction(style: string): (s: string) => string {
+    const styleColorMap: Record<string, (s: string) => string> = {
+      'ERROR': SEMANTIC_COLORS.error,
+      'WARNING': SEMANTIC_COLORS.warning,
+      'INFO': SEMANTIC_COLORS.info,
+      'SUCCESS': SEMANTIC_COLORS.success
+    };
+    return styleColorMap[style] || ((s: string) => s);
   }
   
   private formatJobDetails(jobs: any[], options?: BuildDetailFormatterOptions): string {
