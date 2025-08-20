@@ -2,17 +2,26 @@
 
 ## Running the CLI
 
-The CLI can be run in several ways:
+For development, use the local binary which automatically uses the latest compiled code:
 
 ```bash
-# Regular development mode
-npm run dev -- <command> [options]
+# Recommended: Use local binary (requires npm run build first)
+bin/bktide <command> [options]
 
-# With source maps and improved error handling
-npm run dev:sourcemap -- <command> [options]
+# Alternative: npm scripts for development
+npm run dev -- <command> [options]                    # Direct ts-node execution
+npm run dev:sourcemap -- <command> [options]          # With source maps
+npm run dev:compiled -- <command> [options]           # Compiled with source maps
+```
 
-# Compiled mode with source maps (recommended for debugging)
-npm run dev:compiled -- <command> [options]
+**Recommended workflow:**
+```bash
+# Build once
+npm run build
+
+# Then use bin/bktide for testing
+bin/bktide viewer --debug
+bin/bktide builds --org my-org
 ```
 
 ## UI Guidelines
@@ -93,45 +102,54 @@ Tips:
 - Only show contextually relevant tips
 - The utility automatically includes the turn-off hint
 
-## Error Handling Improvements
+## Error Handling & Debugging
 
-For better error handling and stack traces:
+The project is configured with comprehensive error handling and debugging support:
 
-1. Configure TypeScript with source maps in `tsconfig.json`:
-   ```json
-   {
-     "compilerOptions": {
-       "sourceMap": true,
-       "inlineSources": true,
-       "sourceRoot": "/"
-     }
-   }
-   ```
+### Source Maps Configuration
+TypeScript is configured to generate source maps for better debugging:
+- **Source maps enabled**: Maps compiled JavaScript back to original TypeScript
+- **Inline sources**: Source code embedded in maps for complete debugging
+- **Source root**: Configured for proper IDE integration
 
-2. Use the `dev:compiled` script, which:
-   - Compiles TypeScript with source maps
-   - Runs Node.js with source maps enabled
-   - Provides proper stack traces back to the original TypeScript files
+This means stack traces show the original TypeScript file locations, not compiled JavaScript.
 
-3. For direct debugging with Chrome DevTools, use:
-   ```bash
-   npm run debug:inspect -- <command> [options]
-   ```
+### Development Scripts
+- **`npm run dev:sourcemap`**: Runs with source map support enabled
+- **`npm run dev:compiled`**: Compiles with source maps, then runs (recommended for debugging)
+- **`npm run debug:inspect`**: Enables Chrome DevTools debugging
+
+### Structured Logging
+The project uses Pino for structured logging with multiple transports:
+- **Console output**: Pretty-formatted for development
+- **File logging**: JSON format in `~/.local/state/bktide/logs/cli.log`
+- **Debug levels**: Trace, debug, info, warn, error, fatal
+
+### Error Context
+Commands automatically capture and format errors with:
+- **User-friendly messages**: Clear explanations for common issues
+- **Debug information**: Detailed stack traces when `--debug` is used
+- **Contextual hints**: Suggestions for resolving issues
+
+### Why This Setup
+- **Better debugging**: Source maps make it easy to debug TypeScript directly
+- **Production logging**: Structured logs help diagnose issues in production
+- **User experience**: Friendly error messages for end users, detailed info for developers
 
 ## Common Commands
 
 ```bash
 # Show current user information
-npm run dev -- viewer
+bin/bktide viewer
 
 # List organizations
-npm run dev -- orgs
+bin/bktide orgs
 
 # List pipelines for an organization
-npm run dev -- pipelines [--org <org>] [--count <count>]
+bin/bktide pipelines [--org <org>] [--count <count>]
 
 # List builds
-npm run dev -- builds [--org <org>] [--pipeline <pipeline>] [--branch <branch>]
+bin/bktide builds [--org <org>] [--pipeline <pipeline>] [--branch <branch>]
 ```
 
 Add the `--debug` flag to any command for detailed error information.

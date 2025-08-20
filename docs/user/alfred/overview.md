@@ -4,40 +4,58 @@ Streamline your Buildkite CI/CD workflows directly from Alfred, providing instan
 
 > **Note**: Shell completions and Alfred integration are independent features. You can use both simultaneously without any conflicts.
 
-For installation and troubleshooting, see `docs/alfred-installation.md`. For development and packaging details, see `docs/alfred-development.md`.
+For installation instructions, see [Alfred Installation Guide](installation.md). For troubleshooting, see [Alfred Troubleshooting](troubleshooting.md).
 
 ## What it does
+
 The bktide Alfred workflow transforms your Buildkite workflow management by:
+
 - **Instant Access**: Search and view builds, pipelines, and organizations from Alfred
 - **Rich Previews**: See build statuses, pipeline information, and annotations at a glance  
 - **Quick Actions**: Open builds in browser, copy URLs, or view details with keyboard shortcuts
 - **Smart Filtering**: Filter by organization, build state, or search terms
+- **Seamless Integration**: Works with your existing Alfred workflows and shortcuts
 
-The CLI outputs Alfred Script Filter JSON via `--format alfred`, with each build or pipeline shown as a result row with title, subtitle, and actionable URL.
+## Key Features
 
-### Output behavior in Alfred
-- Only machine-readable JSON is printed on stdout. No extra lines, colors, spinners, or confirmations are emitted.
-- Errors are also printed as JSON to stdout (stderr is unused by design within Alfred).
+### Build Management
+- Search recent builds across all your organizations
+- Filter by build state (passed, failed, running, etc.)
+- View build details including branch, commit, and timing
+- Quick access to build URLs and annotations
 
-### Quick usage
-```bash
-bin/bktide builds --format alfred
-```
+### Pipeline Overview  
+- Browse all accessible pipelines
+- Filter by organization or search by name
+- Quick access to pipeline configurations and recent builds
 
-You can also use the convenience wrapper:
+### Organization Access
+- View all organizations you have access to
+- Quick navigation between different Buildkite accounts
 
-```bash
-bin/alfred-entrypoint builds --filter "$*"
-```
+### Token Management
+Built-in commands for managing your API authentication:
+- **Check token status**: Verify your current token is valid
+- **Store new token**: Securely save a new API token
+- **Reset token**: Remove stored credentials
 
-### Token commands inside Alfred
-- `bkt`: Check token status (`token --check`)
-- `bkts`: Store/update token (prompts, then runs `token --store --token "{var:token}"`)
-- `bktr`: Reset token (`token --reset`)
+### Keyboard Shortcuts
+- **Enter**: Open build/pipeline in your browser
+- **⌘+Enter**: Copy URL to clipboard  
+- **⌥+Enter**: View detailed information (like annotations) in Alfred
 
-### Alternative actions
-- Default Enter: Open URL
-- ⌘: Copy URL
-- ⌥ (on builds): Show annotations in a Text View
+## Getting Started
 
-See Alfred docs: Using Alternative Actions and Text View.
+1. **Install the workflow**: See [installation guide](installation.md)
+2. **Configure Node.js**: Set up the Node.js path in Alfred workflow configuration
+3. **Set up authentication**: Configure your Buildkite API token in the workflow settings
+4. **Start searching**: Type your Alfred keyword and start exploring your Buildkite data
+
+For detailed setup instructions, see the [installation guide](installation.md).
+
+## Common Use Cases
+
+- **Monitor build status**: Quickly check if your latest builds passed or failed
+- **Investigate failures**: Jump directly to failed builds and view error details
+- **Pipeline management**: Browse and access pipeline configurations
+- **Team collaboration**: Share build URLs and status updates with teammates

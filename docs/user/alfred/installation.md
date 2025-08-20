@@ -57,20 +57,45 @@ nvm use --lts
 
 ## Configuration
 
-### Buildkite API Token
-You need a Buildkite API token to use the workflow:
+After installing the workflow, you need to configure it for your environment.
+
+### 1. Configure Node.js Path
+
+The workflow needs to know where to find Node.js on your system.
+
+1. **Open Alfred Preferences** (⌘ + ,)
+2. **Go to Workflows tab**
+3. **Find and select "bktide"** in the workflow list
+4. **Click the [𝒙] button** in the top right to open workflow configuration
+5. **Set NODE_BIN** to your Node.js path:
+
+**Common Node.js paths:**
+- **Official installer**: `/usr/local/bin/node`
+- **Homebrew (Intel)**: `/usr/local/bin/node` 
+- **Homebrew (Apple Silicon)**: `/opt/homebrew/bin/node`
+- **nvm**: `~/.nvm/versions/node/v18.x.x/bin/node`
+
+**To find your Node.js path:**
+```bash
+which node
+```
+
+### 2. Configure Buildkite API Token
+
+You need a Buildkite API token for the workflow to access your data.
 
 1. **Get a token from Buildkite**
-   - Go to [Buildkite Personal Access Tokens](https://buildkite.com/user/api-access-tokens)
+   - Go to [Buildkite API Access Tokens](https://buildkite.com/user/api-access-tokens)
    - Click "New API Access Token"
    - Give it a name like "Alfred Workflow"
-   - Select scopes: `read_builds`, `read_organizations`, `read_pipelines`
+   - **Required scopes**: `GraphQL`, `Read builds`, `Read organizations`, `Read pipelines`, `Read user`
    - Copy the generated token
 
-2. **Store the token securely**
-   - Open Alfred and run: `bktide token store`
-   - Paste your token when prompted
-   - The token will be stored securely in your macOS keychain
+2. **Add token to workflow configuration**
+   - In Alfred Preferences → Workflows → bktide
+   - Click the [𝒙] button to open configuration
+   - **Set BUILDKITE_API_TOKEN** to your token value
+   - Click "Save"
 
 ### Environment Configuration (Optional)
 

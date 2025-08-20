@@ -11,7 +11,6 @@ This section contains reference materials, changelogs, and process documentation
 ## Release Process
 
 - [Releasing](releasing.md) - How to release new versions
-- [Intelligent Release](intelligent-release.md) - Automated release process
 - [Trusted Publishing](trusted-publishing-setup.md) - Secure package publishing
 
 ## Missing Reference Docs

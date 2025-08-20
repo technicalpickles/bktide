@@ -5,23 +5,33 @@ This section contains documentation for developers working on the bktide CLI.
 ## Getting Started
 
 - [Development Guide](development.md) - Setting up the development environment and coding guidelines
-- [Testing Checklist](testing-checklist.md) - Comprehensive testing requirements and procedures
+- [Alfred Workflow Development](alfred-workflow-development.md) - Building and packaging the Alfred workflow
+- [Testing Checklist](testing-checklist.md) - Pre-release testing procedures for developers
 
 ## Testing
 
 - [Testing Strategy](testing/README.md) - Overview of our hybrid testing approach
 - [Mock Strategy](testing/hybrid-mock-strategy.md) - Pattern-based mock generation
-- [Test Gaps](testing/job-pagination-test-gaps.md) - Areas needing test coverage
 
 ## Architecture & Design
 
-- [UI Guidelines](development.md#ui-guidelines) - Visual design and icon system
-- [Error Handling](development.md#error-handling-improvements) - Error handling patterns
+- [UI Design System](ui-design-system.md) - Complete visual design system and theming
+- [UI Guidelines](development.md#ui-guidelines) - Basic UI usage guidelines
+- [Error Handling & Debugging](development.md#error-handling--debugging) - Error handling and debugging setup
 - [Code Organization](development.md#code-organization) - Project structure and conventions
+
+## Planning
+
+Active development plans and implemented features:
+
+- [Alfred Link Integration](planning/alfred-link-plan.md) - Auto-linking Alfred workflow (not implemented)
+- [Doctor Command](planning/doctor-plan.md) - Environment diagnostics command (not implemented)  
+- [Intelligent Release](planning/intelligent-release.md) - Smart release system (implemented but not active)
 
 ## Contributing
 
-- Follow the [development guide](development.md) for setup and coding standards
+- Read the [contributing guide](contributing.md) for complete setup and workflow
+- Follow the [development guide](development.md) for coding standards and architecture
 - Use the [testing checklist](testing-checklist.md) before submitting changes
 - Review [changelog entries](../reference/CHANGELOG-cli-ux.md) for examples
 

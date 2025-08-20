@@ -37,9 +37,9 @@ echo 'source <(bktide completions zsh)' >> ~/.zshrc
 ```
 
 Completions provide:
-- Command suggestions (`bktide <Tab>`)
-- Option completions (`bktide builds --<Tab>`)
-- Value completions (`bktide --format <Tab>`)
+- Command suggestions (ie `bktide <Tab>`)
+- Option completions (ie `bktide builds --<Tab>`)
+- Value completions (ie `bktide --format <Tab>`)
 - Dynamic completions for organizations and pipelines (Fish with jq installed)
 
 See [Shell Completions Guide](docs/shell-completions.md) for detailed installation and troubleshooting.
@@ -49,13 +49,16 @@ See [Shell Completions Guide](docs/shell-completions.md) for detailed installati
 Our documentation is organized by audience to help you find what you need:
 
 ### 📖 [User Documentation](docs/user/) - For end users
+- [Getting Started](docs/user/getting-started.md) - Quick start guide for new users
 - [Authentication](docs/user/authentication.md) - How to authenticate with Buildkite
 - [Shell Completions](docs/user/shell-completions.md) - Setting up auto-completion
-- [Caching](docs/user/caching.md) - Understanding the caching system
-- [Alfred Integration](docs/user/alfred/) - macOS Alfred workflow integration
+- [Troubleshooting](docs/user/troubleshooting.md) - Common issues and solutions
+- [Alfred Integration](docs/user/alfred/) - macOS Alfred workflow (installation, troubleshooting)
 
 ### 👨‍💻 [Developer Documentation](docs/developer/) - For contributors
+- [Contributing Guide](docs/developer/contributing.md) - How to contribute to the project
 - [Development Guide](docs/developer/development.md) - Setup and coding guidelines
+- [Alfred Workflow Development](docs/developer/alfred-workflow-development.md) - Building and packaging
 - [Testing Strategy](docs/developer/testing/README.md) - Testing approach and procedures
 
 ### 📚 [Reference Documentation](docs/reference/) - For everyone
@@ -146,7 +149,7 @@ bktide annotations <build>
 
 The build reference can be specified in two formats:
 - **Slug format**: `org/pipeline/number` (e.g., `gusto/zenpayroll/1287418`)
-- **URL format**: `@https://buildkite.com/org/pipeline/builds/number` or `https://buildkite.com/org/pipeline/builds/number`
+- **URL format**: `https://buildkite.com/org/pipeline/builds/number`
 
 Additional options:
 ```bash
@@ -172,7 +175,7 @@ View detailed information about a specific build including jobs and annotations.
 bktide build org/pipeline/123
 
 # View build by URL format
-bktide build @https://buildkite.com/org/pipeline/builds/123
+bktide build https://buildkite.com/org/pipeline/builds/123
 ```
 
 Additional options:
@@ -322,12 +325,12 @@ Available log levels (from most to least verbose):
 
 ## Log Files
 
-All logs are written to `log/cli.log` in JSON format, which can be processed with tools like jq:
+All logs are written to `~/.local/state/bktide/logs/cli.log` in JSON format, which can be processed with tools like jq:
 
 ```bash
 # View recent errors
-cat log/cli.log | grep -v '"level":30' | jq
+cat ~/.local/state/bktide/logs/cli.log | grep -v '"level":30' | jq
 
 # Analyze performance 
-cat log/cli.log | jq 'select(.duration != null) | {msg, duration}'
+cat ~/.local/state/bktide/logs/cli.log | jq 'select(.duration != null) | {msg, duration}'
 ``` 

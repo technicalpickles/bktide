@@ -1,5 +1,7 @@
 # Intelligent Release Strategy
 
+**Status**: ✅ **Implemented but Not Active** - The intelligent release system is fully implemented but we are not using it for releases yet. Currently using standard release-on-every-commit approach.
+
 This document describes the intelligent release system that only creates releases when there are material changes to the npm package or Alfred workflow.
 
 ## Overview

@@ -1,26 +1,23 @@
-# bktide Alfred Workflow Testing Checklist
+# Alfred Workflow Development Testing Checklist
 
-This checklist ensures the Alfred workflow works correctly across different environments and configurations.
+This checklist is for developers working on the Alfred workflow to ensure it works correctly across different environments and configurations before release.
+
+> **For end users**: If you're having issues with the Alfred workflow, see the [troubleshooting guide](../user/alfred/troubleshooting.md).
 
 ## Pre-Release Testing Matrix
 
 ### Environment Combinations
-Test the workflow across these environment combinations:
+Test the workflow on the current standard environment:
 
-**Operating Systems:**
-- [ ] macOS Sonoma (14.x) - Intel
-- [ ] macOS Sonoma (14.x) - Apple Silicon (M1/M2)
-- [ ] macOS Ventura (13.x) - Intel  
-- [ ] macOS Ventura (13.x) - Apple Silicon (M1/M2)
+**Operating System:**
+- [ ] Latest macOS (currently Sonoma 14.x)
 
-**Alfred Versions:**
-- [ ] Alfred 5 (current stable)
-- [ ] Alfred 4 (if still supported)
+**Alfred Version:**
+- [ ] Alfred 5 (latest stable)
 
 **Node.js Installation States:**
 - [ ] Node.js installed via official installer
-- [ ] Node.js installed via Homebrew (Intel)
-- [ ] Node.js installed via Homebrew (Apple Silicon)
+- [ ] Node.js installed via Homebrew
 - [ ] Node.js installed via nvm
 - [ ] Node.js not installed (should show helpful error)
 
@@ -132,11 +129,51 @@ Test each command with different output formats:
 - [ ] Error messages display correctly in Alfred
 - [ ] Loading states show appropriate feedback
 
+### Shell Completion Testing
+Test shell completions across supported shells:
+
+**Fish Shell:**
+- [ ] Command completion: `bktide <Tab>` shows available commands
+- [ ] Option completion: `bktide builds --<Tab>` shows available options
+- [ ] Value completion: `bktide --format <Tab>` shows format options
+- [ ] Dynamic completion (with jq): `bktide builds --org <Tab>` shows organization names
+- [ ] Dynamic completion (with jq): `bktide builds --pipeline <Tab>` shows pipeline names
+- [ ] Completion works with both `bktide` and `bin/bktide`
+- [ ] No errors in completion generation: `bktide completions fish` produces valid output
+
+**Bash Shell:**
+- [ ] Command completion: `bktide <Tab><Tab>` shows available commands
+- [ ] Option completion: `bktide builds --<Tab><Tab>` shows available options
+- [ ] Value completion: `bktide --format <Tab><Tab>` shows format options
+- [ ] Completion works after sourcing: `source <(bktide completions bash)`
+- [ ] No errors in completion generation: `bktide completions bash` produces valid output
+
+**Zsh Shell:**
+- [ ] Command completion: `bktide <Tab>` shows available commands
+- [ ] Option completion: `bktide builds --<Tab>` shows available options
+- [ ] Value completion: `bktide --format <Tab>` shows format options
+- [ ] Completion works after sourcing: `source <(bktide completions zsh)`
+- [ ] No errors in completion generation: `bktide completions zsh` produces valid output
+
+**Completion Generation:**
+- [ ] `bktide completions` auto-detects shell and generates appropriate completions
+- [ ] `bktide completions --help` shows usage information
+- [ ] Generated completions are syntactically valid for each shell
+- [ ] Completions handle special characters in organization/pipeline names correctly
+- [ ] Completions work with quoted arguments: `bktide builds --org "my org"`
+
+**Dynamic Completion Requirements (Fish with jq):**
+- [ ] Organization completion requires valid token and shows accessible orgs
+- [ ] Pipeline completion requires valid token and org context
+- [ ] Completion gracefully handles network errors (shows static completions)
+- [ ] Completion gracefully handles authentication errors (shows static completions)
+- [ ] Completion performance is acceptable (< 2 seconds for dynamic completions)
+
 ## Error Handling Testing
 
 ### Authentication Errors
 - [ ] Missing token shows helpful error message
-- [ ] Invalid token shows authentication error
+- [ ] Invalid token shows authentication error  
 - [ ] Expired token shows appropriate message
 - [ ] Token with insufficient permissions shows clear error
 
@@ -155,6 +192,8 @@ Test each command with different output formats:
 - [ ] Node.js not found shows installation instructions
 - [ ] Incorrect Node.js version shows version requirements
 - [ ] Permission errors show troubleshooting steps
+
+> **Note**: For detailed troubleshooting steps for end users, see [Alfred troubleshooting guide](../user/alfred/troubleshooting.md).
 
 ## Performance Testing
 
@@ -233,8 +272,7 @@ Test token resolution order:
 - [ ] Cache compatibility maintained or gracefully handled
 
 ### Cross-Platform Compatibility
-- [ ] Workflow created on Intel Mac works on Apple Silicon
-- [ ] Workflow created on Apple Silicon works on Intel Mac
+- [ ] Workflow works correctly across different Mac architectures
 - [ ] Node.js architecture detection works correctly
 
 ## Log File Validation

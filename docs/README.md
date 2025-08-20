@@ -21,6 +21,8 @@ The documentation is organized into four main sections based on who needs the in
 - **Development Guide**: Setup, coding standards, architecture
 - **Testing**: Strategy, patterns, test coverage
 - **Contributing**: Guidelines for contributing changes
+- **Planning**: **Active or Planned** design decisions and planning documents
+- **Progress**: **Active** implementation progress records
 
 **When to add here**: Code architecture, development setup, testing strategies, contribution guidelines
 
@@ -38,7 +40,7 @@ The documentation is organized into four main sections based on who needs the in
 **Historical context** - Old planning docs, migrations, progress tracking
 
 - **Planning**: Historical design decisions and planning documents
-- **Progress**: Implementation progress records
+- **Progress**: Historical implementation progress records
 - **Migrations**: API and architecture migration guides
 
 **When to add here**: Completed work, historical context, migration guides for completed changes
@@ -127,10 +129,6 @@ The following key documentation still needs to be created:
 - `docs/reference/configuration.md` - All configuration options
 - `docs/reference/api.md` - Internal API documentation
 
-### User Documentation
-- `docs/user/troubleshooting.md` - Common issues and solutions
-- `docs/user/getting-started.md` - Quick start guide
 
 ### Developer Documentation
 - `docs/developer/architecture.md` - High-level architecture overview
-- `docs/developer/contributing.md` - Contribution guidelines

@@ -1,5 +1,7 @@
 ## Alfred Link Integration Plan (Development & Distribution)
 
+**Status**: ❌ **Not Implemented** - This plan has not been implemented yet.
+
 This plan integrates `alfred-link` into local development and optional user installation, reducing manual linking of the workflow.
 
 ### Goals
