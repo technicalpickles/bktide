@@ -46,16 +46,23 @@ See [Shell Completions Guide](docs/shell-completions.md) for detailed installati
 
 ## Documentation
 
-- [Shell Completions](docs/shell-completions.md) - Complete guide for shell auto-completion setup
-- [Development Guide](docs/development.md) - Information about running and developing the CLI
-- [Authentication](docs/authentication.md) - How to authenticate with Buildkite
-- [Caching](docs/caching.md) - Information about the CLI's caching system
-- [Testing Guide](docs/testing-guide.md) - Running tests and testing strategy
-- [API Reference](docs/api-reference.md) - Complete command reference
-- [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
-- [Alfred Integration (Overview)](docs/alfred.md) - What the Alfred integration does and quick usage
-- [Alfred Installation](docs/alfred-installation.md) - End-user install, configuration, and troubleshooting
-- [Alfred Development](docs/alfred-development.md) - Packaging, wrapper behavior, metadata, and workflow wiring
+Our documentation is organized by audience to help you find what you need:
+
+### 📖 [User Documentation](docs/user/) - For end users
+- [Authentication](docs/user/authentication.md) - How to authenticate with Buildkite
+- [Shell Completions](docs/user/shell-completions.md) - Setting up auto-completion
+- [Caching](docs/user/caching.md) - Understanding the caching system
+- [Alfred Integration](docs/user/alfred/) - macOS Alfred workflow integration
+
+### 👨‍💻 [Developer Documentation](docs/developer/) - For contributors
+- [Development Guide](docs/developer/development.md) - Setup and coding guidelines
+- [Testing Strategy](docs/developer/testing/README.md) - Testing approach and procedures
+
+### 📚 [Reference Documentation](docs/reference/) - For everyone
+- [Changelogs](docs/reference/) - What changed and when
+- [Release Process](docs/reference/releasing.md) - How releases work
+
+See [Documentation Overview](docs/README.md) for the complete structure and classification guide.
 
 ## Testing
 
@@ -67,7 +74,7 @@ npm run test:coverage         # Generate coverage report
 npm run test:extract-patterns # Extract patterns from real data (requires token)
 ```
 
-See [Testing Guide](docs/testing/README.md) for details on the hybrid testing strategy.
+See [Testing Strategy](docs/developer/testing/README.md) for details on the hybrid testing approach.
 
 ## Usage
 
