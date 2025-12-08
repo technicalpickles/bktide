@@ -76,9 +76,8 @@ export class SmartShow extends BaseCommand {
         return 1;
       }
 
-      // Fetch recent builds
-      const builds = await this.restClient.getBuilds(ref.org, {
-        pipeline: ref.pipeline,
+      // Fetch recent builds using pipeline-specific endpoint
+      const builds = await this.restClient.getPipelineBuilds(ref.org, ref.pipeline, {
         per_page: '20',
       });
 

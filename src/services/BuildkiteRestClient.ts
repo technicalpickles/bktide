@@ -252,6 +252,40 @@ export class BuildkiteRestClient {
     return builds;
   }
 
+  /**
+   * Get builds for a specific pipeline
+   * @param org Organization slug
+   * @param pipeline Pipeline slug
+   * @param params Query parameters
+   * @returns List of builds for the pipeline
+   */
+  public async getPipelineBuilds(
+    org: string,
+    pipeline: string,
+    params?: {
+      branch?: string;
+      state?: string;
+      per_page?: string;
+      page?: string;
+    }
+  ): Promise<any[]> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds`;
+    const startTime = process.hrtime.bigint();
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('STARTING')} Fetching builds for pipeline: ${org}/${pipeline}`);
+    }
+    
+    const builds = await this.get<any[]>(endpoint, params as Record<string, string>);
+    
+    const endTime = process.hrtime.bigint();
+    const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} Retrieved ${builds.length} builds for ${org}/${pipeline} (${duration.toFixed(2)}ms)`);
+    }
+    
+    return builds;
+  }
+
 
 
   public async hasBuildAccess(org: string): Promise<boolean> {
