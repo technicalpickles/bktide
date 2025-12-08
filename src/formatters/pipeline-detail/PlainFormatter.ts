@@ -32,7 +32,7 @@ export class PlainPipelineDetailFormatter extends PipelineDetailFormatter {
     lines.push('');
 
     // Recent builds
-    if (recentBuilds.length > 0) {
+    if (recentBuilds && recentBuilds.length > 0) {
       lines.push(SEMANTIC_COLORS.subheading('Recent Builds'));
       lines.push('');
 
