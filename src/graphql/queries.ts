@@ -60,6 +60,23 @@ export const GET_PIPELINES = gql`
   }
 `;
 
+export const GET_PIPELINE = gql`
+  query GetPipeline($organizationSlug: ID!, $pipelineSlug: ID!) {
+    pipeline(slug: $pipelineSlug) {
+      uuid
+      id
+      name
+      slug
+      description
+      url
+      defaultBranch
+      repository {
+        url
+      }
+    }
+  }
+`;
+
 export const GET_BUILDS = gql`
   query GetBuilds($pipelineSlug: String!, $organizationSlug: ID!, $first: Int) {
     organization(slug: $organizationSlug) {

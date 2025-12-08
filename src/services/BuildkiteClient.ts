@@ -5,7 +5,8 @@ import { getProgressIcon } from '../ui/theme.js';
 import { 
   GET_VIEWER, 
   GET_ORGANIZATIONS, 
-  GET_PIPELINES, 
+  GET_PIPELINES,
+  GET_PIPELINE,
   GET_BUILDS, 
   GET_VIEWER_BUILDS,
   GET_BUILD_ANNOTATIONS,
@@ -508,6 +509,31 @@ export class BuildkiteClient {
     }
 
     return result;
+  }
+
+  /**
+   * Get a single pipeline by organization and pipeline slug
+   */
+  public async getPipeline(
+    orgSlug: string,
+    pipelineSlug: string
+  ): Promise<any> {
+    const variables = {
+      organizationSlug: orgSlug,
+      pipelineSlug: pipelineSlug,
+    };
+
+    if (this.debug) {
+      logger.debug('Fetching pipeline:', variables);
+    }
+
+    const data = await this.query<any>(GET_PIPELINE.toString(), variables);
+    
+    if (this.debug) {
+      logger.debug('Pipeline data:', data);
+    }
+
+    return data.pipeline;
   }
 
   /**
