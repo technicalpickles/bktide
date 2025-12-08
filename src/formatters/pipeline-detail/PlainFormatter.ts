@@ -47,7 +47,7 @@ export class PlainPipelineDetailFormatter extends PipelineDetailFormatter {
         ])
       ];
 
-      const table = renderTable(tableRows);
+      const table = renderTable(tableRows, { preserveWidths: true });
       lines.push(table);
     } else {
       lines.push(SEMANTIC_COLORS.dim('No recent builds found'));
