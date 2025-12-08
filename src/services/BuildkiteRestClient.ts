@@ -282,6 +282,52 @@ export class BuildkiteRestClient {
   }
   
   /**
+   * Get logs for a specific job
+   * @param org Organization slug
+   * @param pipeline Pipeline slug
+   * @param buildNumber Build number
+   * @param jobId Job ID (UUID)
+   * @returns Job log data
+   */
+  public async getJobLog(
+    org: string,
+    pipeline: string,
+    buildNumber: number,
+    jobId: string
+  ): Promise<any> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/jobs/${jobId}/log`;
+    const startTime = process.hrtime.bigint();
+    
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('STARTING')} Fetching logs for job: ${jobId}`);
+    }
+    
+    // Note: Use default cache type for log data
+    const cacheKey = this.generateCacheKey(endpoint);
+    
+    // Check cache first
+    if (this.cacheManager) {
+      const cached = await this.cacheManager.get(cacheKey, 'default' as any);
+      if (cached) {
+        if (this.debug) {
+          logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served logs from cache for job: ${jobId}`);
+        }
+        return cached;
+      }
+    }
+    
+    const log = await this.get<any>(endpoint);
+    
+    const endTime = process.hrtime.bigint();
+    const duration = Number(endTime - startTime) / 1000000;
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} Retrieved logs for job ${jobId} (${duration.toFixed(2)}ms)`);
+    }
+    
+    return log;
+  }
+
+  /**
    * Clear all cache entries
    */
   public async clearCache(): Promise<void> {

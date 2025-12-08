@@ -37,4 +37,18 @@ export interface PageInfo {
   hasPreviousPage: boolean;
   startCursor: string;
   endCursor: string;
+}
+
+/**
+ * Job log response from Buildkite REST API
+ */
+export interface JobLog {
+  /** URL to the raw log file */
+  url: string;
+  /** Raw ANSI log content */
+  content: string;
+  /** Size in bytes */
+  size: number;
+  /** Header timing information */
+  header_times: number[];
 } 
