@@ -2,6 +2,8 @@ import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { parseBuildkiteReference, BuildkiteReference } from '../utils/parseBuildkiteReference.js';
 import { logger } from '../services/logger.js';
 import { ShowBuild } from './ShowBuild.js';
+import { PlainPipelineDetailFormatter, JsonPipelineDetailFormatter } from '../formatters/pipeline-detail/index.js';
+import type { PipelineDetailData } from '../formatters/pipeline-detail/Formatter.js';
 
 export interface SmartShowOptions extends BaseCommandOptions {
   reference: string;
@@ -56,11 +58,66 @@ export class SmartShow extends BaseCommand {
 
   private async showPipeline(
     ref: Extract<BuildkiteReference, { type: 'pipeline' }>,
-    _options: SmartShowOptions
+    options: SmartShowOptions
   ): Promise<number> {
-    // TODO: Implement pipeline view
-    logger.info(`Pipeline view not yet implemented: ${ref.org}/${ref.pipeline}`);
-    return 1;
+    try {
+      // Initialize token first
+      this.token = await BaseCommand.getToken(options);
+      
+      // Fetch pipeline details
+      const pipeline = await this.client.getPipeline(ref.org, ref.pipeline);
+      
+      if (!pipeline) {
+        logger.error(`Pipeline not found: ${ref.org}/${ref.pipeline}`);
+        return 1;
+      }
+
+      // Fetch recent builds
+      const builds = await this.restClient.getBuilds(ref.org, {
+        pipeline: ref.pipeline,
+        per_page: '20',
+      });
+
+      // Prepare data for formatter
+      const data: PipelineDetailData = {
+        pipeline: {
+          name: pipeline.name,
+          slug: pipeline.slug,
+          description: pipeline.description,
+          defaultBranch: pipeline.defaultBranch,
+          url: pipeline.url,
+          repository: pipeline.repository,
+        },
+        recentBuilds: builds.map((build: any) => ({
+          number: build.number,
+          state: build.state,
+          branch: build.branch,
+          message: build.message,
+          startedAt: build.started_at,
+          finishedAt: build.finished_at,
+        })),
+      };
+
+      // Format and display
+      const format = options.format || 'plain';
+      let formatter;
+      
+      if (format === 'json' || format === 'alfred') {
+        formatter = new JsonPipelineDetailFormatter({});
+      } else {
+        formatter = new PlainPipelineDetailFormatter({});
+      }
+
+      const output = formatter.format(data);
+      console.log(output);
+
+      return 0;
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error(`Failed to fetch pipeline: ${error.message}`);
+      }
+      return 1;
+    }
   }
 
   private async showBuild(
