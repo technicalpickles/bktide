@@ -193,6 +193,44 @@ bktide build org/pipeline/123 --annotations
 bktide build org/pipeline/123 --jobs --failed --annotations
 ```
 
+### Smart Reference Command
+
+Paste any Buildkite URL or use short-hand formats, and bktide will figure out what to show.
+
+**Supported formats:**
+
+```bash
+# Pipeline view (shows metadata + recent builds)
+bktide gusto/schemaflow
+bktide https://buildkite.com/gusto/schemaflow
+
+# Build view (shows comprehensive build details)
+bktide gusto/schemaflow/76
+bktide gusto/schemaflow#76
+bktide https://buildkite.com/gusto/schemaflow/builds/76
+
+# Step logs (shows build context + step logs)
+bktide https://buildkite.com/gusto/schemaflow/builds/76?sid=019adb19-bd83-4149-b2a7-ece1d7a41c9d
+```
+
+**Log display options:**
+
+```bash
+# Show last 50 lines (default)
+bktide https://buildkite.com/org/pipeline/builds/123?sid=<step-id>
+
+# Show all lines
+bktide https://buildkite.com/org/pipeline/builds/123?sid=<step-id> --full
+
+# Show last N lines
+bktide https://buildkite.com/org/pipeline/builds/123?sid=<step-id> --lines 100
+
+# Save logs to file
+bktide https://buildkite.com/org/pipeline/builds/123?sid=<step-id> --save logs.txt
+```
+
+**Note:** Viewing step logs requires `read_build_logs` scope on your API token.
+
 ### Generate Shell Completions
 
 ```bash
