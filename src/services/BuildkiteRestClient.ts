@@ -362,6 +362,19 @@ export class BuildkiteRestClient {
   }
 
   /**
+   * Get jobs for a specific build
+   */
+  public async getBuildJobs(
+    org: string,
+    pipeline: string,
+    buildNumber: number
+  ): Promise<any[]> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}`;
+    const build = await this.get<any>(endpoint);
+    return build.jobs || [];
+  }
+
+  /**
    * Clear all cache entries
    */
   public async clearCache(): Promise<void> {

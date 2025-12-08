@@ -148,35 +148,32 @@ export class SmartShow extends BaseCommand {
       // Initialize token first
       this.token = await BaseCommand.getToken(options);
 
-      // Construct build slug
-      const buildSlug = `${ref.org}/${ref.pipeline}/${ref.buildNumber}`;
-
-      // Fetch build details to get step information
-      const buildData = await this.client.getBuildSummaryWithAllJobs(buildSlug, {
-        fetchAllJobs: true,
-        onProgress: undefined
-      });
+      // Use REST API to get jobs with step.id field
+      const jobs = await this.restClient.getBuildJobs(ref.org, ref.pipeline, ref.buildNumber);
       
-      if (!buildData) {
+      if (!jobs || jobs.length === 0) {
         logger.error(`Build not found: ${ref.org}/${ref.pipeline}/${ref.buildNumber}`);
         return 1;
       }
 
-      // Find the job/step by ID
-      const jobs = buildData.build?.jobs?.edges || [];
+      // Find job by step ID (sid from URL) - step.id is different from job.id
       if (options.debug) {
         logger.debug(`Found ${jobs.length} jobs in build`);
         logger.debug(`Looking for step ID: ${ref.stepId}`);
+        // Log first few jobs for debugging
+        jobs.slice(0, 3).forEach((j: any) => {
+          logger.debug(`  Job: id=${j.id}, step.id=${j.step?.id}, name=${j.name}`);
+        });
       }
-      const job = jobs.find((edge: any) => edge.node.uuid === ref.stepId)?.node;
+      const job = jobs.find((j: any) => j.step?.id === ref.stepId);
       
       if (!job) {
         logger.error(`Step not found in build #${ref.buildNumber}: ${ref.stepId}`);
         return 1;
       }
 
-      // Fetch logs
-      const logData = await this.restClient.getJobLog(ref.org, ref.pipeline, ref.buildNumber, ref.stepId);
+      // Use job.id (job UUID) for log fetching, not ref.stepId
+      const logData = await this.restClient.getJobLog(ref.org, ref.pipeline, ref.buildNumber, job.id);
 
       // Parse log content
       const logLines = logData.content.split('\n');
@@ -193,24 +190,24 @@ export class SmartShow extends BaseCommand {
         console.log(SEMANTIC_COLORS.success(`✓ Log saved to ${options.save} (${this.formatSize(logData.size)}, ${totalLines} lines)`));
       }
 
-      // Prepare data for formatter
+      // Prepare data for formatter using REST API fields
       const data: StepLogsData = {
         build: {
           org: ref.org,
           pipeline: ref.pipeline,
           number: ref.buildNumber,
-          state: buildData.build?.state,
-          startedAt: buildData.build?.startedAt,
-          finishedAt: buildData.build?.finishedAt,
-          url: buildData.build?.url,
+          state: job.build?.state,
+          startedAt: job.build?.started_at,
+          finishedAt: job.build?.finished_at,
+          url: job.build?.web_url,
         },
         step: {
-          id: job.uuid,
-          label: job.label,
+          id: job.id,
+          label: job.name,
           state: job.state,
-          exitStatus: job.exitStatus,
-          startedAt: job.startedAt,
-          finishedAt: job.finishedAt,
+          exitStatus: job.exit_status,
+          startedAt: job.started_at,
+          finishedAt: job.finished_at,
         },
         logs: {
           content: displayedLines.join('\n'),
