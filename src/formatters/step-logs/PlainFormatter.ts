@@ -57,6 +57,7 @@ export class PlainStepLogsFormatter extends StepLogsFormatter {
   }
 
   private formatStatus(state: string): string {
+    if (!state) return SEMANTIC_COLORS.dim('unknown');
     const stateUpper = state.toUpperCase();
     
     switch (stateUpper) {

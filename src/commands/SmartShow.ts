@@ -148,8 +148,9 @@ export class SmartShow extends BaseCommand {
       // Initialize token first
       this.token = await BaseCommand.getToken(options);
 
-      // Use REST API to get jobs with step.id field
-      const jobs = await this.restClient.getBuildJobs(ref.org, ref.pipeline, ref.buildNumber);
+      // Use REST API to get build with jobs (step.id field needed for matching)
+      const build = await this.restClient.getBuild(ref.org, ref.pipeline, ref.buildNumber);
+      const jobs = build.jobs || [];
       
       if (!jobs || jobs.length === 0) {
         logger.error(`Build not found: ${ref.org}/${ref.pipeline}/${ref.buildNumber}`);
@@ -190,16 +191,16 @@ export class SmartShow extends BaseCommand {
         console.log(SEMANTIC_COLORS.success(`✓ Log saved to ${options.save} (${this.formatSize(logData.size)}, ${totalLines} lines)`));
       }
 
-      // Prepare data for formatter using REST API fields
+      // Prepare data for formatter using REST API fields from build object
       const data: StepLogsData = {
         build: {
           org: ref.org,
           pipeline: ref.pipeline,
           number: ref.buildNumber,
-          state: job.build?.state,
-          startedAt: job.build?.started_at,
-          finishedAt: job.build?.finished_at,
-          url: job.build?.web_url,
+          state: build.state || 'unknown',
+          startedAt: build.started_at,
+          finishedAt: build.finished_at,
+          url: build.web_url,
         },
         step: {
           id: job.id,

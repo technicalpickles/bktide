@@ -369,9 +369,24 @@ export class BuildkiteRestClient {
     pipeline: string,
     buildNumber: number
   ): Promise<any[]> {
-    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}`;
-    const build = await this.get<any>(endpoint);
+    const build = await this.getBuild(org, pipeline, buildNumber);
     return build.jobs || [];
+  }
+
+  /**
+   * Get a specific build with all its data including jobs
+   * @param org Organization slug
+   * @param pipeline Pipeline slug
+   * @param buildNumber Build number
+   * @returns Full build object including jobs array
+   */
+  public async getBuild(
+    org: string,
+    pipeline: string,
+    buildNumber: number
+  ): Promise<any> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}`;
+    return this.get<any>(endpoint);
   }
 
   /**
