@@ -1,6 +1,6 @@
 import { PipelineDetailFormatter, PipelineDetailData } from './Formatter.js';
 import { FormatterOptions } from '../BaseFormatter.js';
-import { SEMANTIC_COLORS } from '../../ui/theme.js';
+import { SEMANTIC_COLORS, formatTips, TipStyle } from '../../ui/theme.js';
 import { renderTable } from '../../ui/table.js';
 
 export class PlainPipelineDetailFormatter extends PipelineDetailFormatter {
@@ -49,6 +49,13 @@ export class PlainPipelineDetailFormatter extends PipelineDetailFormatter {
 
       const table = renderTable(tableRows, { preserveWidths: true });
       lines.push(table);
+      // Add tips
+      lines.push('');
+      const tips = formatTips([
+        `View a build: bktide ${pipeline.slug}/<number>`,
+        'Use --format json for machine-readable output',
+      ], TipStyle.GROUPED);
+      lines.push(tips);
     } else {
       lines.push(SEMANTIC_COLORS.dim('No recent builds found'));
     }
@@ -95,7 +102,9 @@ export class PlainPipelineDetailFormatter extends PipelineDetailFormatter {
   }
 
   private truncate(str: string, length: number): string {
-    if (str.length <= length) return str;
-    return str.slice(0, length - 3) + '...';
+    // Replace newlines with spaces first
+    const singleLine = str.replace(/\n+/g, ' ').trim();
+    if (singleLine.length <= length) return singleLine;
+    return singleLine.slice(0, length - 3) + '...';
   }
 }
