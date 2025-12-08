@@ -20,6 +20,15 @@ describe('parseBuildkiteReference', () => {
         pipeline: 'schemaflow',
       });
     });
+
+    it('should parse pipeline URL format', () => {
+      const result = parseBuildkiteReference('https://buildkite.com/gusto/schemaflow');
+      expect(result).toEqual({
+        type: 'pipeline',
+        org: 'gusto',
+        pipeline: 'schemaflow',
+      });
+    });
   });
 
   describe('build references', () => {
@@ -109,6 +118,10 @@ describe('parseBuildkiteReference', () => {
 
     it('should throw error for invalid build number', () => {
       expect(() => parseBuildkiteReference('gusto/schemaflow/abc')).toThrow('Invalid build number');
+    });
+
+    it('should throw error for invalid hostname', () => {
+      expect(() => parseBuildkiteReference('https://example.com/gusto/schemaflow')).toThrow('Invalid Buildkite URL: expected buildkite.com, got example.com');
     });
   });
 });
