@@ -92,7 +92,7 @@ export class SmartShow extends BaseCommand {
           url: pipeline.url,
           repository: pipeline.repository,
         },
-        recentBuilds: builds.map((build: any) => ({
+        recentBuilds: (builds || []).map((build: any) => ({
           number: build.number,
           state: build.state,
           branch: build.branch,

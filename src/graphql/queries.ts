@@ -61,17 +61,23 @@ export const GET_PIPELINES = gql`
 `;
 
 export const GET_PIPELINE = gql`
-  query GetPipeline($organizationSlug: ID!, $pipelineSlug: ID!) {
-    pipeline(slug: $pipelineSlug) {
-      uuid
-      id
-      name
-      slug
-      description
-      url
-      defaultBranch
-      repository {
-        url
+  query GetPipeline($organizationSlug: ID!, $pipelineSlug: String!) {
+    organization(slug: $organizationSlug) {
+      pipelines(first: 1, search: $pipelineSlug) {
+        edges {
+          node {
+            uuid
+            id
+            name
+            slug
+            description
+            url
+            defaultBranch
+            repository {
+              url
+            }
+          }
+        }
       }
     }
   }

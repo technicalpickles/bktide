@@ -533,7 +533,7 @@ export class BuildkiteClient {
       logger.debug('Pipeline data:', data);
     }
 
-    return data.pipeline;
+    return data.organization?.pipelines?.edges?.[0]?.node;
   }
 
   /**
