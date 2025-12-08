@@ -1,6 +1,7 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { parseBuildkiteReference, BuildkiteReference } from '../utils/parseBuildkiteReference.js';
 import { logger } from '../services/logger.js';
+import { ShowBuild } from './ShowBuild.js';
 
 export interface SmartShowOptions extends BaseCommandOptions {
   reference: string;
@@ -64,11 +65,19 @@ export class SmartShow extends BaseCommand {
 
   private async showBuild(
     ref: Extract<BuildkiteReference, { type: 'build' }>,
-    _options: SmartShowOptions
+    options: SmartShowOptions
   ): Promise<number> {
-    // TODO: Implement build view (route to ShowBuild with --jobs --failed)
-    logger.info(`Build view not yet implemented: ${ref.org}/${ref.pipeline}/${ref.buildNumber}`);
-    return 1;
+    // Route to ShowBuild with enhanced defaults (--jobs --failed)
+    const buildCommand = new ShowBuild();
+    
+    const buildOptions = {
+      ...options,
+      buildArg: `${ref.org}/${ref.pipeline}/${ref.buildNumber}`,
+      jobs: true,
+      failed: true,
+    };
+
+    return await buildCommand.execute(buildOptions);
   }
 
   private async showBuildWithStep(
