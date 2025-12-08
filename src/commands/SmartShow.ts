@@ -152,7 +152,10 @@ export class SmartShow extends BaseCommand {
       const buildSlug = `${ref.org}/${ref.pipeline}/${ref.buildNumber}`;
 
       // Fetch build details to get step information
-      const buildData = await this.client.getBuildFull(buildSlug);
+      const buildData = await this.client.getBuildSummaryWithAllJobs(buildSlug, {
+        fetchAllJobs: true,
+        onProgress: undefined
+      });
       
       if (!buildData) {
         logger.error(`Build not found: ${ref.org}/${ref.pipeline}/${ref.buildNumber}`);
@@ -160,7 +163,12 @@ export class SmartShow extends BaseCommand {
       }
 
       // Find the job/step by ID
-      const job = buildData.jobs?.edges?.find((edge: any) => edge.node.uuid === ref.stepId)?.node;
+      const jobs = buildData.build?.jobs?.edges || [];
+      if (options.debug) {
+        logger.debug(`Found ${jobs.length} jobs in build`);
+        logger.debug(`Looking for step ID: ${ref.stepId}`);
+      }
+      const job = jobs.find((edge: any) => edge.node.uuid === ref.stepId)?.node;
       
       if (!job) {
         logger.error(`Step not found in build #${ref.buildNumber}: ${ref.stepId}`);
@@ -191,10 +199,10 @@ export class SmartShow extends BaseCommand {
           org: ref.org,
           pipeline: ref.pipeline,
           number: ref.buildNumber,
-          state: buildData.state,
-          startedAt: buildData.startedAt,
-          finishedAt: buildData.finishedAt,
-          url: buildData.url,
+          state: buildData.build?.state,
+          startedAt: buildData.build?.startedAt,
+          finishedAt: buildData.build?.finishedAt,
+          url: buildData.build?.url,
         },
         step: {
           id: job.uuid,
