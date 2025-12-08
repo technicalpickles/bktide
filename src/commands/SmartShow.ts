@@ -129,7 +129,7 @@ export class SmartShow extends BaseCommand {
     options: SmartShowOptions
   ): Promise<number> {
     // Route to ShowBuild with enhanced defaults (--jobs --failed)
-    const buildCommand = new ShowBuild();
+    const buildCommand = new ShowBuild(options);
     
     const buildOptions = {
       ...options,
