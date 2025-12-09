@@ -2,6 +2,7 @@ import { PipelineDetailFormatter, PipelineDetailData } from './Formatter.js';
 import { FormatterOptions } from '../BaseFormatter.js';
 import { SEMANTIC_COLORS, formatTips, TipStyle } from '../../ui/theme.js';
 import { renderTable } from '../../ui/table.js';
+import { formatStatus, formatRelativeDate, truncate } from '../../utils/formatUtils.js';
 
 export class PlainPipelineDetailFormatter extends PipelineDetailFormatter {
   name = 'plain';
@@ -40,10 +41,10 @@ export class PlainPipelineDetailFormatter extends PipelineDetailFormatter {
         ['Build', 'Status', 'Branch', 'Message', 'Started'],
         ...recentBuilds.map(build => [
           SEMANTIC_COLORS.label(`#${build.number}`),
-          this.formatStatus(build.state),
+          formatStatus(build.state),
           build.branch,
-          this.truncate(build.message, 50),
-          build.startedAt ? this.formatDate(build.startedAt) : '-',
+          truncate(build.message, 50),
+          build.startedAt ? formatRelativeDate(build.startedAt) : '-',
         ])
       ];
 
@@ -61,50 +62,5 @@ export class PlainPipelineDetailFormatter extends PipelineDetailFormatter {
     }
 
     return lines.join('\n');
-  }
-
-  private formatStatus(state: string): string {
-    const stateUpper = state.toUpperCase();
-    
-    switch (stateUpper) {
-      case 'PASSED':
-        return SEMANTIC_COLORS.success('✓ passed');
-      case 'FAILED':
-        return SEMANTIC_COLORS.error('✖ failed');
-      case 'RUNNING':
-        return SEMANTIC_COLORS.info('↻ running');
-      case 'BLOCKED':
-        return SEMANTIC_COLORS.warning('⚠ blocked');
-      case 'CANCELED':
-      case 'CANCELLED':
-        return SEMANTIC_COLORS.dim('− canceled');
-      case 'SKIPPED':
-        return SEMANTIC_COLORS.dim('− skipped');
-      default:
-        return SEMANTIC_COLORS.dim(`− ${state.toLowerCase()}`);
-    }
-  }
-
-  private formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    if (minutes > 0) return `${minutes}m ago`;
-    return 'just now';
-  }
-
-  private truncate(str: string, length: number): string {
-    // Replace newlines with spaces first
-    const singleLine = str.replace(/\n+/g, ' ').trim();
-    if (singleLine.length <= length) return singleLine;
-    return singleLine.slice(0, length - 3) + '...';
   }
 }
