@@ -2,9 +2,9 @@ import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { parseBuildkiteReference, BuildkiteReference } from '../utils/parseBuildkiteReference.js';
 import { logger } from '../services/logger.js';
 import { ShowBuild } from './ShowBuild.js';
-import { PlainPipelineDetailFormatter, JsonPipelineDetailFormatter } from '../formatters/pipeline-detail/index.js';
+import { PlainPipelineDetailFormatter, JsonPipelineDetailFormatter, AlfredPipelineDetailFormatter } from '../formatters/pipeline-detail/index.js';
 import type { PipelineDetailData } from '../formatters/pipeline-detail/Formatter.js';
-import { PlainStepLogsFormatter, JsonStepLogsFormatter } from '../formatters/step-logs/index.js';
+import { PlainStepLogsFormatter, JsonStepLogsFormatter, AlfredStepLogsFormatter } from '../formatters/step-logs/index.js';
 import type { StepLogsData } from '../formatters/step-logs/Formatter.js';
 import { SEMANTIC_COLORS } from '../ui/theme.js';
 import * as fs from 'fs/promises';
@@ -105,7 +105,9 @@ export class SmartShow extends BaseCommand {
       const format = options.format || 'plain';
       let formatter;
       
-      if (format === 'json' || format === 'alfred') {
+      if (format === 'alfred') {
+        formatter = new AlfredPipelineDetailFormatter({});
+      } else if (format === 'json') {
         formatter = new JsonPipelineDetailFormatter({});
       } else {
         formatter = new PlainPipelineDetailFormatter({});
@@ -224,7 +226,9 @@ export class SmartShow extends BaseCommand {
         const format = options.format || 'plain';
         let formatter;
         
-        if (format === 'json' || format === 'alfred') {
+        if (format === 'alfred') {
+          formatter = new AlfredStepLogsFormatter({ full: options.full, lines: options.lines });
+        } else if (format === 'json') {
           formatter = new JsonStepLogsFormatter({ full: options.full, lines: options.lines });
         } else {
           formatter = new PlainStepLogsFormatter({ full: options.full, lines: options.lines });
