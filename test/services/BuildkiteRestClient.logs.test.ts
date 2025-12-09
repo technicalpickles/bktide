@@ -1,30 +1,99 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { BuildkiteRestClient } from '../../src/services/BuildkiteRestClient.js';
 
 describe('BuildkiteRestClient - Log Fetching', () => {
   let client: BuildkiteRestClient;
 
   beforeEach(() => {
-    const token = process.env.BK_TOKEN || 'test-token';
-    client = new BuildkiteRestClient(token, { caching: false });
+    client = new BuildkiteRestClient('test-token', { caching: false });
   });
 
-  it('should fetch job logs', async () => {
-    // This is a mock test - in real usage, use actual build data
-    const mockOrg = 'test-org';
-    const mockPipeline = 'test-pipeline';
-    const mockBuildNumber = 1;
-    const mockJobId = 'test-job-id';
-
-    // Note: This will fail with actual API until we have real test data
-    // For now, we're testing the interface exists
-    expect(client.getJobLog).toBeDefined();
-    expect(typeof client.getJobLog).toBe('function');
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it('should return JobLog interface', async () => {
-    // Test that the method signature is correct
-    const getJobLogMethod = client.getJobLog.bind(client);
-    expect(getJobLogMethod).toBeDefined();
+  describe('getJobLog', () => {
+    it('should return JobLog structure from getJobLog', async () => {
+      const mockLog = {
+        url: 'https://example.com/log',
+        content: 'Log content here',
+        size: 1024,
+        header_times: [0, 100, 200],
+      };
+      
+      // Mock the internal get method
+      vi.spyOn(client as any, 'get').mockResolvedValue(mockLog);
+      
+      const result = await client.getJobLog('org', 'pipeline', 1, 'job-id');
+      
+      expect(result).toHaveProperty('url');
+      expect(result).toHaveProperty('content');
+      expect(result).toHaveProperty('size');
+      expect(result).toHaveProperty('header_times');
+      expect(result.content).toBe('Log content here');
+      expect(result.size).toBe(1024);
+    });
+
+    it('should call correct endpoint', async () => {
+      const getSpy = vi.spyOn(client as any, 'get').mockResolvedValue({
+        url: '',
+        content: '',
+        size: 0,
+        header_times: [],
+      });
+      
+      await client.getJobLog('my-org', 'my-pipeline', 42, 'job-uuid-123');
+      
+      expect(getSpy).toHaveBeenCalledWith(
+        '/organizations/my-org/pipelines/my-pipeline/builds/42/jobs/job-uuid-123/log'
+      );
+    });
+  });
+
+  describe('getBuild', () => {
+    it('should return build data', async () => {
+      const mockBuild = {
+        id: 'build-123',
+        number: 42,
+        state: 'passed',
+        web_url: 'https://buildkite.com/org/pipeline/builds/42',
+        jobs: [{ id: 'job-1', name: 'Test' }],
+      };
+      
+      vi.spyOn(client as any, 'get').mockResolvedValue(mockBuild);
+      
+      const result = await client.getBuild('org', 'pipeline', 42);
+      
+      expect(result.number).toBe(42);
+      expect(result.state).toBe('passed');
+      expect(result.jobs).toHaveLength(1);
+    });
+  });
+
+  describe('getPipelineBuilds', () => {
+    it('should return array of builds', async () => {
+      const mockBuilds = [
+        { number: 1, state: 'passed' },
+        { number: 2, state: 'failed' },
+      ];
+      
+      vi.spyOn(client as any, 'get').mockResolvedValue(mockBuilds);
+      
+      const result = await client.getPipelineBuilds('org', 'pipeline');
+      
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toHaveLength(2);
+    });
+
+    it('should pass query parameters', async () => {
+      const getSpy = vi.spyOn(client as any, 'get').mockResolvedValue([]);
+      
+      await client.getPipelineBuilds('org', 'pipeline', { per_page: '20', state: 'passed' });
+      
+      expect(getSpy).toHaveBeenCalledWith(
+        '/organizations/org/pipelines/pipeline/builds',
+        { per_page: '20', state: 'passed' }
+      );
+    });
   });
 });
