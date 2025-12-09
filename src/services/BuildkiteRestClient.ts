@@ -3,6 +3,7 @@ import { CacheManager } from './CacheManager.js';
 import { createHash } from 'crypto';
 import { logger } from './logger.js';
 import { getProgressIcon } from '../ui/theme.js';
+import { JobLog } from '../types/buildkite.js';
 
 export interface BuildkiteRestClientOptions {
   baseUrl?: string;
@@ -328,7 +329,7 @@ export class BuildkiteRestClient {
     pipeline: string,
     buildNumber: number,
     jobId: string
-  ): Promise<any> {
+  ): Promise<JobLog> {
     const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/jobs/${jobId}/log`;
     const startTime = process.hrtime.bigint();
     
@@ -341,7 +342,7 @@ export class BuildkiteRestClient {
     
     // Check cache first
     if (this.cacheManager) {
-      const cached = await this.cacheManager.get(cacheKey, 'default' as any);
+      const cached = await this.cacheManager.get<JobLog>(cacheKey, 'default' as any);
       if (cached) {
         if (this.debug) {
           logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served logs from cache for job: ${jobId}`);
@@ -350,7 +351,7 @@ export class BuildkiteRestClient {
       }
     }
     
-    const log = await this.get<any>(endpoint);
+    const log = await this.get<JobLog>(endpoint);
     
     const endTime = process.hrtime.bigint();
     const duration = Number(endTime - startTime) / 1000000;
