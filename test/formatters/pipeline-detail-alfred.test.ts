@@ -6,6 +6,7 @@ describe('AlfredPipelineDetailFormatter', () => {
   it('should return valid Alfred JSON structure', () => {
     const formatter = new AlfredPipelineDetailFormatter({});
     const data: PipelineDetailData = {
+      org: 'test-org',
       pipeline: {
         name: 'My Pipeline',
         slug: 'my-pipeline',
@@ -24,6 +25,7 @@ describe('AlfredPipelineDetailFormatter', () => {
   it('should create item for pipeline with URL action', () => {
     const formatter = new AlfredPipelineDetailFormatter({});
     const data: PipelineDetailData = {
+      org: 'test-org',
       pipeline: {
         name: 'My Pipeline',
         slug: 'my-pipeline',
@@ -44,6 +46,7 @@ describe('AlfredPipelineDetailFormatter', () => {
   it('should use pipeline slug in subtitle when no description', () => {
     const formatter = new AlfredPipelineDetailFormatter({});
     const data: PipelineDetailData = {
+      org: 'test-org',
       pipeline: {
         name: 'My Pipeline',
         slug: 'my-pipeline',
@@ -61,6 +64,7 @@ describe('AlfredPipelineDetailFormatter', () => {
   it('should include recent builds as items', () => {
     const formatter = new AlfredPipelineDetailFormatter({});
     const data: PipelineDetailData = {
+      org: 'test-org',
       pipeline: {
         name: 'Pipeline',
         slug: 'pipeline',
@@ -82,6 +86,7 @@ describe('AlfredPipelineDetailFormatter', () => {
   it('should use appropriate icons for build states', () => {
     const formatter = new AlfredPipelineDetailFormatter({});
     const data: PipelineDetailData = {
+      org: 'test-org',
       pipeline: {
         name: 'Pipeline',
         slug: 'pipeline',
@@ -116,6 +121,7 @@ describe('AlfredPipelineDetailFormatter', () => {
   it('should format build titles with number and message', () => {
     const formatter = new AlfredPipelineDetailFormatter({});
     const data: PipelineDetailData = {
+      org: 'test-org',
       pipeline: {
         name: 'Pipeline',
         slug: 'pipeline',
@@ -137,6 +143,7 @@ describe('AlfredPipelineDetailFormatter', () => {
   it('should format build subtitles with state and branch', () => {
     const formatter = new AlfredPipelineDetailFormatter({});
     const data: PipelineDetailData = {
+      org: 'test-org',
       pipeline: {
         name: 'Pipeline',
         slug: 'pipeline',
@@ -158,6 +165,7 @@ describe('AlfredPipelineDetailFormatter', () => {
   it('should construct build URLs from pipeline URL', () => {
     const formatter = new AlfredPipelineDetailFormatter({});
     const data: PipelineDetailData = {
+      org: 'test-org',
       pipeline: {
         name: 'Pipeline',
         slug: 'pipeline',
@@ -178,6 +186,7 @@ describe('AlfredPipelineDetailFormatter', () => {
   it('should handle unknown build states', () => {
     const formatter = new AlfredPipelineDetailFormatter({});
     const data: PipelineDetailData = {
+      org: 'test-org',
       pipeline: {
         name: 'Pipeline',
         slug: 'pipeline',

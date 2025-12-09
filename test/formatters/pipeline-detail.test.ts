@@ -17,6 +17,7 @@ describe('Pipeline Detail Formatters', () => {
     describe('format()', () => {
       it('should format complete pipeline data with builds', () => {
         const data: PipelineDetailData = {
+          org: 'test-org',
           pipeline: {
             name: 'My Pipeline',
             slug: 'my-pipeline',
@@ -56,11 +57,12 @@ describe('Pipeline Detail Formatters', () => {
         expect(output).toContain('#122');
         expect(output).toContain('Fix the bug');
         expect(output).toContain('Add new feature');
-        expect(output).toContain('View a build: bktide my-pipeline/<number>');
+        expect(output).toContain('View a build: bktide test-org/my-pipeline/<number>');
       });
 
       it('should handle empty builds array', () => {
         const data: PipelineDetailData = {
+          org: 'test-org',
           pipeline: {
             name: 'Empty Pipeline',
             slug: 'empty-pipeline',
@@ -78,6 +80,7 @@ describe('Pipeline Detail Formatters', () => {
 
       it('should handle missing optional fields', () => {
         const data: PipelineDetailData = {
+          org: 'test-org',
           pipeline: {
             name: 'Minimal Pipeline',
             slug: 'minimal-pipeline',
@@ -104,6 +107,7 @@ describe('Pipeline Detail Formatters', () => {
 
       it('should truncate long commit messages', () => {
         const data: PipelineDetailData = {
+          org: 'test-org',
           pipeline: {
             name: 'Pipeline',
             slug: 'pipeline',
@@ -128,6 +132,7 @@ describe('Pipeline Detail Formatters', () => {
 
       it('should show dash for builds without startedAt', () => {
         const data: PipelineDetailData = {
+          org: 'test-org',
           pipeline: {
             name: 'Pipeline',
             slug: 'pipeline',
@@ -161,6 +166,7 @@ describe('Pipeline Detail Formatters', () => {
 
     it('should return valid JSON', () => {
       const data: PipelineDetailData = {
+        org: 'test-org',
         pipeline: {
           name: 'My Pipeline',
           slug: 'my-pipeline',
@@ -184,6 +190,7 @@ describe('Pipeline Detail Formatters', () => {
 
     it('should contain all expected fields', () => {
       const data: PipelineDetailData = {
+        org: 'test-org',
         pipeline: {
           name: 'Test Pipeline',
           slug: 'test-pipeline',
@@ -226,6 +233,7 @@ describe('Pipeline Detail Formatters', () => {
 
     it('should handle empty builds array in JSON', () => {
       const data: PipelineDetailData = {
+        org: 'test-org',
         pipeline: {
           name: 'Empty',
           slug: 'empty',

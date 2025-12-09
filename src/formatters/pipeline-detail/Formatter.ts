@@ -1,6 +1,7 @@
 import { FormatterOptions } from '../BaseFormatter.js';
 
 export interface PipelineDetailData {
+  org: string;
   pipeline: {
     name: string;
     slug: string;

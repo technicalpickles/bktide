@@ -12,7 +12,7 @@ export class PlainPipelineDetailFormatter extends PipelineDetailFormatter {
   }
 
   format(data: PipelineDetailData): string {
-    const { pipeline, recentBuilds } = data;
+    const { org, pipeline, recentBuilds } = data;
     const lines: string[] = [];
 
     // Pipeline header
@@ -53,7 +53,7 @@ export class PlainPipelineDetailFormatter extends PipelineDetailFormatter {
       // Add tips
       lines.push('');
       const tips = formatTips([
-        `View a build: bktide ${pipeline.slug}/<number>`,
+        `View a build: bktide ${org}/${pipeline.slug}/<number>`,
         'Use --format json for machine-readable output',
       ], TipStyle.GROUPED);
       lines.push(tips);

@@ -88,6 +88,7 @@ export class SmartShow extends BaseCommand {
 
       // Prepare data for formatter
       const data: PipelineDetailData = {
+        org: ref.org,
         pipeline: {
           name: pipeline.name,
           slug: pipeline.slug,
