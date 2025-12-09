@@ -6,7 +6,7 @@ import { PlainPipelineDetailFormatter, JsonPipelineDetailFormatter, AlfredPipeli
 import type { PipelineDetailData } from '../formatters/pipeline-detail/Formatter.js';
 import { PlainStepLogsFormatter, JsonStepLogsFormatter, AlfredStepLogsFormatter } from '../formatters/step-logs/index.js';
 import type { StepLogsData } from '../formatters/step-logs/Formatter.js';
-import { SEMANTIC_COLORS } from '../ui/theme.js';
+import { SEMANTIC_COLORS, formatError } from '../ui/theme.js';
 import { Progress } from '../ui/progress.js';
 import * as fs from 'fs/promises';
 
@@ -53,7 +53,10 @@ export class SmartShow extends BaseCommand {
       }
     } catch (error) {
       if (error instanceof Error) {
-        logger.error(error.message);
+        const errorOutput = formatError(error.message, {
+          suggestions: ['Check the reference format', 'Verify you have access to this resource'],
+        });
+        logger.console(errorOutput);
       } else {
         logger.error('Unknown error occurred');
       }
@@ -125,7 +128,12 @@ export class SmartShow extends BaseCommand {
     } catch (error) {
       spinner.stop();
       if (error instanceof Error) {
-        logger.error(`Failed to fetch pipeline: ${error.message}`);
+        const errorOutput = formatError(error.message, {
+          suggestions: ['Check the reference format', 'Verify you have access to this resource'],
+        });
+        logger.console(errorOutput);
+      } else {
+        logger.error('Unknown error occurred');
       }
       return 1;
     }
@@ -253,12 +261,22 @@ export class SmartShow extends BaseCommand {
     } catch (error) {
       spinner.stop();
       if (error instanceof Error) {
-        logger.error(`Failed to fetch step logs: ${error.message}`);
-        
         if (error.message.includes('401') || error.message.includes('403')) {
-          logger.error(`Your API token needs 'read_build_logs' scope to view logs.`);
-          logger.error(`Update your token at: https://buildkite.com/user/api-access-tokens`);
+          const errorOutput = formatError('Permission denied', {
+            suggestions: [
+              'Your API token needs \'read_build_logs\' scope to view logs',
+              'Update your token at: https://buildkite.com/user/api-access-tokens',
+            ],
+          });
+          logger.console(errorOutput);
+        } else {
+          const errorOutput = formatError(error.message, {
+            suggestions: ['Check the reference format', 'Verify you have access to this resource'],
+          });
+          logger.console(errorOutput);
         }
+      } else {
+        logger.error('Unknown error occurred');
       }
       return 1;
     }
