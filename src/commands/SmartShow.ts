@@ -7,6 +7,7 @@ import type { PipelineDetailData } from '../formatters/pipeline-detail/Formatter
 import { PlainStepLogsFormatter, JsonStepLogsFormatter, AlfredStepLogsFormatter } from '../formatters/step-logs/index.js';
 import type { StepLogsData } from '../formatters/step-logs/Formatter.js';
 import { SEMANTIC_COLORS } from '../ui/theme.js';
+import { Progress } from '../ui/progress.js';
 import * as fs from 'fs/promises';
 
 export interface SmartShowOptions extends BaseCommandOptions {
@@ -64,12 +65,16 @@ export class SmartShow extends BaseCommand {
     ref: Extract<BuildkiteReference, { type: 'pipeline' }>,
     options: SmartShowOptions
   ): Promise<number> {
+    const format = options.format || 'plain';
+    const spinner = Progress.spinner('Fetching pipeline details...', { format });
+
     try {
       // Initialize token first
       this.token = await BaseCommand.getToken(options);
       
       // Fetch pipeline details
       const pipeline = await this.client.getPipeline(ref.org, ref.pipeline);
+      spinner.stop();
       
       if (!pipeline) {
         logger.error(`Pipeline not found: ${ref.org}/${ref.pipeline}`);
@@ -102,7 +107,6 @@ export class SmartShow extends BaseCommand {
       };
 
       // Format and display
-      const format = options.format || 'plain';
       let formatter;
       
       if (format === 'alfred') {
@@ -114,10 +118,11 @@ export class SmartShow extends BaseCommand {
       }
 
       const output = formatter.format(data);
-      console.log(output);
+      logger.console(output);
 
       return 0;
     } catch (error) {
+      spinner.stop();
       if (error instanceof Error) {
         logger.error(`Failed to fetch pipeline: ${error.message}`);
       }
@@ -146,6 +151,9 @@ export class SmartShow extends BaseCommand {
     ref: Extract<BuildkiteReference, { type: 'build-with-step' }>,
     options: SmartShowOptions
   ): Promise<number> {
+    const format = options.format || 'plain';
+    const spinner = Progress.spinner('Fetching step logs...', { format });
+
     try {
       // Initialize token first
       this.token = await BaseCommand.getToken(options);
@@ -155,6 +163,7 @@ export class SmartShow extends BaseCommand {
       const jobs = build.jobs || [];
       
       if (!jobs || jobs.length === 0) {
+        spinner.stop();
         logger.error(`Build not found: ${ref.org}/${ref.pipeline}/${ref.buildNumber}`);
         return 1;
       }
@@ -171,12 +180,14 @@ export class SmartShow extends BaseCommand {
       const job = jobs.find((j: any) => j.step?.id === ref.stepId);
       
       if (!job) {
+        spinner.stop();
         logger.error(`Step not found in build #${ref.buildNumber}: ${ref.stepId}`);
         return 1;
       }
 
       // Use job.id (job UUID) for log fetching, not ref.stepId
       const logData = await this.restClient.getJobLog(ref.org, ref.pipeline, ref.buildNumber, job.id);
+      spinner.stop();
 
       // Parse log content
       const logLines = logData.content.split('\n');
@@ -190,7 +201,7 @@ export class SmartShow extends BaseCommand {
       // Save to file if requested
       if (options.save) {
         await fs.writeFile(options.save, logData.content);
-        console.log(SEMANTIC_COLORS.success(`✓ Log saved to ${options.save} (${this.formatSize(logData.size)}, ${totalLines} lines)`));
+        logger.console(SEMANTIC_COLORS.success(`✓ Log saved to ${options.save} (${this.formatSize(logData.size)}, ${totalLines} lines)`));
       }
 
       // Prepare data for formatter using REST API fields from build object
@@ -223,7 +234,6 @@ export class SmartShow extends BaseCommand {
 
       // Format and display (unless only saving)
       if (!options.save || options.format) {
-        const format = options.format || 'plain';
         let formatter;
         
         if (format === 'alfred') {
@@ -235,11 +245,12 @@ export class SmartShow extends BaseCommand {
         }
 
         const output = formatter.format(data);
-        console.log(output);
+        logger.console(output);
       }
 
       return 0;
     } catch (error) {
+      spinner.stop();
       if (error instanceof Error) {
         logger.error(`Failed to fetch step logs: ${error.message}`);
         
