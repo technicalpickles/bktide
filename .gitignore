@@ -55,3 +55,6 @@ test/fixtures/snapshots/   # Vitest snapshots
 
 tmp
 log/
+
+# Git worktrees
+.worktrees/

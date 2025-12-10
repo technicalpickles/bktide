@@ -14,7 +14,8 @@ import {
   ManageToken,
   ListAnnotations,
   GenerateCompletions,
-  ShowBuild
+  ShowBuild,
+  SmartShow
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
@@ -59,6 +60,7 @@ process.on('unhandledRejection', unhandledRejectionHandler);
 initializeErrorHandling();
 
 const program = new Command();
+program.allowUnknownOption();
 
 // Define a generic interface for the command classes that includes the execute method
 interface CommandWithExecute {
@@ -182,7 +184,10 @@ program
   .option('-q, --quiet', 'Suppress non-error output (plain format only)')
   .option('--tips', 'Show helpful tips and suggestions')
   .option('--no-tips', 'Hide helpful tips and suggestions')
-  .option('--ascii', 'Use ASCII symbols instead of Unicode');
+  .option('--ascii', 'Use ASCII symbols instead of Unicode')
+  .option('--full', 'Show all log lines (for step logs)')
+  .option('--lines <n>', 'Show last N lines (default: 50)', '50')
+  .option('--save <path>', 'Save logs to file');
 
 // Add hooks for handling options
 program
@@ -402,9 +407,7 @@ program
     }
   });
 
-program.parse();
-
-// Apply log level from command line options
+// Apply log level from command line options before parsing
 const options = program.opts();
 if (options.debug) {
   // Debug mode takes precedence over log-level
@@ -417,4 +420,48 @@ if (options.debug) {
 
 logger.debug({ 
   pid: process.pid, 
-}, 'Buildkite CLI started'); 
+}, 'Buildkite CLI started');
+
+// Handle unknown commands by trying to parse as Buildkite references
+program.on('command:*', (operands) => {
+  const potentialReference = operands[0];
+  
+  (async () => {
+    try {
+      const { parseBuildkiteReference } = await import('./utils/parseBuildkiteReference.js');
+      
+      // Try to parse as Buildkite reference (will throw if invalid)
+      parseBuildkiteReference(potentialReference);
+      
+      // If parsing succeeds, route to SmartShow
+      const token = await BaseCommand.getToken(options);
+      const smartShowCommand = new SmartShow();
+      
+      const smartShowOptions = {
+        reference: potentialReference,
+        token,
+        format: options.format,
+        debug: options.debug,
+        full: options.full,
+        lines: options.lines ? parseInt(options.lines) : undefined,
+        save: options.save,
+        cache: options.cache !== false,
+        cacheTtl: options.cacheTtl,
+        clearCache: options.clearCache,
+        quiet: options.quiet,
+        tips: options.tips,
+      };
+      
+      const exitCode = await smartShowCommand.execute(smartShowOptions);
+      process.exit(exitCode);
+    } catch (parseError) {
+      // If parsing fails, show unknown command error
+      logger.error(`Unknown command: ${potentialReference}`);
+      logger.error(`Run 'bktide --help' for usage information`);
+      process.exit(1);
+    }
+  })();
+});
+
+// Parse command line arguments
+program.parse(); 
