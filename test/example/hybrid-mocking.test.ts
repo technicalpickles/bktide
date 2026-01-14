@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { BuildkiteClient } from '../../dist/services/BuildkiteClient.js';
+import { BuildkiteClient } from '../../src/services/BuildkiteClient.js';
 import { server, setTestData, clearTestData } from '../setup-simple.js';
 import { graphql } from 'msw';
 
