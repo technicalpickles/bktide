@@ -298,4 +298,40 @@ export class BuildkiteRestClient {
       await this.cacheManager.invalidateType(type);
     }
   }
+
+  /**
+   * Get a single build with all jobs
+   * @param org Organization slug
+   * @param pipeline Pipeline slug
+   * @param buildNumber Build number
+   * @returns Build data including jobs array
+   */
+  public async getBuild(org: string, pipeline: string, buildNumber: number): Promise<any> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}`;
+    if (this.debug) {
+      logger.debug(`Fetching build: ${org}/${pipeline}/${buildNumber}`);
+    }
+    return this.get(endpoint);
+  }
+
+  /**
+   * Get job log content
+   * @param org Organization slug
+   * @param pipeline Pipeline slug
+   * @param buildNumber Build number
+   * @param jobId Job UUID
+   * @returns Job log data with content field
+   */
+  public async getJobLog(
+    org: string,
+    pipeline: string,
+    buildNumber: number,
+    jobId: string
+  ): Promise<{ content: string; size: number }> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/jobs/${jobId}/log`;
+    if (this.debug) {
+      logger.debug(`Fetching job log: ${org}/${pipeline}/${buildNumber}/jobs/${jobId}`);
+    }
+    return this.get(endpoint);
+  }
 } 

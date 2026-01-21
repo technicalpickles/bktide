@@ -7,3 +7,4 @@ export * from './ManageToken.js';
 export * from './ListAnnotations.js';
 export * from './GenerateCompletions.js';
 export * from './ShowBuild.js';
+export * from './Snapshot.js';
