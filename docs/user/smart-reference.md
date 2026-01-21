@@ -12,6 +12,37 @@ bktide <any-buildkite-reference>
 
 bktide will automatically figure out what you want to see and show the appropriate view.
 
+## Smart References vs. Explicit Commands
+
+bktide provides **two ways** to access the same functionality:
+
+### Explicit Commands (Discoverable)
+```bash
+bktide pipeline org/pipeline          # Pipeline details
+bktide logs org/pipeline/123 <sid>    # Step logs
+bktide build org/pipeline/123         # Build details
+```
+
+**Benefits:**
+- Discoverable via `bktide --help`
+- Clear, self-documenting
+- Access to all command options
+- Tab completion in shells
+
+### Smart References (Convenient)
+```bash
+bktide org/pipeline                   # Same as: bktide pipeline org/pipeline
+bktide org/pipeline/123               # Same as: bktide build org/pipeline/123
+bktide <url-with-sid>                 # Same as: bktide logs <url>
+```
+
+**Benefits:**
+- Copy-paste URLs directly from browser
+- Shorter syntax for common operations
+- Automatically routes to the right command
+
+**Both approaches support the same options** (`--format`, `--debug`, `--full`, etc.)
+
 ## Supported Formats
 
 ### Pipeline References
@@ -19,31 +50,35 @@ bktide will automatically figure out what you want to see and show the appropria
 Show pipeline metadata and recent builds:
 
 ```bash
-# Slash format
+# Smart reference (short)
 bktide org/pipeline
-
-# Full URL
 bktide https://buildkite.com/org/pipeline
+
+# Explicit command (discoverable)
+bktide pipeline org/pipeline
+bktide pipeline https://buildkite.com/org/pipeline
+bktide pipeline org/pipeline --count 50
 ```
 
 **Output includes:**
 - Pipeline name, description, default branch
 - Repository URL
-- Table of recent builds (last 20)
+- Table of recent builds (default: 20)
 
 ### Build References
 
-Show comprehensive build details (equivalent to `bktide build <ref> --jobs --failed`):
+Show comprehensive build details:
 
 ```bash
-# Slash format
+# Smart reference (short) - automatically adds --jobs --failed
 bktide org/pipeline/123
-
-# Hash format (GitHub-style)
 bktide org/pipeline#123
-
-# Full URL
 bktide https://buildkite.com/org/pipeline/builds/123
+
+# Explicit command (more control)
+bktide build org/pipeline/123
+bktide build org/pipeline/123 --jobs
+bktide build org/pipeline/123 --jobs --failed --annotations
 ```
 
 **Output includes:**
@@ -57,11 +92,14 @@ bktide https://buildkite.com/org/pipeline/builds/123
 Show build context, step information, and logs:
 
 ```bash
-# URL with step ID query parameter
+# Smart reference (from URL)
 bktide https://buildkite.com/org/pipeline/builds/123?sid=<step-id>
 
-# With /steps/canvas path (ignored)
-bktide https://buildkite.com/org/pipeline/builds/123/steps/canvas?sid=<step-id>
+# Explicit command (more options)
+bktide logs org/pipeline/123 <step-id>
+bktide logs org/pipeline/123 <step-id> --full
+bktide logs org/pipeline/123 <step-id> --lines 100
+bktide logs org/pipeline/123 <step-id> --save logs.txt
 ```
 
 **Output includes:**

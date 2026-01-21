@@ -193,6 +193,44 @@ bktide build org/pipeline/123 --annotations
 bktide build org/pipeline/123 --jobs --failed --annotations
 ```
 
+### Show Pipeline Details
+
+View pipeline metadata and recent builds.
+
+```bash
+# View pipeline by slug format
+bktide pipeline org/pipeline
+
+# View pipeline by URL format
+bktide pipeline https://buildkite.com/org/pipeline
+
+# Show more recent builds
+bktide pipeline org/pipeline --count 50
+```
+
+### View Step Logs
+
+View logs for a specific build step.
+
+```bash
+# View logs by providing build reference and step ID
+bktide logs org/pipeline/123 <step-id>
+
+# View logs from URL with step ID in query parameter
+bktide logs "https://buildkite.com/org/pipeline/builds/123?sid=<step-id>"
+
+# Show all lines (default is last 50 lines)
+bktide logs org/pipeline/123 <step-id> --full
+
+# Show last N lines
+bktide logs org/pipeline/123 <step-id> --lines 100
+
+# Save logs to file
+bktide logs org/pipeline/123 <step-id> --save logs.txt
+```
+
+**Note:** Viewing step logs requires `read_build_logs` scope on your API token.
+
 ### Smart Reference Command
 
 Paste any Buildkite URL or use short-hand formats, and bktide will figure out what to show.

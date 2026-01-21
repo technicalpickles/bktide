@@ -15,6 +15,8 @@ import {
   ListAnnotations,
   GenerateCompletions,
   ShowBuild,
+  ShowPipeline,
+  ShowLogs,
   SmartShow
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
@@ -368,6 +370,78 @@ program
   .option('--full', 'Show all available information')
   .option('--summary', 'Single-line summary only (for scripts)')
   .action(createCommandHandler(ShowBuild));
+
+// Add pipeline command
+program
+  .command('pipeline')
+  .description('Show pipeline details and recent builds')
+  .argument('<reference>', 'Pipeline reference (org/pipeline or URL)')
+  .option('-n, --count <n>', 'Number of recent builds to show', '20')
+  .action(async function(this: ExtendedCommand, reference: string) {
+    try {
+      const options = this.mergedOptions || this.opts();
+      const token = await BaseCommand.getToken(options);
+      
+      const handler = new ShowPipeline({
+        token,
+        debug: options.debug,
+        format: options.format,
+        quiet: options.quiet,
+        tips: options.tips,
+      });
+      
+      const exitCode = await handler.execute({
+        ...options,
+        reference,
+        count: options.count ? parseInt(options.count) : 20,
+      });
+      
+      process.exitCode = exitCode;
+    } catch (error) {
+      const debug = this.mergedOptions?.debug || this.opts().debug || false;
+      displayCLIError(error, debug);
+      process.exitCode = 1;
+    }
+  });
+
+// Add logs command
+program
+  .command('logs')
+  .description('Show logs for a build step')
+  .argument('<build-ref>', 'Build reference (org/pipeline/build or URL)')
+  .argument('[step-id]', 'Step/job ID (or include in URL with ?sid=)')
+  .option('--full', 'Show all log lines')
+  .option('--lines <n>', 'Show last N lines', '50')
+  .option('--save <path>', 'Save logs to file')
+  .action(async function(this: ExtendedCommand, buildRef: string, stepId?: string) {
+    try {
+      const options = this.mergedOptions || this.opts();
+      const token = await BaseCommand.getToken(options);
+      
+      const handler = new ShowLogs({
+        token,
+        debug: options.debug,
+        format: options.format,
+        quiet: options.quiet,
+        tips: options.tips,
+      });
+      
+      const exitCode = await handler.execute({
+        ...options,
+        buildRef,
+        stepId,
+        full: options.full,
+        lines: options.lines ? parseInt(options.lines) : 50,
+        save: options.save,
+      });
+      
+      process.exitCode = exitCode;
+    } catch (error) {
+      const debug = this.mergedOptions?.debug || this.opts().debug || false;
+      displayCLIError(error, debug);
+      process.exitCode = 1;
+    }
+  });
 
 // Add completions command
 program
