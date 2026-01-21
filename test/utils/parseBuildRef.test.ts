@@ -31,7 +31,7 @@ describe('parseBuildRef', () => {
     });
   });
 
-  describe('slash format', () => {
+  describe('slash format (org/pipeline/number)', () => {
     it('should parse org/pipeline/number format', () => {
       const result = parseBuildRef('gusto/zenpayroll/1400078');
       expect(result).toEqual({
@@ -47,6 +47,15 @@ describe('parseBuildRef', () => {
         org: 'gusto',
         pipeline: 'zenpayroll',
         number: 1400078,
+      });
+    });
+
+    it('should parse slug format with hyphenated pipeline name', () => {
+      const result = parseBuildRef('gusto/gusto-karafka/346');
+      expect(result).toEqual({
+        org: 'gusto',
+        pipeline: 'gusto-karafka',
+        number: 346,
       });
     });
   });
@@ -78,6 +87,15 @@ describe('parseBuildRef', () => {
         number: 123,
       });
     });
+
+    it('should handle pipeline names with underscores', () => {
+      const result = parseBuildRef('gusto/some_pipeline#123');
+      expect(result).toEqual({
+        org: 'gusto',
+        pipeline: 'some_pipeline',
+        number: 123,
+      });
+    });
   });
 
   describe('error handling', () => {
@@ -93,8 +111,16 @@ describe('parseBuildRef', () => {
       expect(() => parseBuildRef('gusto/zenpayroll')).toThrow('Invalid build reference format');
     });
 
+    it('should throw error for invalid build number in slug', () => {
+      expect(() => parseBuildRef('gusto/zenpayroll/abc')).toThrow('Invalid build reference format');
+    });
+
     it('should throw error for invalid build number in hash format', () => {
       expect(() => parseBuildRef('gusto/zenpayroll#abc')).toThrow('Invalid build reference format');
+    });
+
+    it('should include supported formats in error message', () => {
+      expect(() => parseBuildRef('invalid')).toThrow('org/pipeline#number');
     });
   });
 });
