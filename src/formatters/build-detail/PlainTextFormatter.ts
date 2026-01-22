@@ -187,7 +187,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       }
       lines.push(this.formatJobSummary(build.jobs, build.state));
       
-      if (!options?.annotations) {
+      if (!options?.annotations && options?.tips !== false) {
         lines.push('');
         const tips = formatTips(
           ['Use --annotations to view annotation details'],
@@ -255,7 +255,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     }
     
     // Display all hints together
-    if (allHints.length > 0) {
+    if (allHints.length > 0 && options?.tips !== false) {
       lines.push('');
       lines.push(formatTips(allHints, TipStyle.GROUPED));
     }
