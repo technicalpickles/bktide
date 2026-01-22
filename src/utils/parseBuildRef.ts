@@ -13,7 +13,8 @@ export function parseBuildRef(input: string): BuildRef {
   const cleanInput = input.startsWith('@') ? input.slice(1) : input;
 
   // Try URL format first: https://buildkite.com/org/pipeline/builds/number
-  const urlRegex = /^https?:\/\/buildkite\.com\/([^\/]+)\/([^\/]+)\/builds\/(\d+)$/;
+  // Allow trailing path segments (e.g., /steps/canvas) to support pasting URLs from browser
+  const urlRegex = /^https?:\/\/buildkite\.com\/([^\/]+)\/([^\/]+)\/builds\/(\d+)(?:\/.*)?$/;
   const urlMatch = cleanInput.match(urlRegex);
   
   if (urlMatch) {

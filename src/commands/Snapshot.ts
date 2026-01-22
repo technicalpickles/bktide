@@ -1,0 +1,407 @@
+import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
+import { logger } from '../services/logger.js';
+import { parseBuildRef } from '../utils/parseBuildRef.js';
+import { Progress } from '../ui/progress.js';
+import { getStateIcon, SEMANTIC_COLORS, BUILD_STATUS_THEME } from '../ui/theme.js';
+import { formatDistanceToNow } from 'date-fns';
+import fs from 'fs/promises';
+import path from 'path';
+import os from 'os';
+
+export interface SnapshotOptions extends BaseCommandOptions {
+  buildRef?: string;
+  outputDir?: string;
+  json?: boolean;
+  failed?: boolean;
+  all?: boolean;
+}
+
+interface StepResult {
+  id: string;
+  jobId: string;
+  status: 'success' | 'failed';
+  error?: string;
+  message?: string;
+  retryable?: boolean;
+}
+
+interface Manifest {
+  version: number;
+  buildRef: string;
+  url: string;
+  fetchedAt: string;
+  complete: boolean;
+  build: {
+    status: string;
+  };
+  steps: StepResult[];
+}
+
+type ErrorCategory = 'rate_limited' | 'not_found' | 'permission_denied' | 'network_error' | 'unknown';
+
+interface StepError {
+  error: ErrorCategory;
+  message: string;
+  retryable: boolean;
+}
+
+/**
+ * Categorize an error into a known category
+ */
+export function categorizeError(error: Error): StepError {
+  const message = error.message.toLowerCase();
+
+  if (message.includes('rate limit') || message.includes('429')) {
+    return { error: 'rate_limited', message: error.message, retryable: true };
+  }
+  if (message.includes('not found') || message.includes('404')) {
+    return { error: 'not_found', message: error.message, retryable: false };
+  }
+  if (message.includes('permission') || message.includes('403') || message.includes('401')) {
+    return { error: 'permission_denied', message: error.message, retryable: false };
+  }
+  if (message.includes('network') || message.includes('econnrefused') || message.includes('enotfound')) {
+    return { error: 'network_error', message: error.message, retryable: true };
+  }
+  return { error: 'unknown', message: error.message, retryable: true };
+}
+
+
+/**
+ * Format duration from milliseconds or date range
+ */
+function formatDuration(startedAt: string | null, finishedAt: string | null): string {
+  if (!startedAt) return '';
+  const start = new Date(startedAt).getTime();
+  const end = finishedAt ? new Date(finishedAt).getTime() : Date.now();
+  const seconds = Math.floor((end - start) / 1000);
+
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
+}
+
+
+/**
+ * Generate a sanitized directory name for a step
+ */
+export function getStepDirName(index: number, label: string): string {
+  const num = String(index + 1).padStart(2, '0');
+  const sanitized = label
+    .replace(/:[^:]+:/g, '')           // Remove emoji shortcodes like :hammer:
+    .replace(/[^a-zA-Z0-9-]/g, '-')    // Replace non-alphanumeric with dashes
+    .replace(/-+/g, '-')               // Collapse multiple dashes
+    .replace(/^-|-$/g, '')             // Trim leading/trailing dashes
+    .toLowerCase()
+    .slice(0, 50);                     // Limit length
+  return `${num}-${sanitized || 'step'}`;
+}
+
+export class Snapshot extends BaseCommand {
+  static requiresToken = true;
+
+  async execute(options: SnapshotOptions): Promise<number> {
+    if (options.debug) {
+      logger.debug('Starting Snapshot command execution', options);
+    }
+
+    if (!options.buildRef) {
+      logger.error('Build reference is required');
+      return 1;
+    }
+
+    const format = options.format || 'plain';
+    const spinner = Progress.spinner('Fetching build data…', { format });
+
+    try {
+      await this.ensureInitialized();
+
+      // 1. Parse build reference
+      const buildRef = parseBuildRef(options.buildRef);
+      if (options.debug) {
+        logger.debug('Parsed build reference:', buildRef);
+      }
+
+      // 2. Determine output directory
+      const outputDir = this.getOutputDir(options, buildRef.org, buildRef.pipeline, buildRef.number);
+      if (options.debug) {
+        logger.debug('Output directory:', outputDir);
+      }
+
+      // 3. Fetch build data
+      spinner.update('Fetching build metadata…');
+      const build = await this.restClient.getBuild(buildRef.org, buildRef.pipeline, buildRef.number);
+
+      // 4. Create directory structure
+      spinner.update('Creating directories…');
+      await this.createDirectories(outputDir);
+
+      // 5. Save build.json
+      spinner.update('Saving build data…');
+      await this.saveBuildJson(outputDir, build);
+
+      // 6. Filter and fetch jobs
+      const allJobs = build.jobs || [];
+
+      // Filter to script jobs only
+      const scriptJobs = allJobs.filter((job: any) => job.type === 'script');
+
+      // Determine which jobs to fetch based on options
+      // Default is --failed unless --all is specified
+      const fetchAll = options.all === true;
+
+      let jobsToFetch: any[];
+      if (fetchAll) {
+        jobsToFetch = scriptJobs;
+      } else {
+        // Filter to only failed jobs
+        jobsToFetch = scriptJobs.filter((job: any) => this.isFailedJob(job));
+      }
+
+      const totalJobs = jobsToFetch.length;
+      const stepResults: StepResult[] = [];
+
+      // Stop the spinner before switching to progress bar
+      spinner.stop();
+
+      // Fetch logs for each job (if any) - use progress bar since we know the count
+      if (totalJobs > 0) {
+        const progressBar = Progress.bar({
+          total: totalJobs,
+          label: 'Fetching steps',
+          format,
+        });
+
+        for (let i = 0; i < jobsToFetch.length; i++) {
+          const job = jobsToFetch[i];
+          const stepName = job.name || job.label || 'step';
+          progressBar.update(i, `Fetching ${stepName}`);
+
+          const stepResult = await this.fetchAndSaveStep(
+            outputDir,
+            buildRef.org,
+            buildRef.pipeline,
+            buildRef.number,
+            job,
+            stepResults.length,
+            options.debug
+          );
+          stepResults.push(stepResult);
+        }
+
+        progressBar.complete(`Fetched ${totalJobs} step${totalJobs > 1 ? 's' : ''}`);
+      }
+
+      // 7. Write manifest
+      const manifest = this.buildManifest(buildRef.org, buildRef.pipeline, buildRef.number, build, stepResults);
+      await this.saveManifest(outputDir, manifest);
+
+      // 8. Output based on options
+      if (options.json) {
+        logger.console(JSON.stringify(manifest, null, 2));
+      } else {
+        // Show build summary first
+        this.displayBuildSummary(build, scriptJobs);
+
+        // Then show snapshot info
+        const fetchErrorCount = stepResults.filter(s => s.status === 'failed').length;
+
+        logger.console(`Snapshot saved to ${outputDir}`);
+
+        if (stepResults.length > 0) {
+          logger.console(`  ${stepResults.length} step(s) captured`);
+        } else if (!fetchAll) {
+          logger.console(`  No failed steps to capture (build metadata saved)`);
+        } else {
+          logger.console(`  No steps to capture (build metadata saved)`);
+        }
+
+        if (fetchErrorCount > 0) {
+          logger.console(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`);
+        }
+
+        // Show tip about --all if we filtered to failed only and there are passing steps
+        if (!fetchAll && scriptJobs.length > jobsToFetch.length) {
+          const skippedCount = scriptJobs.length - jobsToFetch.length;
+          logger.console(`  Tip: ${skippedCount} passing step(s) skipped. Use --all to capture all logs.`);
+        }
+      }
+
+      return manifest.complete ? 0 : 1;
+    } catch (error) {
+      spinner.stop();
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to create snapshot: ${errorMessage}`);
+      if (options.debug && error instanceof Error && error.stack) {
+        logger.debug(error.stack);
+      }
+      return 1;
+    }
+  }
+
+  private getOutputDir(options: SnapshotOptions, org: string, pipeline: string, buildNumber: number): string {
+    const baseDir = options.outputDir || path.join(os.homedir(), '.bktide', 'snapshots');
+    return path.join(baseDir, org, pipeline, String(buildNumber));
+  }
+
+  private async createDirectories(outputDir: string): Promise<void> {
+    const stepsDir = path.join(outputDir, 'steps');
+    await fs.mkdir(stepsDir, { recursive: true });
+  }
+
+  private async saveBuildJson(outputDir: string, build: any): Promise<void> {
+    const buildPath = path.join(outputDir, 'build.json');
+    await fs.writeFile(buildPath, JSON.stringify(build, null, 2), 'utf-8');
+  }
+
+  private async fetchAndSaveStep(
+    outputDir: string,
+    org: string,
+    pipeline: string,
+    buildNumber: number,
+    job: any,
+    stepIndex: number,
+    debug?: boolean
+  ): Promise<StepResult> {
+    const stepDirName = getStepDirName(stepIndex, job.name || job.label || 'step');
+    const stepDir = path.join(outputDir, 'steps', stepDirName);
+
+    // Create step directory
+    await fs.mkdir(stepDir, { recursive: true });
+
+    // Save step.json (job metadata)
+    const stepPath = path.join(stepDir, 'step.json');
+    await fs.writeFile(stepPath, JSON.stringify(job, null, 2), 'utf-8');
+
+    // Try to fetch and save log
+    try {
+      const logData = await this.restClient.getJobLog(org, pipeline, buildNumber, job.id);
+      const logPath = path.join(stepDir, 'log.txt');
+      await fs.writeFile(logPath, logData.content || '', 'utf-8');
+
+      return {
+        id: stepDirName,
+        jobId: job.id,
+        status: 'success',
+      };
+    } catch (error) {
+      if (debug) {
+        logger.debug(`Failed to fetch log for job ${job.id}:`, error);
+      }
+
+      const errorInfo = categorizeError(error instanceof Error ? error : new Error(String(error)));
+      return {
+        id: stepDirName,
+        jobId: job.id,
+        status: 'failed',
+        error: errorInfo.error,
+        message: errorInfo.message,
+        retryable: errorInfo.retryable,
+      };
+    }
+  }
+
+  private buildManifest(
+    org: string,
+    pipeline: string,
+    buildNumber: number,
+    build: any,
+    stepResults: StepResult[]
+  ): Manifest {
+    const allSuccess = stepResults.every(s => s.status === 'success');
+
+    return {
+      version: 1,
+      buildRef: `${org}/${pipeline}/${buildNumber}`,
+      url: `https://buildkite.com/${org}/${pipeline}/builds/${buildNumber}`,
+      fetchedAt: new Date().toISOString(),
+      complete: allSuccess,
+      build: {
+        status: build.state || 'unknown',
+      },
+      steps: stepResults,
+    };
+  }
+
+  private async saveManifest(outputDir: string, manifest: Manifest): Promise<void> {
+    const manifestPath = path.join(outputDir, 'manifest.json');
+    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+  }
+
+  /**
+   * Check if a job is considered failed
+   * Failed states: failed, timed_out, or non-zero exit status
+   */
+  private isFailedJob(job: any): boolean {
+    const state = job.state?.toLowerCase();
+    // Check state-based failure
+    if (state === 'failed' || state === 'timed_out') {
+      return true;
+    }
+    // Check exit status (non-zero means failure)
+    if (typeof job.exit_status === 'number' && job.exit_status !== 0) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Display build summary similar to `build` command
+   */
+  private displayBuildSummary(build: any, scriptJobs: any[]): void {
+    const state = build.state || 'unknown';
+    const icon = getStateIcon(state);
+    const theme = BUILD_STATUS_THEME[state.toUpperCase() as keyof typeof BUILD_STATUS_THEME];
+    const coloredIcon = theme ? theme.color(icon) : icon;
+    const message = build.message?.split('\n')[0] || 'No message'; // First line only
+    const duration = formatDuration(build.started_at, build.finished_at);
+    const durationStr = duration ? ` ${SEMANTIC_COLORS.dim(duration)}` : '';
+
+    // First line: status + message + build number + duration
+    const coloredState = theme ? theme.color(state.toUpperCase()) : state.toUpperCase();
+    logger.console(`${coloredIcon} ${coloredState} ${message} ${SEMANTIC_COLORS.dim(`#${build.number}`)}${durationStr}`);
+
+    // Second line: author + branch + commit + time
+    const author = build.author?.name || build.author?.username || build.creator?.name || 'Unknown';
+    const branch = build.branch || 'unknown';
+    const commit = build.commit?.substring(0, 7) || 'unknown';
+    const created = build.created_at ? formatDistanceToNow(new Date(build.created_at), { addSuffix: true }) : '';
+    logger.console(`         ${author} • ${SEMANTIC_COLORS.identifier(branch)} • ${commit} • ${SEMANTIC_COLORS.dim(created)}`);
+
+    // Job statistics
+    const passed = scriptJobs.filter(j => j.state === 'passed').length;
+    const failed = scriptJobs.filter(j => this.isFailedJob(j)).length;
+    const running = scriptJobs.filter(j => j.state === 'running').length;
+    const other = scriptJobs.length - passed - failed - running;
+
+    let statsStr = `${scriptJobs.length} steps:`;
+    const parts: string[] = [];
+    if (passed > 0) parts.push(SEMANTIC_COLORS.success(`${passed} passed`));
+    if (failed > 0) parts.push(SEMANTIC_COLORS.error(`${failed} failed`));
+    if (running > 0) parts.push(SEMANTIC_COLORS.info(`${running} running`));
+    if (other > 0) parts.push(SEMANTIC_COLORS.muted(`${other} other`));
+    statsStr += ' ' + parts.join(', ');
+
+    logger.console('');
+    logger.console(statsStr);
+
+    // List failed jobs if any
+    if (failed > 0) {
+      const failedJobs = scriptJobs.filter(j => this.isFailedJob(j));
+      const failedIcon = getStateIcon('FAILED');
+      for (const job of failedJobs.slice(0, 10)) { // Show max 10
+        const label = job.name || job.label || 'Unknown step';
+        logger.console(`  ${SEMANTIC_COLORS.error(failedIcon)} ${label}`);
+      }
+      if (failedJobs.length > 10) {
+        logger.console(`  ${SEMANTIC_COLORS.muted(`... and ${failedJobs.length - 10} more`)}`);
+      }
+    }
+
+    logger.console('');
+  }
+}

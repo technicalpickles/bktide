@@ -29,6 +29,42 @@ describe('parseBuildRef', () => {
         number: 1400078,
       });
     });
+
+    it('should parse URL with /steps/canvas suffix', () => {
+      const result = parseBuildRef('https://buildkite.com/gusto/zenpayroll/builds/1404486/steps/canvas');
+      expect(result).toEqual({
+        org: 'gusto',
+        pipeline: 'zenpayroll',
+        number: 1404486,
+      });
+    });
+
+    it('should parse URL with /summary suffix', () => {
+      const result = parseBuildRef('https://buildkite.com/gusto/zenpayroll/builds/1404486/summary');
+      expect(result).toEqual({
+        org: 'gusto',
+        pipeline: 'zenpayroll',
+        number: 1404486,
+      });
+    });
+
+    it('should parse URL with /annotations suffix', () => {
+      const result = parseBuildRef('https://buildkite.com/gusto/zenpayroll/builds/1404486/annotations');
+      expect(result).toEqual({
+        org: 'gusto',
+        pipeline: 'zenpayroll',
+        number: 1404486,
+      });
+    });
+
+    it('should parse URL with deeply nested path', () => {
+      const result = parseBuildRef('https://buildkite.com/gusto/zenpayroll/builds/1404486/steps/some-step/logs');
+      expect(result).toEqual({
+        org: 'gusto',
+        pipeline: 'zenpayroll',
+        number: 1404486,
+      });
+    });
   });
 
   describe('slash format (org/pipeline/number)', () => {

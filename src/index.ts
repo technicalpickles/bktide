@@ -15,6 +15,7 @@ import {
   ListAnnotations,
   GenerateCompletions,
   ShowBuild,
+  Snapshot,
   ShowPipeline,
   ShowLogs,
   SmartShow
@@ -286,10 +287,19 @@ program
     else if (commandName === 'build') {
       // Attach the build argument to options
       cmd.mergedOptions.buildArg = cmd.args?.[0];
-      
+
       if (mergedOptions.debug) {
         logger.debug('Build arg:', cmd.mergedOptions.buildArg);
         logger.debug('Build options:', mergedOptions);
+      }
+    }
+    else if (commandName === 'snapshot') {
+      // Attach the build-ref argument to options
+      cmd.mergedOptions.buildRef = cmd.args?.[0];
+
+      if (mergedOptions.debug) {
+        logger.debug('Snapshot build-ref:', cmd.mergedOptions.buildRef);
+        logger.debug('Snapshot options:', mergedOptions);
       }
     }
     
@@ -371,6 +381,17 @@ program
   .option('--summary', 'Single-line summary only (for scripts)')
   .action(createCommandHandler(ShowBuild));
 
+// Add snapshot command
+program
+  .command('snapshot')
+  .description('Fetch and save build data locally for offline analysis')
+  .argument('<build-ref>', 'Build reference (org/pipeline/number or https://buildkite.com/org/pipeline/builds/number)')
+  .option('--output-dir <path>', 'Output directory for snapshot')
+  .option('--json', 'Output manifest JSON to stdout')
+  .option('--failed', 'Only fetch failed steps (default behavior)')
+  .option('--all', 'Fetch all steps, not just failed ones')
+  .action(createCommandHandler(Snapshot));
+
 // Add pipeline command
 program
   .command('pipeline')
@@ -381,7 +402,7 @@ program
     try {
       const options = this.mergedOptions || this.opts();
       const token = await BaseCommand.getToken(options);
-      
+
       const handler = new ShowPipeline({
         token,
         debug: options.debug,
@@ -389,13 +410,13 @@ program
         quiet: options.quiet,
         tips: options.tips,
       });
-      
+
       const exitCode = await handler.execute({
         ...options,
         reference,
         count: options.count ? parseInt(options.count) : 20,
       });
-      
+
       process.exitCode = exitCode;
     } catch (error) {
       const debug = this.mergedOptions?.debug || this.opts().debug || false;
@@ -417,7 +438,7 @@ program
     try {
       const options = this.mergedOptions || this.opts();
       const token = await BaseCommand.getToken(options);
-      
+
       const handler = new ShowLogs({
         token,
         debug: options.debug,
@@ -425,7 +446,7 @@ program
         quiet: options.quiet,
         tips: options.tips,
       });
-      
+
       const exitCode = await handler.execute({
         ...options,
         buildRef,
@@ -434,7 +455,7 @@ program
         lines: options.lines ? parseInt(options.lines) : 50,
         save: options.save,
       });
-      
+
       process.exitCode = exitCode;
     } catch (error) {
       const debug = this.mergedOptions?.debug || this.opts().debug || false;
