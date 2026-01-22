@@ -3,6 +3,7 @@ import { CacheManager } from './CacheManager.js';
 import { createHash } from 'crypto';
 import { logger } from './logger.js';
 import { getProgressIcon } from '../ui/theme.js';
+import { JobLog } from '../types/buildkite.js';
 
 export interface BuildkiteRestClientOptions {
   baseUrl?: string;
@@ -252,6 +253,40 @@ export class BuildkiteRestClient {
     return builds;
   }
 
+  /**
+   * Get builds for a specific pipeline
+   * @param org Organization slug
+   * @param pipeline Pipeline slug
+   * @param params Query parameters
+   * @returns List of builds for the pipeline
+   */
+  public async getPipelineBuilds(
+    org: string,
+    pipeline: string,
+    params?: {
+      branch?: string;
+      state?: string;
+      per_page?: string;
+      page?: string;
+    }
+  ): Promise<any[]> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds`;
+    const startTime = process.hrtime.bigint();
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('STARTING')} Fetching builds for pipeline: ${org}/${pipeline}`);
+    }
+    
+    const builds = await this.get<any[]>(endpoint, params as Record<string, string>);
+    
+    const endTime = process.hrtime.bigint();
+    const duration = Number(endTime - startTime) / 1000000; // Convert to milliseconds
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} Retrieved ${builds.length} builds for ${org}/${pipeline} (${duration.toFixed(2)}ms)`);
+    }
+    
+    return builds;
+  }
+
 
 
   public async hasBuildAccess(org: string): Promise<boolean> {
@@ -282,6 +317,80 @@ export class BuildkiteRestClient {
   }
   
   /**
+   * Get logs for a specific job
+   * @param org Organization slug
+   * @param pipeline Pipeline slug
+   * @param buildNumber Build number
+   * @param jobId Job ID (UUID)
+   * @returns Job log data
+   */
+  public async getJobLog(
+    org: string,
+    pipeline: string,
+    buildNumber: number,
+    jobId: string
+  ): Promise<JobLog> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/jobs/${jobId}/log`;
+    const startTime = process.hrtime.bigint();
+    
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('STARTING')} Fetching logs for job: ${jobId}`);
+    }
+    
+    // Note: Use default cache type for log data
+    const cacheKey = this.generateCacheKey(endpoint);
+    
+    // Check cache first
+    if (this.cacheManager) {
+      const cached = await this.cacheManager.get<JobLog>(cacheKey, 'default' as any);
+      if (cached) {
+        if (this.debug) {
+          logger.debug(`${getProgressIcon('SUCCESS_LOG')} Served logs from cache for job: ${jobId}`);
+        }
+        return cached;
+      }
+    }
+    
+    const log = await this.get<JobLog>(endpoint);
+    
+    const endTime = process.hrtime.bigint();
+    const duration = Number(endTime - startTime) / 1000000;
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} Retrieved logs for job ${jobId} (${duration.toFixed(2)}ms)`);
+    }
+    
+    return log;
+  }
+
+  /**
+   * Get jobs for a specific build
+   */
+  public async getBuildJobs(
+    org: string,
+    pipeline: string,
+    buildNumber: number
+  ): Promise<any[]> {
+    const build = await this.getBuild(org, pipeline, buildNumber);
+    return build.jobs || [];
+  }
+
+  /**
+   * Get a specific build with all its data including jobs
+   * @param org Organization slug
+   * @param pipeline Pipeline slug
+   * @param buildNumber Build number
+   * @returns Full build object including jobs array
+   */
+  public async getBuild(
+    org: string,
+    pipeline: string,
+    buildNumber: number
+  ): Promise<any> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}`;
+    return this.get<any>(endpoint);
+  }
+
+  /**
    * Clear all cache entries
    */
   public async clearCache(): Promise<void> {
@@ -297,41 +406,5 @@ export class BuildkiteRestClient {
     if (this.cacheManager) {
       await this.cacheManager.invalidateType(type);
     }
-  }
-
-  /**
-   * Get a single build with all jobs
-   * @param org Organization slug
-   * @param pipeline Pipeline slug
-   * @param buildNumber Build number
-   * @returns Build data including jobs array
-   */
-  public async getBuild(org: string, pipeline: string, buildNumber: number): Promise<any> {
-    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}`;
-    if (this.debug) {
-      logger.debug(`Fetching build: ${org}/${pipeline}/${buildNumber}`);
-    }
-    return this.get(endpoint);
-  }
-
-  /**
-   * Get job log content
-   * @param org Organization slug
-   * @param pipeline Pipeline slug
-   * @param buildNumber Build number
-   * @param jobId Job UUID
-   * @returns Job log data with content field
-   */
-  public async getJobLog(
-    org: string,
-    pipeline: string,
-    buildNumber: number,
-    jobId: string
-  ): Promise<{ content: string; size: number }> {
-    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/jobs/${jobId}/log`;
-    if (this.debug) {
-      logger.debug(`Fetching job log: ${org}/${pipeline}/${buildNumber}/jobs/${jobId}`);
-    }
-    return this.get(endpoint);
   }
 } 

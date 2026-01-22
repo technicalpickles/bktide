@@ -193,6 +193,82 @@ bktide build org/pipeline/123 --annotations
 bktide build org/pipeline/123 --jobs --failed --annotations
 ```
 
+### Show Pipeline Details
+
+View pipeline metadata and recent builds.
+
+```bash
+# View pipeline by slug format
+bktide pipeline org/pipeline
+
+# View pipeline by URL format
+bktide pipeline https://buildkite.com/org/pipeline
+
+# Show more recent builds
+bktide pipeline org/pipeline --count 50
+```
+
+### View Step Logs
+
+View logs for a specific build step.
+
+```bash
+# View logs by providing build reference and step ID
+bktide logs org/pipeline/123 <step-id>
+
+# View logs from URL with step ID in query parameter
+bktide logs "https://buildkite.com/org/pipeline/builds/123?sid=<step-id>"
+
+# Show all lines (default is last 50 lines)
+bktide logs org/pipeline/123 <step-id> --full
+
+# Show last N lines
+bktide logs org/pipeline/123 <step-id> --lines 100
+
+# Save logs to file
+bktide logs org/pipeline/123 <step-id> --save logs.txt
+```
+
+**Note:** Viewing step logs requires `read_build_logs` scope on your API token.
+
+### Smart Reference Command
+
+Paste any Buildkite URL or use short-hand formats, and bktide will figure out what to show.
+
+**Supported formats:**
+
+```bash
+# Pipeline view (shows metadata + recent builds)
+bktide gusto/schemaflow
+bktide https://buildkite.com/gusto/schemaflow
+
+# Build view (shows comprehensive build details)
+bktide gusto/schemaflow/76
+bktide gusto/schemaflow#76
+bktide https://buildkite.com/gusto/schemaflow/builds/76
+
+# Step logs (shows build context + step logs)
+bktide https://buildkite.com/gusto/schemaflow/builds/76?sid=019adb19-bd83-4149-b2a7-ece1d7a41c9d
+```
+
+**Log display options:**
+
+```bash
+# Show last 50 lines (default)
+bktide https://buildkite.com/org/pipeline/builds/123?sid=<step-id>
+
+# Show all lines
+bktide https://buildkite.com/org/pipeline/builds/123?sid=<step-id> --full
+
+# Show last N lines
+bktide https://buildkite.com/org/pipeline/builds/123?sid=<step-id> --lines 100
+
+# Save logs to file
+bktide https://buildkite.com/org/pipeline/builds/123?sid=<step-id> --save logs.txt
+```
+
+**Note:** Viewing step logs requires `read_build_logs` scope on your API token.
+
 ### Generate Shell Completions
 
 ```bash
