@@ -530,28 +530,29 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     if (!jobs || jobs.length === 0) {
       return '';
     }
-    
+
     const lines: string[] = [];
     const jobStats = this.getJobStats(jobs);
-    
+
     // Build summary parts based on job states
     const countParts = [];
     if (jobStats.failed > 0) countParts.push(SEMANTIC_COLORS.error(`${jobStats.failed} failed`));
+    if (jobStats.softFailed > 0) countParts.push(SEMANTIC_COLORS.warning(`▲ ${jobStats.softFailed} soft failure${jobStats.softFailed > 1 ? 's' : ''}`));
     if (jobStats.passed > 0) countParts.push(SEMANTIC_COLORS.success(`${jobStats.passed} passed`));
     if (jobStats.running > 0) countParts.push(SEMANTIC_COLORS.info(`${jobStats.running} running`));
     if (jobStats.blocked > 0) countParts.push(SEMANTIC_COLORS.warning(`${jobStats.blocked} blocked`));
-    // Don't show skipped jobs
     if (jobStats.canceled > 0) countParts.push(SEMANTIC_COLORS.muted(`${jobStats.canceled} canceled`));
-    
+
     // Use appropriate icon based on build state
-    const icon = buildState === 'FAILED' ? getStateIcon('FAILED') : 
+    const icon = buildState === 'FAILED' ? getStateIcon('FAILED') :
                  buildState === 'RUNNING' ? getStateIcon('RUNNING') :
                  buildState === 'PASSED' ? getStateIcon('PASSED') :
                  buildState === 'BLOCKED' ? getStateIcon('BLOCKED') : '•';
+
     // Check if we have partial data
     const hasMorePages = jobsData?.pageInfo?.hasNextPage;
     const totalCount = jobsData?.count;
-    
+
     if (hasMorePages) {
       const showing = jobs.length;
       const total = totalCount || `${showing}+`;
@@ -561,23 +562,21 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     } else {
       lines.push(`${icon} ${SEMANTIC_COLORS.count(String(jobStats.total))} step${jobStats.total > 1 ? 's' : ''}: ${countParts.join(', ')}`);
     }
-    
-    // For failed builds, show the specific failed job names
-    if (buildState === 'FAILED') {
+
+    // Show failed jobs for FAILED builds
+    if (buildState === 'FAILED' && jobStats.failed > 0) {
       const failedJobs = this.getFailedJobs(jobs);
       const jobGroups = this.groupJobsByLabel(failedJobs);
-      
-      // Show up to 3 failed job types
+
       const displayGroups = jobGroups.slice(0, 3);
       for (const group of displayGroups) {
         const label = this.parseEmoji(group.label);
         const icon = getStateIcon('FAILED');
-        
-        // Get duration for display
-        const duration = group.count === 1 && group.jobs[0]?.node 
+
+        const duration = group.count === 1 && group.jobs[0]?.node
           ? ` ${SEMANTIC_COLORS.dim(`- ran ${this.formatJobDuration(group.jobs[0].node)}`)}`
           : '';
-        
+
         if (group.parallelTotal > 0) {
           lines.push(`   ${icon} ${label} ${SEMANTIC_COLORS.dim(`(${group.stateCounts.failed || 0}/${group.parallelTotal} failed)`)}`);
         } else if (group.count > 1) {
@@ -586,12 +585,41 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
           lines.push(`   ${icon} ${label}${duration}`);
         }
       }
-      
+
       if (jobGroups.length > 3) {
         lines.push(`   ${SEMANTIC_COLORS.muted(`...and ${jobGroups.length - 3} more`)}`);
       }
     }
-    
+
+    // Show soft failed jobs for PASSED builds OR when there are soft failures
+    if (jobStats.softFailed > 0) {
+      const softFailedJobs = this.getSoftFailedJobs(jobs);
+      const jobGroups = this.groupJobsByLabel(softFailedJobs);
+
+      lines.push('');
+      const displayGroups = jobGroups.slice(0, 5);
+      for (const group of displayGroups) {
+        const label = this.parseEmoji(group.label);
+        const icon = getStateIcon('SOFT_FAILED');
+
+        const duration = group.count === 1 && group.jobs[0]?.node
+          ? ` - ran ${this.formatJobDuration(group.jobs[0].node)}`
+          : '';
+
+        if (group.parallelTotal > 0) {
+          lines.push(`   ${icon} ${label} ${SEMANTIC_COLORS.dim(`(${group.stateCounts.failed || 0}/${group.parallelTotal} soft failed)`)}`);
+        } else if (group.count > 1) {
+          lines.push(`   ${icon} ${label} ${SEMANTIC_COLORS.dim(`(${group.stateCounts.failed || 0} soft failed)`)}`);
+        } else {
+          lines.push(`   ${icon} ${label}${duration}`);
+        }
+      }
+
+      if (jobGroups.length > 5) {
+        lines.push(`   ${SEMANTIC_COLORS.muted(`...and ${jobGroups.length - 5} more`)}`);
+      }
+    }
+
     return lines.join('\n');
   }
   
@@ -1050,29 +1078,55 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   
   private getFailedJobs(jobs: any[]): any[] {
     if (!jobs) return [];
-    
+
     return jobs.filter(job => {
       const state = job.node.state?.toUpperCase();
-      
+
       // BROKEN jobs are skipped/not run, not failed
       if (state === 'BROKEN' || state === 'SKIPPED') {
         return false;
       }
-      
+
       // If we have an exit status, use that as the source of truth
-      // Note: exitStatus comes as a string from Buildkite API
       if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
         const exitCode = parseInt(job.node.exitStatus, 10);
-        return exitCode !== 0;
+        // Only return hard failures (not soft failures)
+        return exitCode !== 0 && job.node.softFailed !== true;
       }
-      
+
       // For FINISHED jobs, check the passed field
       if (state === 'FINISHED') {
-        return job.node.passed === false;
+        return job.node.passed === false && job.node.softFailed !== true;
       }
-      
-      // Otherwise check if explicitly failed
-      return state === 'FAILED';
+
+      // Otherwise check if explicitly failed (and not soft)
+      return state === 'FAILED' && job.node.softFailed !== true;
+    });
+  }
+
+  private getSoftFailedJobs(jobs: any[]): any[] {
+    if (!jobs) return [];
+
+    return jobs.filter(job => {
+      const state = job.node.state?.toUpperCase();
+
+      // BROKEN jobs are skipped/not run, not failed
+      if (state === 'BROKEN' || state === 'SKIPPED') {
+        return false;
+      }
+
+      // If we have an exit status, use that as the source of truth
+      if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
+        const exitCode = parseInt(job.node.exitStatus, 10);
+        return exitCode !== 0 && job.node.softFailed === true;
+      }
+
+      // For FINISHED jobs, check the passed field and softFailed
+      if (state === 'FINISHED') {
+        return job.node.passed === false && job.node.softFailed === true;
+      }
+
+      return false;
     });
   }
   
