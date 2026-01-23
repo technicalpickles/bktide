@@ -185,38 +185,64 @@ describe('Snapshot Command', () => {
     });
 
     it('should create correct directory structure', async () => {
-      // Mock the REST client methods
-      const mockBuild = {
-        id: 'build-123',
-        number: 42,
-        state: 'passed',
-        message: 'Test build',
-        jobs: [
-          {
-            id: 'job-1',
-            type: 'script',
-            name: 'Build',
-            label: ':hammer: Build',
-            state: 'passed',
+      // Mock the GraphQL client for build metadata
+      const mockBuildData = {
+        build: {
+          id: 'build-123',
+          number: 42,
+          state: 'PASSED',
+          message: 'Test build',
+          branch: 'main',
+          commit: 'abc123',
+          createdAt: new Date().toISOString(),
+          startedAt: new Date().toISOString(),
+          finishedAt: new Date().toISOString(),
+          createdBy: { name: 'Test User', email: 'test@example.com' },
+          jobs: {
+            edges: [
+              {
+                node: {
+                  __typename: 'JobTypeCommand',
+                  id: 'job-1',
+                  uuid: 'job-uuid-1',
+                  label: ':hammer: Build',
+                  state: 'PASSED',
+                  exitStatus: '0',
+                  passed: true,
+                  softFailed: false,
+                  startedAt: new Date().toISOString(),
+                  finishedAt: new Date().toISOString(),
+                },
+              },
+              {
+                node: {
+                  __typename: 'JobTypeCommand',
+                  id: 'job-2',
+                  uuid: 'job-uuid-2',
+                  label: ':rspec: Test',
+                  state: 'PASSED',
+                  exitStatus: '0',
+                  passed: true,
+                  softFailed: false,
+                  startedAt: new Date().toISOString(),
+                  finishedAt: new Date().toISOString(),
+                },
+              },
+              {
+                node: {
+                  __typename: 'JobTypeWait',
+                  id: 'wait-1',
+                  label: 'Wait',
+                },
+              },
+            ],
           },
-          {
-            id: 'job-2',
-            type: 'script',
-            name: 'Test',
-            label: ':rspec: Test',
-            state: 'passed',
-          },
-          {
-            id: 'wait-1',
-            type: 'waiter',
-            name: 'Wait',
-          },
-        ],
+        },
       };
 
       const mockLog = { content: 'Build output here', size: 17 };
 
-      vi.spyOn(snapshot['restClient'], 'getBuild').mockResolvedValue(mockBuild);
+      vi.spyOn(snapshot['client'], 'getBuildSummaryWithAllJobs').mockResolvedValue(mockBuildData);
       vi.spyOn(snapshot['restClient'], 'getJobLog').mockResolvedValue(mockLog);
 
       const result = await snapshot.execute({
@@ -262,21 +288,40 @@ describe('Snapshot Command', () => {
     });
 
     it('should handle log fetch errors gracefully', async () => {
-      const mockBuild = {
-        id: 'build-123',
-        number: 42,
-        state: 'failed',
-        jobs: [
-          {
-            id: 'job-1',
-            type: 'script',
-            name: 'Build',
-            state: 'failed', // Failed job so it gets fetched with default --failed behavior
+      const mockBuildData = {
+        build: {
+          id: 'build-123',
+          number: 42,
+          state: 'FAILED',
+          message: 'Test build',
+          branch: 'main',
+          commit: 'abc123',
+          createdAt: new Date().toISOString(),
+          startedAt: new Date().toISOString(),
+          finishedAt: new Date().toISOString(),
+          createdBy: { name: 'Test User', email: 'test@example.com' },
+          jobs: {
+            edges: [
+              {
+                node: {
+                  __typename: 'JobTypeCommand',
+                  id: 'job-1',
+                  uuid: 'job-uuid-1',
+                  label: 'Build',
+                  state: 'FAILED',
+                  exitStatus: '1',
+                  passed: false,
+                  softFailed: false,
+                  startedAt: new Date().toISOString(),
+                  finishedAt: new Date().toISOString(),
+                },
+              },
+            ],
           },
-        ],
+        },
       };
 
-      vi.spyOn(snapshot['restClient'], 'getBuild').mockResolvedValue(mockBuild);
+      vi.spyOn(snapshot['client'], 'getBuildSummaryWithAllJobs').mockResolvedValue(mockBuildData);
       vi.spyOn(snapshot['restClient'], 'getJobLog').mockRejectedValue(
         new Error('API request failed with status 404: Log not found')
       );
@@ -301,23 +346,42 @@ describe('Snapshot Command', () => {
     });
 
     it('should output JSON when --json flag is set', async () => {
-      const mockBuild = {
-        id: 'build-123',
-        number: 42,
-        state: 'passed',
-        jobs: [
-          {
-            id: 'job-1',
-            type: 'script',
-            name: 'Build',
-            state: 'passed',
+      const mockBuildData = {
+        build: {
+          id: 'build-123',
+          number: 42,
+          state: 'PASSED',
+          message: 'Test build',
+          branch: 'main',
+          commit: 'abc123',
+          createdAt: new Date().toISOString(),
+          startedAt: new Date().toISOString(),
+          finishedAt: new Date().toISOString(),
+          createdBy: { name: 'Test User', email: 'test@example.com' },
+          jobs: {
+            edges: [
+              {
+                node: {
+                  __typename: 'JobTypeCommand',
+                  id: 'job-1',
+                  uuid: 'job-uuid-1',
+                  label: 'Build',
+                  state: 'PASSED',
+                  exitStatus: '0',
+                  passed: true,
+                  softFailed: false,
+                  startedAt: new Date().toISOString(),
+                  finishedAt: new Date().toISOString(),
+                },
+              },
+            ],
           },
-        ],
+        },
       };
 
       const mockLog = { content: 'Build output', size: 12 };
 
-      vi.spyOn(snapshot['restClient'], 'getBuild').mockResolvedValue(mockBuild);
+      vi.spyOn(snapshot['client'], 'getBuildSummaryWithAllJobs').mockResolvedValue(mockBuildData);
       vi.spyOn(snapshot['restClient'], 'getJobLog').mockResolvedValue(mockLog);
 
       // Capture console output
@@ -342,21 +406,32 @@ describe('Snapshot Command', () => {
     });
 
     it('should parse URL format build refs correctly', async () => {
-      const mockBuild = {
-        id: 'build-123',
-        number: 99,
-        state: 'passed',
-        jobs: [],
+      const mockBuildData = {
+        build: {
+          id: 'build-123',
+          number: 99,
+          state: 'PASSED',
+          message: 'Test build',
+          branch: 'main',
+          commit: 'abc123',
+          createdAt: new Date().toISOString(),
+          startedAt: new Date().toISOString(),
+          finishedAt: new Date().toISOString(),
+          createdBy: { name: 'Test User', email: 'test@example.com' },
+          jobs: { edges: [] },
+        },
       };
 
-      const getBuildSpy = vi.spyOn(snapshot['restClient'], 'getBuild').mockResolvedValue(mockBuild);
+      const getBuildSpy = vi.spyOn(snapshot['client'], 'getBuildSummaryWithAllJobs').mockResolvedValue(mockBuildData);
 
       await snapshot.execute({
         buildRef: 'https://buildkite.com/acme/pipeline/builds/99',
         outputDir: tempDir,
       });
 
-      expect(getBuildSpy).toHaveBeenCalledWith('acme', 'pipeline', 99);
+      expect(getBuildSpy).toHaveBeenCalledWith('acme/pipeline/99', expect.objectContaining({
+        fetchAllJobs: true,
+      }));
 
       // Verify output directory uses parsed values
       const buildDir = path.join(tempDir, 'acme', 'pipeline', '99');
