@@ -56,15 +56,21 @@ export class JsonFormatter extends BaseBuildDetailFormatter {
     // Add jobs if requested or failed
     if (options?.jobs || options?.failed || options?.full) {
       const jobs = build.jobs?.edges || [];
-      
+
       if (options?.failed) {
-        // Filter to only failed jobs
+        // Filter to only failed jobs (both hard and soft failures)
         output.jobs = jobs
-          .filter((j: any) => j.node.state === 'FAILED' || j.node.exitStatus !== 0)
+          .filter((j: any) => {
+            const exitCode = j.node.exitStatus !== null ? parseInt(j.node.exitStatus, 10) : null;
+            return j.node.state === 'FAILED' || (exitCode !== null && exitCode !== 0);
+          })
           .map((j: any) => this.formatJob(j.node));
       } else {
         output.jobs = jobs.map((j: any) => this.formatJob(j.node));
       }
+
+      // Add job statistics
+      output.job_stats = this.calculateJobStats(jobs.map((j: any) => j.node));
     }
     
     // Add annotations if requested
@@ -115,7 +121,7 @@ export class JsonFormatter extends BaseBuildDetailFormatter {
       state: job.state,
       exitStatus: job.exitStatus,
       passed: job.passed,
-      soft_failed: job.soft_failed,
+      soft_failed: job.softFailed,
       startedAt: job.startedAt,
       finishedAt: job.finishedAt
     };
@@ -138,7 +144,52 @@ export class JsonFormatter extends BaseBuildDetailFormatter {
     
     return formatted;
   }
-  
+
+  private calculateJobStats(jobs: any[]): any {
+    const stats = {
+      total: jobs.length,
+      passed: 0,
+      failed: 0,
+      soft_failed: 0,
+      running: 0,
+      blocked: 0,
+      skipped: 0
+    };
+
+    for (const job of jobs) {
+      const state = job.state?.toUpperCase();
+
+      if (job.exitStatus !== null && job.exitStatus !== undefined) {
+        const exitCode = parseInt(job.exitStatus, 10);
+        if (exitCode === 0) {
+          stats.passed++;
+        } else {
+          if (job.softFailed === true) {
+            stats.soft_failed++;
+          } else {
+            stats.failed++;
+          }
+        }
+      } else if (state === 'RUNNING') {
+        stats.running++;
+      } else if (state === 'BLOCKED') {
+        stats.blocked++;
+      } else if (state === 'SKIPPED' || state === 'BROKEN' || state === 'CANCELED') {
+        stats.skipped++;
+      } else if (state === 'PASSED' || job.passed === true) {
+        stats.passed++;
+      } else if (state === 'FAILED' || job.passed === false) {
+        if (job.softFailed === true) {
+          stats.soft_failed++;
+        } else {
+          stats.failed++;
+        }
+      }
+    }
+
+    return stats;
+  }
+
   formatError(action: string, error: any): string {
     return JSON.stringify({
       error: true,
