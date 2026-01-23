@@ -70,6 +70,11 @@ export const BUILD_STATUS_THEME = {
     symbol: '✖',
     ascii: '[FAIL]',
   },
+  SOFT_FAILED: {
+    color: SEMANTIC_COLORS.warning,
+    symbol: '▲',
+    ascii: '^',
+  },
   FAILING: {
     color: (s: string) => colorEnabled() ? chalk.rgb(255, 165, 0)(s) : s,
     symbol: '⚠',
@@ -365,6 +370,11 @@ export const STATE_ICONS = {
     emoji: '❌',
     utf8: '✗',     // U+2717 Ballot X
     ascii: '[FAIL]'
+  },
+  SOFT_FAILED: {
+    emoji: '⚠️',
+    utf8: '▲',     // U+25B2 Black up-pointing triangle
+    ascii: '^'
   },
   RUNNING: {
     emoji: '🔄',

@@ -315,9 +315,78 @@ describe('Build Detail Display Formatting', () => {
 
     it('should not identify BROKEN as failed', () => {
       const job = { state: 'BROKEN', passed: false };
-      
+
       // @ts-ignore - accessing private method for testing
       expect(formatter.isJobFailed(job)).toBe(false);
+    });
+  });
+
+  describe('soft failure classification', () => {
+    it('should classify job with exitStatus=1 and softFailed=true as soft failure', () => {
+      const jobs = [{
+        node: {
+          state: 'FINISHED',
+          exitStatus: '1',
+          passed: false,
+          softFailed: true
+        }
+      }];
+
+      // @ts-ignore - accessing private method for testing
+      const stats = formatter.getJobStats(jobs);
+
+      expect(stats.softFailed).toBe(1);
+      expect(stats.failed).toBe(0);
+    });
+
+    it('should classify job with exitStatus=1 and softFailed=false as hard failure', () => {
+      const jobs = [{
+        node: {
+          state: 'FINISHED',
+          exitStatus: '1',
+          passed: false,
+          softFailed: false
+        }
+      }];
+
+      // @ts-ignore - accessing private method for testing
+      const stats = formatter.getJobStats(jobs);
+
+      expect(stats.failed).toBe(1);
+      expect(stats.softFailed).toBe(0);
+    });
+
+    it('should treat null/undefined softFailed as hard failure', () => {
+      const jobs = [{
+        node: {
+          state: 'FINISHED',
+          exitStatus: '1',
+          passed: false,
+          softFailed: null
+        }
+      }];
+
+      // @ts-ignore - accessing private method for testing
+      const stats = formatter.getJobStats(jobs);
+
+      expect(stats.failed).toBe(1);
+      expect(stats.softFailed).toBe(0);
+    });
+
+    it('should count soft failures separately in mixed failure stats', () => {
+      const jobs = [
+        { node: { exitStatus: '0', passed: true, softFailed: false } },
+        { node: { exitStatus: '1', passed: false, softFailed: true } },
+        { node: { exitStatus: '1', passed: false, softFailed: false } }
+      ];
+
+      // @ts-ignore - accessing private method for testing
+      const stats = formatter.getJobStats(jobs);
+
+      expect(stats.passed).toBe(1);
+      expect(stats.softFailed).toBe(1);
+      expect(stats.failed).toBe(1);
+      expect(stats.total).toBe(3);
     });
   });
 });
