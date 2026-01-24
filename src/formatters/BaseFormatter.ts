@@ -8,6 +8,8 @@ export interface FormatterOptions {
   userName?: string;
   userEmail?: string;
   userId?: string;
+  // Tips control (false when --no-tips is used)
+  tips?: boolean;
 }
 
 export interface FormatFunction<T> {

@@ -95,7 +95,7 @@ export class PlainTextFormatter extends BaseFormatter {
     lines.push(SEMANTIC_COLORS.dim(`Found ${SEMANTIC_COLORS.count(builds.length.toString())} builds`));
     
     // Add contextual hints if searching multiple orgs
-    if (options?.organizationsCount && options.organizationsCount > 1 && !options.orgSpecified) {
+    if (options?.organizationsCount && options.organizationsCount > 1 && !options.orgSpecified && options?.tips !== false) {
       lines.push('');
       lines.push(SEMANTIC_COLORS.dim(`Searched across ${options.organizationsCount} organizations`));
       lines.push('');
