@@ -315,9 +315,116 @@ describe('Build Detail Display Formatting', () => {
 
     it('should not identify BROKEN as failed', () => {
       const job = { state: 'BROKEN', passed: false };
-      
+
       // @ts-ignore - accessing private method for testing
       expect(formatter.isJobFailed(job)).toBe(false);
+    });
+  });
+
+  describe('tips display', () => {
+    it('should include tips in output when tips option is not set', () => {
+      const buildData = {
+        build: {
+          state: 'PASSED',
+          number: 123,
+          message: 'Test build',
+          branch: 'main',
+          commit: 'abc123def456',
+          createdAt: '2024-01-01T10:00:00Z',
+          startedAt: '2024-01-01T10:01:00Z',
+          finishedAt: '2024-01-01T10:15:00Z',
+          url: 'https://buildkite.com/org/pipeline/builds/123',
+          createdBy: { name: 'Test User' },
+          jobs: {
+            edges: [
+              {
+                node: {
+                  label: 'Test Job',
+                  state: 'PASSED',
+                  exitStatus: '0',
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      const output = formatter.formatBuildDetail(buildData, {
+        /* tips option not specified - defaults to true */
+      });
+
+      expect(output).toContain('Tips:');
+      expect(output).toContain('--annotations');
+    });
+
+    it('should exclude tips when tips option is false', () => {
+      const buildData = {
+        build: {
+          state: 'PASSED',
+          number: 123,
+          message: 'Test build',
+          branch: 'main',
+          commit: 'abc123def456',
+          createdAt: '2024-01-01T10:00:00Z',
+          startedAt: '2024-01-01T10:01:00Z',
+          finishedAt: '2024-01-01T10:15:00Z',
+          url: 'https://buildkite.com/org/pipeline/builds/123',
+          createdBy: { name: 'Test User' },
+          jobs: {
+            edges: [
+              {
+                node: {
+                  label: 'Test Job',
+                  state: 'PASSED',
+                  exitStatus: '0',
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      const output = formatter.formatBuildDetail(buildData, {
+        tips: false,
+      });
+
+      expect(output).not.toContain('Tips:');
+      expect(output).not.toContain('--annotations');
+    });
+
+    it('should include tips when tips option is explicitly true', () => {
+      const buildData = {
+        build: {
+          state: 'PASSED',
+          number: 123,
+          message: 'Test build',
+          branch: 'main',
+          commit: 'abc123def456',
+          createdAt: '2024-01-01T10:00:00Z',
+          startedAt: '2024-01-01T10:01:00Z',
+          finishedAt: '2024-01-01T10:15:00Z',
+          url: 'https://buildkite.com/org/pipeline/builds/123',
+          createdBy: { name: 'Test User' },
+          jobs: {
+            edges: [
+              {
+                node: {
+                  label: 'Test Job',
+                  state: 'PASSED',
+                  exitStatus: '0',
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      const output = formatter.formatBuildDetail(buildData, {
+        tips: true,
+      });
+
+      expect(output).toContain('Tips:');
+      expect(output).toContain('--annotations');
     });
   });
 });
