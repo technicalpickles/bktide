@@ -28,7 +28,7 @@ export class ListOrganizations extends BaseCommand {
       const formatter = this.getFormatter(FormatterType.ORGANIZATION, options) as OrganizationFormatter;
       
       // Format and output the organizations
-      const output = formatter.formatOrganizations(organizations, { debug: options.debug });
+      const output = formatter.formatOrganizations(organizations, { debug: options.debug, tips: options.tips });
       logger.console(output);
       // Success is implicit - data display confirms retrieval
       
