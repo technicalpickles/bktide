@@ -20,6 +20,7 @@ interface StepResult {
   id: string;
   jobId: string;
   status: 'success' | 'failed';
+  job: any;  // Full job object from Buildkite API
   error?: string;
   message?: string;
   retryable?: boolean;
@@ -30,11 +31,54 @@ interface Manifest {
   buildRef: string;
   url: string;
   fetchedAt: string;
-  complete: boolean;
+  fetchComplete: boolean;  // Renamed from 'complete'
   build: {
-    status: string;
+    state: string;
+    number: number;
+    message: string;
+    branch: string;
+    commit: string;
   };
-  steps: StepResult[];
+  annotations?: {
+    fetchStatus: 'success' | 'none' | 'failed';
+    count: number;
+  };
+  steps: Array<{
+    // Our metadata
+    id: string;
+    fetchStatus: 'success' | 'failed';  // Renamed from 'status'
+
+    // Buildkite job metadata (flat)
+    jobId: string;
+    type: string;
+    name: string;
+    label: string;
+    state: string;
+    exit_status: number | null;
+    started_at: string | null;
+    finished_at: string | null;
+  }>;
+  fetchErrors?: Array<{
+    id: string;
+    jobId: string;
+    fetchStatus: 'failed';
+    error: string;
+    message: string;
+    retryable: boolean;
+  }>;
+}
+
+interface AnnotationResult {
+  fetchStatus: 'success' | 'none' | 'failed';
+  count: number;
+  error?: string;
+  message?: string;
+}
+
+interface AnnotationsFile {
+  fetchedAt: string;
+  count: number;
+  annotations: any[];  // Raw annotations from Buildkite API
 }
 
 type ErrorCategory = 'rate_limited' | 'not_found' | 'permission_denied' | 'network_error' | 'unknown';
