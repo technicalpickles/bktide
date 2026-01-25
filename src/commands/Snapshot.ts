@@ -513,6 +513,19 @@ export class Snapshot extends BaseCommand {
   }
 
   /**
+   * Get directory name of first failed step for concrete example in tips
+   */
+  private getFirstFailedStepDir(scriptJobs: any[]): string | null {
+    for (let i = 0; i < scriptJobs.length; i++) {
+      const job = scriptJobs[i];
+      if (this.isFailedJob(job)) {
+        return getStepDirName(i, job.name || job.label || 'step');
+      }
+    }
+    return null;
+  }
+
+  /**
    * Display build summary similar to `build` command
    */
   private displayBuildSummary(build: any, scriptJobs: any[]): void {
