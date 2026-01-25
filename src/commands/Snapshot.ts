@@ -526,6 +526,64 @@ export class Snapshot extends BaseCommand {
   }
 
   /**
+   * Display contextual navigation tips based on build state
+   */
+  private displayNavigationTips(
+    outputDir: string,
+    build: any,
+    scriptJobs: any[],
+    capturedCount: number,
+    annotationResult: AnnotationResult
+  ): void {
+    const buildState = build.state?.toLowerCase();
+    const isFailed = buildState === 'failed' || buildState === 'failing';
+
+    // Relative path for commands
+    const relPath = path.relative(process.cwd(), outputDir);
+    const manifestPath = path.join(relPath, 'manifest.json');
+    const stepsPath = path.join(relPath, 'steps');
+    const annotationsPath = path.join(relPath, 'annotations.json');
+
+    logger.console(`  manifest.json has full build metadata and step index`);
+    logger.console('');
+
+    const tips: string[] = [];
+
+    if (isFailed) {
+      // Tips for failed builds
+      tips.push(`List failures:   jq -r '.steps[] | select(.state == "failed") | "\\(.id): \\(.label)"' ${manifestPath}`);
+
+      // Add annotation tip if annotations exist
+      if (annotationResult.count > 0) {
+        tips.push(`View annotations: jq -r '.annotations[] | {context, style}' ${annotationsPath}`);
+      }
+
+      tips.push(`Get exit codes:  jq -r '.steps[] | "\\(.id): exit \\(.exit_status)"' ${manifestPath}`);
+
+      // If we captured steps, show how to view first failed log
+      if (capturedCount > 0) {
+        const firstFailedDir = this.getFirstFailedStepDir(scriptJobs);
+        if (firstFailedDir) {
+          tips.push(`View a log:      cat ${path.join(stepsPath, firstFailedDir, 'log.txt')}`);
+        }
+      }
+
+      tips.push(`Search errors:   grep -r "Error\\|Failed\\|Exception" ${stepsPath}/`);
+    } else {
+      // Tips for passed builds
+      tips.push(`List all steps:  jq -r '.steps[] | "\\(.id): \\(.label) (\\(.state))"' ${manifestPath}`);
+      tips.push(`Browse logs:     ls ${stepsPath}/`);
+
+      if (capturedCount > 0) {
+        tips.push(`View a log:      cat ${stepsPath}/01-*/log.txt`);
+      }
+    }
+
+    // Use ACTIONS style for "Next steps:" formatting
+    this.reporter.tips(tips, TipStyle.ACTIONS);
+  }
+
+  /**
    * Display build summary similar to `build` command
    */
   private displayBuildSummary(build: any, scriptJobs: any[]): void {
