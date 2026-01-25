@@ -401,21 +401,59 @@ export class Snapshot extends BaseCommand {
     pipeline: string,
     buildNumber: number,
     build: any,
-    stepResults: StepResult[]
+    stepResults: StepResult[],
+    annotationResult: AnnotationResult
   ): Manifest {
-    const allSuccess = stepResults.every(s => s.status === 'success');
+    const allFetchesSucceeded = stepResults.every(s => s.status === 'success');
+    const fetchErrors = stepResults.filter(s => s.status === 'failed');
 
-    return {
-      version: 1,
+    const manifest: Manifest = {
+      version: 2,
       buildRef: `${org}/${pipeline}/${buildNumber}`,
       url: `https://buildkite.com/${org}/${pipeline}/builds/${buildNumber}`,
       fetchedAt: new Date().toISOString(),
-      complete: allSuccess,
+      fetchComplete: allFetchesSucceeded && annotationResult.fetchStatus !== 'failed',
       build: {
-        status: build.state || 'unknown',
+        state: build.state || 'unknown',
+        number: build.number,
+        message: build.message?.split('\n')[0] || '',
+        branch: build.branch || 'unknown',
+        commit: build.commit?.substring(0, 7) || 'unknown',
       },
-      steps: stepResults,
+      annotations: {
+        fetchStatus: annotationResult.fetchStatus,
+        count: annotationResult.count,
+      },
+      steps: stepResults.map(result => ({
+        // Our metadata
+        id: result.id,
+        fetchStatus: result.status,
+
+        // Buildkite job metadata (flat structure)
+        jobId: result.jobId,
+        type: result.job.type || 'script',
+        name: result.job.name || '',
+        label: result.job.label || '',
+        state: result.job.state || 'unknown',
+        exit_status: result.job.exit_status ?? null,
+        started_at: result.job.started_at || null,
+        finished_at: result.job.finished_at || null,
+      })),
     };
+
+    // Only include fetchErrors if any exist
+    if (fetchErrors.length > 0) {
+      manifest.fetchErrors = fetchErrors.map(err => ({
+        id: err.id,
+        jobId: err.jobId,
+        fetchStatus: 'failed' as const,
+        error: err.error!,
+        message: err.message!,
+        retryable: err.retryable!,
+      }));
+    }
+
+    return manifest;
   }
 
   private async saveManifest(outputDir: string, manifest: Manifest): Promise<void> {
