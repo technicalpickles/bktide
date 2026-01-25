@@ -348,6 +348,63 @@ To fix this:
   3. Try your command again
 ```
 
+## Snapshot: Offline Build Analysis
+
+When you need to do deep debugging or feed build data into other tools, use `snapshot` to download complete build data locally.
+
+### Capture a Build Snapshot
+
+```bash
+# Capture failed steps from a build
+bktide snapshot https://buildkite.com/org/pipeline/builds/123
+bktide snapshot org/pipeline/123
+
+# Capture all steps (not just failures)
+bktide snapshot org/pipeline/123 --all
+
+# Custom output location
+bktide snapshot org/pipeline/123 --output-dir ./investigation
+```
+
+### What Gets Captured
+
+Snapshots are saved to `~/.bktide/snapshots/org/pipeline/build/` with:
+
+- **manifest.json** - Build metadata and step index for quick filtering
+- **build.json** - Complete build data from Buildkite API
+- **annotations.json** - Test failures, warnings, and structured information from annotations
+- **steps/NN-name/log.txt** - Full logs for each step
+- **steps/NN-name/step.json** - Step metadata (state, exit code, timing)
+
+### Common Use Cases
+
+**Find what failed:**
+```bash
+cd ~/.bktide/snapshots/org/pipeline/123
+jq -r '.steps[] | select(.state == "failed") | "\(.id): \(.label)"' manifest.json
+```
+
+**View test failure summaries:**
+```bash
+jq -r '.annotations[] | select(.style == "error") | "\(.context): \(.body_html)"' annotations.json
+```
+
+**Search logs for errors:**
+```bash
+grep -r "Error\|Exception" steps/
+```
+
+**Feed to AI agents:**
+```bash
+bktide snapshot org/pipeline/123
+claude "analyze failures in ~/.bktide/snapshots/org/pipeline/123"
+```
+
+**Share with teammates:**
+```bash
+tar -czf build-123-investigation.tar.gz ~/.bktide/snapshots/org/pipeline/123
+```
+
 ## Global Options
 
 These flags work with all commands:
