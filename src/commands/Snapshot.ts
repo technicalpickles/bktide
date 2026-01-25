@@ -2,7 +2,8 @@ import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { logger } from '../services/logger.js';
 import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { Progress } from '../ui/progress.js';
-import { getStateIcon, SEMANTIC_COLORS, BUILD_STATUS_THEME } from '../ui/theme.js';
+import { getStateIcon, SEMANTIC_COLORS, BUILD_STATUS_THEME, TipStyle } from '../ui/theme.js';
+import { Reporter } from '../ui/reporter.js';
 import { formatDistanceToNow } from 'date-fns';
 import fs from 'fs/promises';
 import path from 'path';
@@ -20,6 +21,7 @@ interface StepResult {
   id: string;
   jobId: string;
   status: 'success' | 'failed';
+  job: any;  // Full job object from Buildkite API
   error?: string;
   message?: string;
   retryable?: boolean;
@@ -30,11 +32,54 @@ interface Manifest {
   buildRef: string;
   url: string;
   fetchedAt: string;
-  complete: boolean;
+  fetchComplete: boolean;  // Renamed from 'complete'
   build: {
-    status: string;
+    state: string;
+    number: number;
+    message: string;
+    branch: string;
+    commit: string;
   };
-  steps: StepResult[];
+  annotations?: {
+    fetchStatus: 'success' | 'none' | 'failed';
+    count: number;
+  };
+  steps: Array<{
+    // Our metadata
+    id: string;
+    fetchStatus: 'success' | 'failed';  // Renamed from 'status'
+
+    // Buildkite job metadata (flat)
+    jobId: string;
+    type: string;
+    name: string;
+    label: string;
+    state: string;
+    exit_status: number | null;
+    started_at: string | null;
+    finished_at: string | null;
+  }>;
+  fetchErrors?: Array<{
+    id: string;
+    jobId: string;
+    fetchStatus: 'failed';
+    error: string;
+    message: string;
+    retryable: boolean;
+  }>;
+}
+
+interface AnnotationResult {
+  fetchStatus: 'success' | 'none' | 'failed';
+  count: number;
+  error?: string;
+  message?: string;
+}
+
+interface AnnotationsFile {
+  fetchedAt: string;
+  count: number;
+  annotations: any[];  // Raw annotations from Buildkite API
 }
 
 type ErrorCategory = 'rate_limited' | 'not_found' | 'permission_denied' | 'network_error' | 'unknown';
@@ -103,6 +148,12 @@ export function getStepDirName(index: number, label: string): string {
 
 export class Snapshot extends BaseCommand {
   static requiresToken = true;
+  private reporter: Reporter;
+
+  constructor(options?: Partial<SnapshotOptions>) {
+    super(options);
+    this.reporter = new Reporter(options?.format || 'plain', options?.quiet, options?.tips);
+  }
 
   async execute(options: SnapshotOptions): Promise<number> {
     if (options.debug) {
@@ -154,7 +205,17 @@ export class Snapshot extends BaseCommand {
       spinner.update('Saving build data…');
       await this.saveBuildJson(outputDir, build);
 
-      // 6. Filter and fetch jobs
+      // 6. Fetch and save annotations
+      spinner.update('Fetching annotations…');
+      const annotationResult = await this.fetchAndSaveAnnotations(
+        outputDir,
+        buildRef.org,
+        buildRef.pipeline,
+        buildRef.number,
+        options.debug
+      );
+
+      // 7. Filter and fetch jobs
       // Filter to script jobs only (JobTypeCommand)
       const scriptJobs = jobs
         .map((edge: any) => edge.node)
@@ -206,11 +267,18 @@ export class Snapshot extends BaseCommand {
         progressBar.complete(`Fetched ${totalJobs} step${totalJobs > 1 ? 's' : ''}`);
       }
 
-      // 7. Write manifest
-      const manifest = this.buildManifest(buildRef.org, buildRef.pipeline, buildRef.number, build, stepResults);
+      // 8. Write manifest
+      const manifest = this.buildManifest(
+        buildRef.org,
+        buildRef.pipeline,
+        buildRef.number,
+        build,
+        stepResults,
+        annotationResult  // Add annotation result
+      );
       await this.saveManifest(outputDir, manifest);
 
-      // 8. Output based on options
+      // 9. Output based on options
       if (options.json) {
         logger.console(JSON.stringify(manifest, null, 2));
       } else {
@@ -230,6 +298,16 @@ export class Snapshot extends BaseCommand {
           logger.console(`  No steps to capture (build metadata saved)`);
         }
 
+        if (annotationResult.count > 0) {
+          logger.console(`  ${annotationResult.count} annotation(s) captured`);
+        } else if (annotationResult.fetchStatus === 'none') {
+          if (options.debug) {
+            logger.console(`  No annotations present`);
+          }
+        } else if (annotationResult.fetchStatus === 'failed') {
+          logger.console(`  Warning: Failed to fetch annotations`);
+        }
+
         if (fetchErrorCount > 0) {
           logger.console(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`);
         }
@@ -239,9 +317,16 @@ export class Snapshot extends BaseCommand {
           const skippedCount = scriptJobs.length - jobsToFetch.length;
           logger.console(`  Tip: ${skippedCount} passing step(s) skipped. Use --all to capture all logs.`);
         }
+
+        logger.console('');
+
+        // Show contextual navigation tips (check if tips are enabled)
+        if (this.options.tips !== false) {
+          this.displayNavigationTips(outputDir, build, scriptJobs, stepResults.length, annotationResult);
+        }
       }
 
-      return manifest.complete ? 0 : 1;
+      return manifest.fetchComplete ? 0 : 1;
     } catch (error) {
       spinner.stop();
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -297,6 +382,7 @@ export class Snapshot extends BaseCommand {
         id: stepDirName,
         jobId: job.id,
         status: 'success',
+        job: job,  // Add full job object
       };
     } catch (error) {
       if (debug) {
@@ -308,9 +394,55 @@ export class Snapshot extends BaseCommand {
         id: stepDirName,
         jobId: job.id,
         status: 'failed',
+        job: job,  // Add full job object
         error: errorInfo.error,
         message: errorInfo.message,
         retryable: errorInfo.retryable,
+      };
+    }
+  }
+
+  private async fetchAndSaveAnnotations(
+    outputDir: string,
+    org: string,
+    pipeline: string,
+    buildNumber: number,
+    debug?: boolean
+  ): Promise<AnnotationResult> {
+    try {
+      const annotations = await this.restClient.getBuildAnnotations(org, pipeline, buildNumber);
+
+      if (debug) {
+        logger.debug(`Fetched ${annotations.length} annotation(s)`);
+      }
+
+      // Save annotations.json
+      const annotationsFile: AnnotationsFile = {
+        fetchedAt: new Date().toISOString(),
+        count: annotations.length,
+        annotations: annotations,
+      };
+
+      const annotationsPath = path.join(outputDir, 'annotations.json');
+      await fs.writeFile(annotationsPath, JSON.stringify(annotationsFile, null, 2), 'utf-8');
+
+      // Return result
+      if (annotations.length === 0) {
+        return { fetchStatus: 'none', count: 0 };
+      }
+
+      return { fetchStatus: 'success', count: annotations.length };
+    } catch (error) {
+      if (debug) {
+        logger.debug(`Failed to fetch annotations:`, error);
+      }
+
+      const errorInfo = categorizeError(error instanceof Error ? error : new Error(String(error)));
+      return {
+        fetchStatus: 'failed',
+        count: 0,
+        error: errorInfo.error,
+        message: errorInfo.message,
       };
     }
   }
@@ -320,21 +452,59 @@ export class Snapshot extends BaseCommand {
     pipeline: string,
     buildNumber: number,
     build: any,
-    stepResults: StepResult[]
+    stepResults: StepResult[],
+    annotationResult: AnnotationResult
   ): Manifest {
-    const allSuccess = stepResults.every(s => s.status === 'success');
+    const allFetchesSucceeded = stepResults.every(s => s.status === 'success');
+    const fetchErrors = stepResults.filter(s => s.status === 'failed');
 
-    return {
-      version: 1,
+    const manifest: Manifest = {
+      version: 2,
       buildRef: `${org}/${pipeline}/${buildNumber}`,
       url: `https://buildkite.com/${org}/${pipeline}/builds/${buildNumber}`,
       fetchedAt: new Date().toISOString(),
-      complete: allSuccess,
+      fetchComplete: allFetchesSucceeded && annotationResult.fetchStatus !== 'failed',
       build: {
-        status: build.state || 'unknown',
+        state: build.state || 'unknown',
+        number: build.number,
+        message: build.message?.split('\n')[0] || '',
+        branch: build.branch || 'unknown',
+        commit: build.commit?.substring(0, 7) || 'unknown',
       },
-      steps: stepResults,
+      annotations: {
+        fetchStatus: annotationResult.fetchStatus,
+        count: annotationResult.count,
+      },
+      steps: stepResults.map(result => ({
+        // Our metadata
+        id: result.id,
+        fetchStatus: result.status,
+
+        // Buildkite job metadata (flat structure)
+        jobId: result.jobId,
+        type: result.job.type || 'script',
+        name: result.job.name || '',
+        label: result.job.label || '',
+        state: result.job.state || 'unknown',
+        exit_status: result.job.exit_status ?? null,
+        started_at: result.job.started_at || null,
+        finished_at: result.job.finished_at || null,
+      })),
     };
+
+    // Only include fetchErrors if any exist
+    if (fetchErrors.length > 0) {
+      manifest.fetchErrors = fetchErrors.map(err => ({
+        id: err.id,
+        jobId: err.jobId,
+        fetchStatus: 'failed' as const,
+        error: err.error!,
+        message: err.message!,
+        retryable: err.retryable!,
+      }));
+    }
+
+    return manifest;
   }
 
   private async saveManifest(outputDir: string, manifest: Manifest): Promise<void> {
@@ -366,6 +536,77 @@ export class Snapshot extends BaseCommand {
     }
 
     return false;
+  }
+
+  /**
+   * Get directory name of first failed step for concrete example in tips
+   */
+  private getFirstFailedStepDir(scriptJobs: any[]): string | null {
+    for (let i = 0; i < scriptJobs.length; i++) {
+      const job = scriptJobs[i];
+      if (this.isFailedJob(job)) {
+        return getStepDirName(i, job.name || job.label || 'step');
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Display contextual navigation tips based on build state
+   */
+  private displayNavigationTips(
+    outputDir: string,
+    build: any,
+    scriptJobs: any[],
+    capturedCount: number,
+    annotationResult: AnnotationResult
+  ): void {
+    const buildState = build.state?.toLowerCase();
+    const isFailed = buildState === 'failed' || buildState === 'failing';
+
+    // Relative path for commands
+    const relPath = path.relative(process.cwd(), outputDir);
+    const manifestPath = path.join(relPath, 'manifest.json');
+    const stepsPath = path.join(relPath, 'steps');
+    const annotationsPath = path.join(relPath, 'annotations.json');
+
+    logger.console(`  manifest.json has full build metadata and step index`);
+    logger.console('');
+
+    const tips: string[] = [];
+
+    if (isFailed) {
+      // Tips for failed builds
+      tips.push(`List failures:   jq -r '.steps[] | select(.state == "failed") | "\\(.id): \\(.label)"' ${manifestPath}`);
+
+      // Add annotation tip if annotations exist
+      if (annotationResult.count > 0) {
+        tips.push(`View annotations: jq -r '.annotations[] | {context, style}' ${annotationsPath}`);
+      }
+
+      tips.push(`Get exit codes:  jq -r '.steps[] | "\\(.id): exit \\(.exit_status)"' ${manifestPath}`);
+
+      // If we captured steps, show how to view first failed log
+      if (capturedCount > 0) {
+        const firstFailedDir = this.getFirstFailedStepDir(scriptJobs);
+        if (firstFailedDir) {
+          tips.push(`View a log:      cat ${path.join(stepsPath, firstFailedDir, 'log.txt')}`);
+        }
+      }
+
+      tips.push(`Search errors:   grep -r "Error\\|Failed\\|Exception" ${stepsPath}/`);
+    } else {
+      // Tips for passed builds
+      tips.push(`List all steps:  jq -r '.steps[] | "\\(.id): \\(.label) (\\(.state))"' ${manifestPath}`);
+      tips.push(`Browse logs:     ls ${stepsPath}/`);
+
+      if (capturedCount > 0) {
+        tips.push(`View a log:      cat ${stepsPath}/01-*/log.txt`);
+      }
+    }
+
+    // Use ACTIONS style for "Next steps:" formatting
+    this.reporter.tips(tips, TipStyle.ACTIONS);
   }
 
   /**
