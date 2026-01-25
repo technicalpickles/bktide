@@ -205,7 +205,7 @@ export class PlainTextFormatter extends AbstractFormatter implements PipelineFor
     }
     
     // Display hints if any
-    if (hints.length > 0) {
+    if (hints.length > 0 && options?.tips !== false) {
       output.push('');
       output.push(formatTips(hints, TipStyle.GROUPED));
     }

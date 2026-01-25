@@ -315,9 +315,185 @@ describe('Build Detail Display Formatting', () => {
 
     it('should not identify BROKEN as failed', () => {
       const job = { state: 'BROKEN', passed: false };
-      
+
       // @ts-ignore - accessing private method for testing
       expect(formatter.isJobFailed(job)).toBe(false);
+    });
+  });
+
+  describe('tips display', () => {
+    it('should include tips in output when tips option is not set', () => {
+      const buildData = {
+        build: {
+          state: 'PASSED',
+          number: 123,
+          message: 'Test build',
+          branch: 'main',
+          commit: 'abc123def456',
+          createdAt: '2024-01-01T10:00:00Z',
+          startedAt: '2024-01-01T10:01:00Z',
+          finishedAt: '2024-01-01T10:15:00Z',
+          url: 'https://buildkite.com/org/pipeline/builds/123',
+          createdBy: { name: 'Test User' },
+          jobs: {
+            edges: [
+              {
+                node: {
+                  label: 'Test Job',
+                  state: 'PASSED',
+                  exitStatus: '0',
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      const output = formatter.formatBuildDetail(buildData, {
+        /* tips option not specified - defaults to true */
+      });
+
+      expect(output).toContain('Tips:');
+      expect(output).toContain('--annotations');
+    });
+
+    it('should exclude tips when tips option is false', () => {
+      const buildData = {
+        build: {
+          state: 'PASSED',
+          number: 123,
+          message: 'Test build',
+          branch: 'main',
+          commit: 'abc123def456',
+          createdAt: '2024-01-01T10:00:00Z',
+          startedAt: '2024-01-01T10:01:00Z',
+          finishedAt: '2024-01-01T10:15:00Z',
+          url: 'https://buildkite.com/org/pipeline/builds/123',
+          createdBy: { name: 'Test User' },
+          jobs: {
+            edges: [
+              {
+                node: {
+                  label: 'Test Job',
+                  state: 'PASSED',
+                  exitStatus: '0',
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      const output = formatter.formatBuildDetail(buildData, {
+        tips: false,
+      });
+
+      expect(output).not.toContain('Tips:');
+      expect(output).not.toContain('--annotations');
+    });
+
+    it('should include tips when tips option is explicitly true', () => {
+      const buildData = {
+        build: {
+          state: 'PASSED',
+          number: 123,
+          message: 'Test build',
+          branch: 'main',
+          commit: 'abc123def456',
+          createdAt: '2024-01-01T10:00:00Z',
+          startedAt: '2024-01-01T10:01:00Z',
+          finishedAt: '2024-01-01T10:15:00Z',
+          url: 'https://buildkite.com/org/pipeline/builds/123',
+          createdBy: { name: 'Test User' },
+          jobs: {
+            edges: [
+              {
+                node: {
+                  label: 'Test Job',
+                  state: 'PASSED',
+                  exitStatus: '0',
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      const output = formatter.formatBuildDetail(buildData, {
+        tips: true,
+      });
+
+      expect(output).toContain('Tips:');
+      expect(output).toContain('--annotations');
+    });
+  });
+
+  describe('soft failure classification', () => {
+    it('should classify job with exitStatus=1 and softFailed=true as soft failure', () => {
+      const jobs = [{
+        node: {
+          state: 'FINISHED',
+          exitStatus: '1',
+          passed: false,
+          softFailed: true
+        }
+      }];
+
+      // @ts-ignore - accessing private method for testing
+      const stats = formatter.getJobStats(jobs);
+
+      expect(stats.softFailed).toBe(1);
+      expect(stats.failed).toBe(0);
+    });
+
+    it('should classify job with exitStatus=1 and softFailed=false as hard failure', () => {
+      const jobs = [{
+        node: {
+          state: 'FINISHED',
+          exitStatus: '1',
+          passed: false,
+          softFailed: false
+        }
+      }];
+
+      // @ts-ignore - accessing private method for testing
+      const stats = formatter.getJobStats(jobs);
+
+      expect(stats.failed).toBe(1);
+      expect(stats.softFailed).toBe(0);
+    });
+
+    it('should treat null/undefined softFailed as hard failure', () => {
+      const jobs = [{
+        node: {
+          state: 'FINISHED',
+          exitStatus: '1',
+          passed: false,
+          softFailed: null
+        }
+      }];
+
+      // @ts-ignore - accessing private method for testing
+      const stats = formatter.getJobStats(jobs);
+
+      expect(stats.failed).toBe(1);
+      expect(stats.softFailed).toBe(0);
+    });
+
+    it('should count soft failures separately in mixed failure stats', () => {
+      const jobs = [
+        { node: { exitStatus: '0', passed: true, softFailed: false } },
+        { node: { exitStatus: '1', passed: false, softFailed: true } },
+        { node: { exitStatus: '1', passed: false, softFailed: false } }
+      ];
+
+      // @ts-ignore - accessing private method for testing
+      const stats = formatter.getJobStats(jobs);
+
+      expect(stats.passed).toBe(1);
+      expect(stats.softFailed).toBe(1);
+      expect(stats.failed).toBe(1);
+      expect(stats.total).toBe(3);
     });
   });
 });

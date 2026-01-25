@@ -50,13 +50,15 @@ export class PlainPipelineDetailFormatter extends PipelineDetailFormatter {
 
       const table = renderTable(tableRows, { preserveWidths: true });
       lines.push(table);
-      // Add tips
-      lines.push('');
-      const tips = formatTips([
-        `View a build: bktide ${org}/${pipeline.slug}/<number>`,
-        'Use --format json for machine-readable output',
-      ], TipStyle.GROUPED);
-      lines.push(tips);
+      // Add tips (unless --no-tips was used)
+      if (this.options.tips !== false) {
+        lines.push('');
+        const tips = formatTips([
+          `View a build: bktide ${org}/${pipeline.slug}/<number>`,
+          'Use --format json for machine-readable output',
+        ], TipStyle.GROUPED);
+        lines.push(tips);
+      }
     } else {
       lines.push(SEMANTIC_COLORS.dim('No recent builds found'));
     }

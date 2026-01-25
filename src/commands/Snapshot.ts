@@ -183,9 +183,19 @@ export class Snapshot extends BaseCommand {
         logger.debug('Output directory:', outputDir);
       }
 
-      // 3. Fetch build data
+      // 3. Fetch build data via GraphQL
       spinner.update('Fetching build metadata…');
-      const build = await this.restClient.getBuild(buildRef.org, buildRef.pipeline, buildRef.number);
+      const buildSlug = `${buildRef.org}/${buildRef.pipeline}/${buildRef.number}`;
+      const buildData = await this.client.getBuildSummaryWithAllJobs(buildSlug, {
+        fetchAllJobs: true,
+        onProgress: (fetched: number, total?: number) => {
+          const totalStr = total ? `/${total}` : '';
+          spinner.update(`Fetching jobs: ${fetched}${totalStr}…`);
+        }
+      });
+
+      const build = buildData.build;
+      const jobs = build.jobs?.edges || [];
 
       // 4. Create directory structure
       spinner.update('Creating directories…');
@@ -206,10 +216,10 @@ export class Snapshot extends BaseCommand {
       );
 
       // 7. Filter and fetch jobs
-      const allJobs = build.jobs || [];
-
-      // Filter to script jobs only
-      const scriptJobs = allJobs.filter((job: any) => job.type === 'script');
+      // Filter to script jobs only (JobTypeCommand)
+      const scriptJobs = jobs
+        .map((edge: any) => edge.node)
+        .filter((job: any) => job.__typename === 'JobTypeCommand' || !job.__typename);
 
       // Determine which jobs to fetch based on options
       // Default is --failed unless --all is specified
@@ -364,7 +374,7 @@ export class Snapshot extends BaseCommand {
 
     // Try to fetch and save log
     try {
-      const logData = await this.restClient.getJobLog(org, pipeline, buildNumber, job.id);
+      const logData = await this.restClient.getJobLog(org, pipeline, buildNumber, job.uuid);
       const logPath = path.join(stepDir, 'log.txt');
       await fs.writeFile(logPath, logData.content || '', 'utf-8');
 
@@ -507,15 +517,24 @@ export class Snapshot extends BaseCommand {
    * Failed states: failed, timed_out, or non-zero exit status
    */
   private isFailedJob(job: any): boolean {
-    const state = job.state?.toLowerCase();
+    const state = job.state?.toUpperCase();
+
     // Check state-based failure
-    if (state === 'failed' || state === 'timed_out') {
+    if (state === 'FAILED' || state === 'TIMED_OUT') {
       return true;
     }
-    // Check exit status (non-zero means failure)
-    if (typeof job.exit_status === 'number' && job.exit_status !== 0) {
+
+    // Check exit status (non-zero means failure, including soft failures)
+    if (job.exitStatus !== null && job.exitStatus !== undefined) {
+      const exitCode = parseInt(job.exitStatus, 10);
+      return exitCode !== 0;
+    }
+
+    // Check passed field
+    if (job.passed === false) {
       return true;
     }
+
     return false;
   }
 
@@ -598,8 +617,8 @@ export class Snapshot extends BaseCommand {
     const icon = getStateIcon(state);
     const theme = BUILD_STATUS_THEME[state.toUpperCase() as keyof typeof BUILD_STATUS_THEME];
     const coloredIcon = theme ? theme.color(icon) : icon;
-    const message = build.message?.split('\n')[0] || 'No message'; // First line only
-    const duration = formatDuration(build.started_at, build.finished_at);
+    const message = build.message?.split('\n')[0] || 'No message';
+    const duration = formatDuration(build.startedAt, build.finishedAt);
     const durationStr = duration ? ` ${SEMANTIC_COLORS.dim(duration)}` : '';
 
     // First line: status + message + build number + duration
@@ -607,41 +626,50 @@ export class Snapshot extends BaseCommand {
     logger.console(`${coloredIcon} ${coloredState} ${message} ${SEMANTIC_COLORS.dim(`#${build.number}`)}${durationStr}`);
 
     // Second line: author + branch + commit + time
-    const author = build.author?.name || build.author?.username || build.creator?.name || 'Unknown';
+    const author = build.createdBy?.name || build.createdBy?.email || 'Unknown';
     const branch = build.branch || 'unknown';
     const commit = build.commit?.substring(0, 7) || 'unknown';
-    const created = build.created_at ? formatDistanceToNow(new Date(build.created_at), { addSuffix: true }) : '';
+    const created = build.createdAt ? formatDistanceToNow(new Date(build.createdAt), { addSuffix: true }) : '';
     logger.console(`         ${author} • ${SEMANTIC_COLORS.identifier(branch)} • ${commit} • ${SEMANTIC_COLORS.dim(created)}`);
 
     // Job statistics
-    const passed = scriptJobs.filter(j => j.state === 'passed').length;
-    const failed = scriptJobs.filter(j => this.isFailedJob(j)).length;
-    const running = scriptJobs.filter(j => j.state === 'running').length;
-    const other = scriptJobs.length - passed - failed - running;
+    const passed = scriptJobs.filter(j => {
+      if (j.exitStatus !== null && j.exitStatus !== undefined) {
+        return parseInt(j.exitStatus, 10) === 0;
+      }
+      return j.state === 'PASSED' || j.passed === true;
+    }).length;
+
+    const hardFailed = scriptJobs.filter(j => {
+      if (j.exitStatus !== null && j.exitStatus !== undefined) {
+        const exitCode = parseInt(j.exitStatus, 10);
+        return exitCode !== 0 && j.softFailed !== true;
+      }
+      return (j.state === 'FAILED' || j.passed === false) && j.softFailed !== true;
+    }).length;
+
+    const softFailed = scriptJobs.filter(j => {
+      if (j.exitStatus !== null && j.exitStatus !== undefined) {
+        const exitCode = parseInt(j.exitStatus, 10);
+        return exitCode !== 0 && j.softFailed === true;
+      }
+      return (j.state === 'FAILED' || j.passed === false) && j.softFailed === true;
+    }).length;
+
+    const running = scriptJobs.filter(j => j.state === 'RUNNING').length;
+    const other = scriptJobs.length - passed - hardFailed - softFailed - running;
 
     let statsStr = `${scriptJobs.length} steps:`;
     const parts: string[] = [];
     if (passed > 0) parts.push(SEMANTIC_COLORS.success(`${passed} passed`));
-    if (failed > 0) parts.push(SEMANTIC_COLORS.error(`${failed} failed`));
+    if (hardFailed > 0) parts.push(SEMANTIC_COLORS.error(`${hardFailed} failed`));
+    if (softFailed > 0) parts.push(SEMANTIC_COLORS.warning(`▲ ${softFailed} soft failure${softFailed > 1 ? 's' : ''}`));
     if (running > 0) parts.push(SEMANTIC_COLORS.info(`${running} running`));
     if (other > 0) parts.push(SEMANTIC_COLORS.muted(`${other} other`));
     statsStr += ' ' + parts.join(', ');
 
     logger.console('');
     logger.console(statsStr);
-
-    // List failed jobs if any
-    if (failed > 0) {
-      const failedJobs = scriptJobs.filter(j => this.isFailedJob(j));
-      const failedIcon = getStateIcon('FAILED');
-      for (const job of failedJobs.slice(0, 10)) { // Show max 10
-        const label = job.name || job.label || 'Unknown step';
-        logger.console(`  ${SEMANTIC_COLORS.error(failedIcon)} ${label}`);
-      }
-      if (failedJobs.length > 10) {
-        logger.console(`  ${SEMANTIC_COLORS.muted(`... and ${failedJobs.length - 10} more`)}`);
-      }
-    }
 
     logger.console('');
   }

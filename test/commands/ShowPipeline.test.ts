@@ -298,5 +298,102 @@ describe('ShowPipeline Command', () => {
         'Pipeline reference is required'
       );
     });
+
+    it('should show tips by default', async () => {
+      setTestData({
+        organization: {
+          pipelines: {
+            edges: [
+              {
+                node: {
+                  uuid: 'pipeline-uuid',
+                  id: 'pipeline-id',
+                  name: 'Pipeline',
+                  slug: 'pipeline',
+                  url: 'https://buildkite.com/org/pipeline',
+                  builds: {
+                    edges: [
+                      {
+                        node: {
+                          number: 123,
+                          state: 'PASSED',
+                          commit: 'abc123',
+                          message: 'Test commit',
+                          url: 'https://buildkite.com/org/pipeline/builds/123',
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      const consoleCalls: string[] = [];
+      vi.spyOn(logger, 'console').mockImplementation((msg) => {
+        consoleCalls.push(msg);
+      });
+
+      await command.execute({
+        reference: 'org/pipeline',
+        token: 'test-token',
+        // No tips option - should show by default
+      });
+
+      const fullOutput = consoleCalls.join('\n');
+      expect(fullOutput).toContain('Tips:');
+      expect(fullOutput).toContain('View a build:');
+    });
+
+    it('should hide tips when --no-tips flag is used', async () => {
+      setTestData({
+        organization: {
+          pipelines: {
+            edges: [
+              {
+                node: {
+                  uuid: 'pipeline-uuid',
+                  id: 'pipeline-id',
+                  name: 'Pipeline',
+                  slug: 'pipeline',
+                  url: 'https://buildkite.com/org/pipeline',
+                  builds: {
+                    edges: [
+                      {
+                        node: {
+                          number: 123,
+                          state: 'PASSED',
+                          commit: 'abc123',
+                          message: 'Test commit',
+                          url: 'https://buildkite.com/org/pipeline/builds/123',
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      const consoleCalls: string[] = [];
+      vi.spyOn(logger, 'console').mockImplementation((msg) => {
+        consoleCalls.push(msg);
+      });
+
+      await command.execute({
+        reference: 'org/pipeline',
+        token: 'test-token',
+        tips: false, // --no-tips flag
+      });
+
+      const fullOutput = consoleCalls.join('\n');
+      expect(fullOutput).not.toContain('Tips:');
+      expect(fullOutput).not.toContain('Use --no-tips');
+      expect(fullOutput).not.toContain('View a build:');
+    });
   });
 });

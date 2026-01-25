@@ -140,6 +140,7 @@ export class ListBuilds extends BaseCommand {
       // Prepare formatter options
       const formatterOptions: BuildFormatterOptions = {
         debug: options.debug,
+        tips: options.tips,
         organizationsCount: orgs.length,
         orgSpecified: !!options.org,
         userName,

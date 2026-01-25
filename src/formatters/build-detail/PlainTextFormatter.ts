@@ -187,7 +187,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       }
       lines.push(this.formatJobSummary(build.jobs, build.state));
       
-      if (!options?.annotations) {
+      if (!options?.annotations && options?.tips !== false) {
         lines.push('');
         const tips = formatTips(
           ['Use --annotations to view annotation details'],
@@ -255,7 +255,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     }
     
     // Display all hints together
-    if (allHints.length > 0) {
+    if (allHints.length > 0 && options?.tips !== false) {
       lines.push('');
       lines.push(formatTips(allHints, TipStyle.GROUPED));
     }
@@ -530,28 +530,29 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     if (!jobs || jobs.length === 0) {
       return '';
     }
-    
+
     const lines: string[] = [];
     const jobStats = this.getJobStats(jobs);
-    
+
     // Build summary parts based on job states
     const countParts = [];
     if (jobStats.failed > 0) countParts.push(SEMANTIC_COLORS.error(`${jobStats.failed} failed`));
+    if (jobStats.softFailed > 0) countParts.push(SEMANTIC_COLORS.warning(`▲ ${jobStats.softFailed} soft failure${jobStats.softFailed > 1 ? 's' : ''}`));
     if (jobStats.passed > 0) countParts.push(SEMANTIC_COLORS.success(`${jobStats.passed} passed`));
     if (jobStats.running > 0) countParts.push(SEMANTIC_COLORS.info(`${jobStats.running} running`));
     if (jobStats.blocked > 0) countParts.push(SEMANTIC_COLORS.warning(`${jobStats.blocked} blocked`));
-    // Don't show skipped jobs
     if (jobStats.canceled > 0) countParts.push(SEMANTIC_COLORS.muted(`${jobStats.canceled} canceled`));
-    
+
     // Use appropriate icon based on build state
-    const icon = buildState === 'FAILED' ? getStateIcon('FAILED') : 
+    const icon = buildState === 'FAILED' ? getStateIcon('FAILED') :
                  buildState === 'RUNNING' ? getStateIcon('RUNNING') :
                  buildState === 'PASSED' ? getStateIcon('PASSED') :
                  buildState === 'BLOCKED' ? getStateIcon('BLOCKED') : '•';
+
     // Check if we have partial data
     const hasMorePages = jobsData?.pageInfo?.hasNextPage;
     const totalCount = jobsData?.count;
-    
+
     if (hasMorePages) {
       const showing = jobs.length;
       const total = totalCount || `${showing}+`;
@@ -561,23 +562,21 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     } else {
       lines.push(`${icon} ${SEMANTIC_COLORS.count(String(jobStats.total))} step${jobStats.total > 1 ? 's' : ''}: ${countParts.join(', ')}`);
     }
-    
-    // For failed builds, show the specific failed job names
-    if (buildState === 'FAILED') {
+
+    // Show failed jobs for FAILED builds
+    if (buildState === 'FAILED' && jobStats.failed > 0) {
       const failedJobs = this.getFailedJobs(jobs);
       const jobGroups = this.groupJobsByLabel(failedJobs);
-      
-      // Show up to 3 failed job types
+
       const displayGroups = jobGroups.slice(0, 3);
       for (const group of displayGroups) {
         const label = this.parseEmoji(group.label);
         const icon = getStateIcon('FAILED');
-        
-        // Get duration for display
-        const duration = group.count === 1 && group.jobs[0]?.node 
+
+        const duration = group.count === 1 && group.jobs[0]?.node
           ? ` ${SEMANTIC_COLORS.dim(`- ran ${this.formatJobDuration(group.jobs[0].node)}`)}`
           : '';
-        
+
         if (group.parallelTotal > 0) {
           lines.push(`   ${icon} ${label} ${SEMANTIC_COLORS.dim(`(${group.stateCounts.failed || 0}/${group.parallelTotal} failed)`)}`);
         } else if (group.count > 1) {
@@ -586,12 +585,41 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
           lines.push(`   ${icon} ${label}${duration}`);
         }
       }
-      
+
       if (jobGroups.length > 3) {
         lines.push(`   ${SEMANTIC_COLORS.muted(`...and ${jobGroups.length - 3} more`)}`);
       }
     }
-    
+
+    // Show soft failed jobs for PASSED builds OR when there are soft failures
+    if (jobStats.softFailed > 0) {
+      const softFailedJobs = this.getSoftFailedJobs(jobs);
+      const jobGroups = this.groupJobsByLabel(softFailedJobs);
+
+      lines.push('');
+      const displayGroups = jobGroups.slice(0, 5);
+      for (const group of displayGroups) {
+        const label = this.parseEmoji(group.label);
+        const icon = getStateIcon('SOFT_FAILED');
+
+        const duration = group.count === 1 && group.jobs[0]?.node
+          ? ` - ran ${this.formatJobDuration(group.jobs[0].node)}`
+          : '';
+
+        if (group.parallelTotal > 0) {
+          lines.push(`   ${icon} ${label} ${SEMANTIC_COLORS.dim(`(${group.stateCounts.failed || 0}/${group.parallelTotal} soft failed)`)}`);
+        } else if (group.count > 1) {
+          lines.push(`   ${icon} ${label} ${SEMANTIC_COLORS.dim(`(${group.stateCounts.failed || 0} soft failed)`)}`);
+        } else {
+          lines.push(`   ${icon} ${label}${duration}`);
+        }
+      }
+
+      if (jobGroups.length > 5) {
+        lines.push(`   ${SEMANTIC_COLORS.muted(`...and ${jobGroups.length - 5} more`)}`);
+      }
+    }
+
     return lines.join('\n');
   }
   
@@ -695,100 +723,92 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     if (!jobs || jobs.length === 0) {
       return 'No steps found';
     }
-    
+
     const lines: string[] = [];
     const jobStats = this.getJobStats(jobs);
-    
+
     // Summary line
     const parts = [];
     if (jobStats.passed > 0) parts.push(`${getStateIcon('PASSED')} ${jobStats.passed} passed`);
     if (jobStats.failed > 0) parts.push(`${getStateIcon('FAILED')} ${jobStats.failed} failed`);
+    if (jobStats.softFailed > 0) parts.push(`${getStateIcon('SOFT_FAILED')} ${jobStats.softFailed} soft failed`);
     if (jobStats.running > 0) parts.push(`${getStateIcon('RUNNING')} ${jobStats.running} running`);
     if (jobStats.blocked > 0) parts.push(`${getStateIcon('BLOCKED')} ${jobStats.blocked} blocked`);
-    // Don't show skipped jobs in summary
-    
+
     lines.push(`Steps: ${parts.join('  ')}`);
     lines.push('');
-    
+
     // Filter jobs based on options
     let filteredJobs = jobs;
     if (options?.failed) {
-      filteredJobs = this.getFailedJobs(jobs);
+      // Include both hard and soft failures
+      filteredJobs = [...this.getFailedJobs(jobs), ...this.getSoftFailedJobs(jobs)];
     }
-    
+
     // Group jobs by state first
     const grouped = this.groupJobsByState(filteredJobs);
-    
-    for (const [state, stateJobs] of Object.entries(grouped)) {
-      if (stateJobs.length === 0) continue;
-      
+
+    // Display order: Failed, Soft Failed, Passed, Running, Blocked
+    const stateOrder = ['Failed', 'Soft Failed', 'Passed', 'Running', 'Blocked'];
+
+    for (const state of stateOrder) {
+      const stateJobs = grouped[state];
+      if (!stateJobs || stateJobs.length === 0) continue;
+
       const icon = this.getJobStateIcon(state);
       const stateColored = this.colorizeJobState(state);
-      
+
       // Collapse parallel jobs with same label
       const collapsedGroups = this.collapseParallelJobs(stateJobs);
-      
+
       lines.push(`${icon} ${stateColored} (${SEMANTIC_COLORS.count(String(stateJobs.length))}):`);
-      
+
       for (const group of collapsedGroups) {
         if (group.isParallelGroup && group.jobs.length > 1) {
           // Collapsed parallel group display
           const label = this.parseEmoji(group.label);
           const total = group.parallelTotal || group.jobs.length;
           const passedCount = group.jobs.filter(j => this.isJobPassed(j.node)).length;
-          const failedCount = group.jobs.filter(j => this.isJobFailed(j.node)).length;
-          
+          const failedCount = group.jobs.filter(j => this.isJobFailed(j.node) || this.isJobSoftFailed(j.node)).length;
+
           // Show summary line for parallel group
           if (failedCount > 0) {
-            // If there are failures, show breakdown
-            // Apply state color to label
-            const coloredLabel = state === 'Failed' ? SEMANTIC_COLORS.error(label) : 
-                                state === 'Passed' ? SEMANTIC_COLORS.success(label) :
-                                state === 'Running' ? SEMANTIC_COLORS.info(label) :
-                                state === 'Blocked' ? SEMANTIC_COLORS.warning(label) : label;
+            const coloredLabel = this.colorizeJobLabel(state, label);
             lines.push(`  ${coloredLabel} ${SEMANTIC_COLORS.dim(`(${passedCount}/${total} passed, ${failedCount} failed)`)}`);
+
             // Show failed steps individually
-            const failedJobs = group.jobs.filter(j => this.isJobFailed(j.node));
+            const failedJobs = group.jobs.filter(j => this.isJobFailed(j.node) || this.isJobSoftFailed(j.node));
             for (const job of failedJobs) {
               const duration = this.formatJobDuration(job.node);
-              const parallelInfo = job.node.parallelGroupIndex !== undefined 
+              const parallelInfo = job.node.parallelGroupIndex !== undefined
                 ? ` ${SEMANTIC_COLORS.dim(`[Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}]`)}`
                 : '';
-              lines.push(`    ${SEMANTIC_COLORS.error('↳ Failed')}: ${SEMANTIC_COLORS.dim(duration)}${parallelInfo}`);
+              const failType = this.isJobSoftFailed(job.node) ? 'Soft Failed' : 'Failed';
+              const failColor = this.isJobSoftFailed(job.node) ? SEMANTIC_COLORS.warning : SEMANTIC_COLORS.error;
+              lines.push(`    ${failColor('↳ ' + failType)}: ${SEMANTIC_COLORS.dim(duration)}${parallelInfo}`);
             }
           } else {
             // All passed/running/blocked - just show summary
             const avgDuration = this.calculateAverageDuration(group.jobs);
-            // Apply state color to label
-            const coloredLabel = state === 'Passed' ? SEMANTIC_COLORS.success(label) : 
-                                state === 'Failed' ? SEMANTIC_COLORS.error(label) :
-                                state === 'Running' ? SEMANTIC_COLORS.info(label) :
-                                state === 'Blocked' ? SEMANTIC_COLORS.warning(label) : label;
+            const coloredLabel = this.colorizeJobLabel(state, label);
             lines.push(`  ${coloredLabel} ${SEMANTIC_COLORS.dim(`(${total} parallel steps, avg: ${avgDuration})`)}`);
           }
         } else {
-          // Single job or non-parallel group - display as before
+          // Single job or non-parallel group
           const job = group.jobs[0];
           const label = this.parseEmoji(job.node.label);
           const duration = this.formatJobDuration(job.node);
-          
-          // Apply state color to label
-          const coloredLabel = state === 'Passed' ? SEMANTIC_COLORS.success(label) : 
-                              state === 'Failed' ? SEMANTIC_COLORS.error(label) :
-                              state === 'Running' ? SEMANTIC_COLORS.info(label) :
-                              state === 'Blocked' ? SEMANTIC_COLORS.warning(label) : label;
-          
-          // Add parallel info inline if present
-          const parallelInfo = (job.node.parallelGroupIndex !== undefined && job.node.parallelGroupTotal) 
+
+          const coloredLabel = this.colorizeJobLabel(state, label);
+
+          const parallelInfo = (job.node.parallelGroupIndex !== undefined && job.node.parallelGroupTotal)
             ? ` ${SEMANTIC_COLORS.dim(`[Parallel: ${job.node.parallelGroupIndex + 1}/${job.node.parallelGroupTotal}]`)}`
             : '';
-          
-          // Basic step line with optional parallel info
+
           lines.push(`  ${coloredLabel} ${SEMANTIC_COLORS.dim(`(${duration})`)}${parallelInfo}`);
-          
+
           // Show additional details if --jobs or --full and single step
           if ((options?.jobs || options?.full) && !group.isParallelGroup) {
-            // Retry info
             if (job.node.retried) {
               lines.push(`    ${SEMANTIC_COLORS.warning(`${getProgressIcon('RETRY')} Retried`)}`);
             }
@@ -797,7 +817,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       }
       lines.push('');
     }
-    
+
     return lines.join('\n').trim();
   }
   
@@ -921,6 +941,8 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
     switch (state.toLowerCase()) {
       case 'failed':
         return SEMANTIC_COLORS.error(state);
+      case 'soft failed':
+        return SEMANTIC_COLORS.warning(state);
       case 'passed':
         return SEMANTIC_COLORS.success(state);
       case 'running':
@@ -940,6 +962,9 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   }
   
   private getJobStateIcon(state: string): string {
+    if (state === 'Soft Failed') {
+      return getStateIcon('SOFT_FAILED');
+    }
     return getStateIcon(state);
   }
   
@@ -976,6 +1001,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       total: jobs?.length || 0,
       passed: 0,
       failed: 0,
+      softFailed: 0,
       running: 0,
       blocked: 0,
       skipped: 0,
@@ -983,21 +1009,25 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
       queued: 0,
       completed: 0
     };
-    
+
     if (!jobs) return stats;
-    
+
     for (const job of jobs) {
       const state = job.node.state?.toUpperCase() || '';
-      
+
       // If we have an exit status, use that as the source of truth
-      // Note: exitStatus comes as a string from Buildkite API
       if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
         const exitCode = parseInt(job.node.exitStatus, 10);
         if (exitCode === 0) {
           stats.passed++;
           stats.completed++;
         } else {
-          stats.failed++;
+          // Non-zero exit: check if soft failure
+          if (job.node.softFailed === true) {
+            stats.softFailed++;
+          } else {
+            stats.failed++;
+          }
           stats.completed++;
         }
       } else if (state === 'RUNNING') {
@@ -1008,7 +1038,6 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
         stats.canceled++;
         stats.completed++;
       } else if (state === 'SKIPPED' || state === 'BROKEN') {
-        // BROKEN jobs are functionally skipped - they don't run due to conditions not matching
         stats.skipped++;
         stats.completed++;
       } else if (state === 'SCHEDULED' || state === 'ASSIGNED') {
@@ -1019,46 +1048,82 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
           stats.passed++;
           stats.completed++;
         } else if (job.node.passed === false) {
-          stats.failed++;
+          // Check softFailed for finished jobs too
+          if (job.node.softFailed === true) {
+            stats.softFailed++;
+          } else {
+            stats.failed++;
+          }
           stats.completed++;
         }
       } else if (state === 'PASSED' || job.node.passed === true) {
         stats.passed++;
         stats.completed++;
       } else if (state === 'FAILED' || job.node.passed === false) {
-        stats.failed++;
+        // Check softFailed for explicitly failed jobs
+        if (job.node.softFailed === true) {
+          stats.softFailed++;
+        } else {
+          stats.failed++;
+        }
         stats.completed++;
       }
     }
-    
+
     return stats;
   }
   
   private getFailedJobs(jobs: any[]): any[] {
     if (!jobs) return [];
-    
+
     return jobs.filter(job => {
       const state = job.node.state?.toUpperCase();
-      
+
       // BROKEN jobs are skipped/not run, not failed
       if (state === 'BROKEN' || state === 'SKIPPED') {
         return false;
       }
-      
+
       // If we have an exit status, use that as the source of truth
-      // Note: exitStatus comes as a string from Buildkite API
       if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
         const exitCode = parseInt(job.node.exitStatus, 10);
-        return exitCode !== 0;
+        // Only return hard failures (not soft failures)
+        return exitCode !== 0 && job.node.softFailed !== true;
       }
-      
+
       // For FINISHED jobs, check the passed field
       if (state === 'FINISHED') {
-        return job.node.passed === false;
+        return job.node.passed === false && job.node.softFailed !== true;
       }
-      
-      // Otherwise check if explicitly failed
-      return state === 'FAILED';
+
+      // Otherwise check if explicitly failed (and not soft)
+      return state === 'FAILED' && job.node.softFailed !== true;
+    });
+  }
+
+  private getSoftFailedJobs(jobs: any[]): any[] {
+    if (!jobs) return [];
+
+    return jobs.filter(job => {
+      const state = job.node.state?.toUpperCase();
+
+      // BROKEN jobs are skipped/not run, not failed
+      if (state === 'BROKEN' || state === 'SKIPPED') {
+        return false;
+      }
+
+      // If we have an exit status, use that as the source of truth
+      if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
+        const exitCode = parseInt(job.node.exitStatus, 10);
+        return exitCode !== 0 && job.node.softFailed === true;
+      }
+
+      // For FINISHED jobs, check the passed field and softFailed
+      if (state === 'FINISHED') {
+        return job.node.passed === false && job.node.softFailed === true;
+      }
+
+      return false;
     });
   }
   
@@ -1077,47 +1142,60 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   private groupJobsByState(jobs: any[]): Record<string, any[]> {
     const grouped: Record<string, any[]> = {
       'Failed': [],
+      'Soft Failed': [],
       'Passed': [],
       'Running': [],
       'Blocked': []
-      // Don't include Skipped - we don't display them
     };
-    
+
     if (!jobs) return grouped;
-    
+
     for (const job of jobs) {
       const state = job.node.state?.toUpperCase() || '';
-      
+
       // If we have an exit status, use that as the source of truth
-      // Note: exitStatus comes as a string from Buildkite API
       if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
         const exitCode = parseInt(job.node.exitStatus, 10);
         if (exitCode === 0) {
           grouped['Passed'].push(job);
         } else {
-          grouped['Failed'].push(job);
+          // Non-zero exit: check if soft failure
+          if (job.node.softFailed === true) {
+            grouped['Soft Failed'].push(job);
+          } else {
+            grouped['Failed'].push(job);
+          }
         }
       } else if (state === 'RUNNING') {
         grouped['Running'].push(job);
       } else if (state === 'BLOCKED') {
         grouped['Blocked'].push(job);
       } else if (state === 'SKIPPED' || state === 'CANCELED' || state === 'BROKEN') {
-        // Don't display skipped/broken/canceled jobs - they're not shown in Buildkite UI
-        // Skip these entirely
+        // Don't display skipped/broken/canceled jobs
       } else if (state === 'FINISHED' || state === 'COMPLETED') {
         // For finished jobs without exit status, check passed field
         if (job.node.passed === true) {
           grouped['Passed'].push(job);
         } else if (job.node.passed === false) {
-          grouped['Failed'].push(job);
+          // Check softFailed
+          if (job.node.softFailed === true) {
+            grouped['Soft Failed'].push(job);
+          } else {
+            grouped['Failed'].push(job);
+          }
         }
       } else if (state === 'PASSED' || job.node.passed === true) {
         grouped['Passed'].push(job);
       } else if (state === 'FAILED') {
-        grouped['Failed'].push(job);
+        // Check softFailed for explicitly failed jobs
+        if (job.node.softFailed === true) {
+          grouped['Soft Failed'].push(job);
+        } else {
+          grouped['Failed'].push(job);
+        }
       }
     }
-    
+
     return grouped;
   }
   
@@ -1179,19 +1257,50 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   
   private isJobFailed(job: any): boolean {
     const state = job.state?.toUpperCase();
-    
+
     if (job.exitStatus !== null && job.exitStatus !== undefined) {
       return parseInt(job.exitStatus, 10) !== 0;
     }
-    
+
     if (state === 'FAILED') return true;
     if (state === 'FINISHED' || state === 'COMPLETED') {
       return job.passed === false;
     }
-    
+
     return false;
   }
-  
+
+  private isJobSoftFailed(job: any): boolean {
+    const state = job.state?.toUpperCase();
+
+    if (job.exitStatus !== null && job.exitStatus !== undefined) {
+      return parseInt(job.exitStatus, 10) !== 0 && job.softFailed === true;
+    }
+
+    if (state === 'FINISHED' || state === 'COMPLETED') {
+      return job.passed === false && job.softFailed === true;
+    }
+
+    return false;
+  }
+
+  private colorizeJobLabel(state: string, label: string): string {
+    switch (state) {
+      case 'Failed':
+        return SEMANTIC_COLORS.error(label);
+      case 'Soft Failed':
+        return SEMANTIC_COLORS.warning(label);
+      case 'Passed':
+        return SEMANTIC_COLORS.success(label);
+      case 'Running':
+        return SEMANTIC_COLORS.info(label);
+      case 'Blocked':
+        return SEMANTIC_COLORS.warning(label);
+      default:
+        return label;
+    }
+  }
+
   private calculateAverageDuration(jobs: any[]): string {
     const durationsMs = jobs
       .filter(j => j.node.startedAt && j.node.finishedAt)

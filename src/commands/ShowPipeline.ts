@@ -79,13 +79,14 @@ export class ShowPipeline extends BaseCommand {
 
       // Format and display
       let formatter;
+      const formatterOptions = { tips: options.tips };
 
       if (format === 'alfred') {
-        formatter = new AlfredPipelineDetailFormatter({});
+        formatter = new AlfredPipelineDetailFormatter(formatterOptions);
       } else if (format === 'json') {
-        formatter = new JsonPipelineDetailFormatter({});
+        formatter = new JsonPipelineDetailFormatter(formatterOptions);
       } else {
-        formatter = new PlainPipelineDetailFormatter({});
+        formatter = new PlainPipelineDetailFormatter(formatterOptions);
       }
 
       const output = formatter.format(data);

@@ -15,6 +15,7 @@ export const JOB_SUMMARY_FIELDS = gql`
       startedAt
       finishedAt
       passed
+      softFailed
       parallelGroupIndex
       parallelGroupTotal
     }
@@ -46,6 +47,7 @@ export const JOB_DETAIL_FIELDS = gql`
       startedAt
       finishedAt
       passed
+      softFailed
       retried
       parallelGroupIndex
       parallelGroupTotal

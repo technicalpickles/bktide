@@ -62,6 +62,7 @@ export class ListAnnotations extends BaseCommand {
       // Format and output the results
       const output = formatter.formatAnnotations(annotations, {
         debug: options.debug,
+        tips: options.tips,
         contextFilter: options.context
       });
       
@@ -83,7 +84,8 @@ export class ListAnnotations extends BaseCommand {
         hasError: true,
         errorMessage: error instanceof Error ? error.message : 'Unknown error occurred',
         errorType: 'api',
-        debug: options.debug
+        debug: options.debug,
+        tips: options.tips
       });
       
       logger.console(errorOutput);

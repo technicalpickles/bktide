@@ -28,8 +28,8 @@ export class ShowViewer extends BaseCommand {
       }
       
       const formatter = getViewerFormatter(format);
-      const output = formatter.formatViewer(data as unknown as ViewerData, { debug: options.debug });
-      
+      const output = formatter.formatViewer(data as unknown as ViewerData, { debug: options.debug, tips: options.tips });
+
       logger.console(output);
       // Success is implicit - data display confirms retrieval
       return 0; // Success

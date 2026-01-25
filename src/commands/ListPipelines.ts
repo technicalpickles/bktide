@@ -212,6 +212,7 @@ export class ListPipelines extends BaseCommand {
     // Prepare formatter options with context
     const formatterOptions: PipelineFormatterOptions = {
       debug: options.debug,
+      tips: options.tips,
       filterActive: !!options.filter,
       filterText: options.filter,
       truncated: truncated || hasMorePipelines,  // Either truncated locally or more available on server
