@@ -307,6 +307,13 @@ export class Snapshot extends BaseCommand {
           const skippedCount = scriptJobs.length - jobsToFetch.length;
           logger.console(`  Tip: ${skippedCount} passing step(s) skipped. Use --all to capture all logs.`);
         }
+
+        logger.console('');
+
+        // Show contextual navigation tips (check if tips are enabled)
+        if (this.options.tips !== false) {
+          this.displayNavigationTips(outputDir, build, scriptJobs, stepResults.length, annotationResult);
+        }
       }
 
       return manifest.fetchComplete ? 0 : 1;
