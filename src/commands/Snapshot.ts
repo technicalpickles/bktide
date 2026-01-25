@@ -331,6 +331,7 @@ export class Snapshot extends BaseCommand {
         id: stepDirName,
         jobId: job.id,
         status: 'success',
+        job: job,  // Add full job object
       };
     } catch (error) {
       if (debug) {
@@ -342,6 +343,7 @@ export class Snapshot extends BaseCommand {
         id: stepDirName,
         jobId: job.id,
         status: 'failed',
+        job: job,  // Add full job object
         error: errorInfo.error,
         message: errorInfo.message,
         retryable: errorInfo.retryable,
