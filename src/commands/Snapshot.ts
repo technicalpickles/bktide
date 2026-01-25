@@ -351,6 +351,51 @@ export class Snapshot extends BaseCommand {
     }
   }
 
+  private async fetchAndSaveAnnotations(
+    outputDir: string,
+    org: string,
+    pipeline: string,
+    buildNumber: number,
+    debug?: boolean
+  ): Promise<AnnotationResult> {
+    try {
+      const annotations = await this.restClient.getBuildAnnotations(org, pipeline, buildNumber);
+
+      if (debug) {
+        logger.debug(`Fetched ${annotations.length} annotation(s)`);
+      }
+
+      // Save annotations.json
+      const annotationsFile: AnnotationsFile = {
+        fetchedAt: new Date().toISOString(),
+        count: annotations.length,
+        annotations: annotations,
+      };
+
+      const annotationsPath = path.join(outputDir, 'annotations.json');
+      await fs.writeFile(annotationsPath, JSON.stringify(annotationsFile, null, 2), 'utf-8');
+
+      // Return result
+      if (annotations.length === 0) {
+        return { fetchStatus: 'none', count: 0 };
+      }
+
+      return { fetchStatus: 'success', count: annotations.length };
+    } catch (error) {
+      if (debug) {
+        logger.debug(`Failed to fetch annotations:`, error);
+      }
+
+      const errorInfo = categorizeError(error instanceof Error ? error : new Error(String(error)));
+      return {
+        fetchStatus: 'failed',
+        count: 0,
+        error: errorInfo.error,
+        message: errorInfo.message,
+      };
+    }
+  }
+
   private buildManifest(
     org: string,
     pipeline: string,
