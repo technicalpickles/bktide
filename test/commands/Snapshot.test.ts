@@ -218,6 +218,7 @@ describe('Snapshot Command', () => {
 
       vi.spyOn(snapshot['restClient'], 'getBuild').mockResolvedValue(mockBuild);
       vi.spyOn(snapshot['restClient'], 'getJobLog').mockResolvedValue(mockLog);
+      vi.spyOn(snapshot['restClient'], 'getBuildAnnotations').mockResolvedValue([]);
 
       const result = await snapshot.execute({
         buildRef: 'myorg/mypipeline/42',
@@ -232,13 +233,14 @@ describe('Snapshot Command', () => {
       const stats = await fs.stat(buildDir);
       expect(stats.isDirectory()).toBe(true);
 
-      // Verify manifest.json exists
+      // Verify manifest.json exists with v2 structure
       const manifestPath = path.join(buildDir, 'manifest.json');
       const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
-      expect(manifest.version).toBe(1);
+      expect(manifest.version).toBe(2);
       expect(manifest.buildRef).toBe('myorg/mypipeline/42');
-      expect(manifest.complete).toBe(true);
+      expect(manifest.fetchComplete).toBe(true);
       expect(manifest.steps).toHaveLength(2); // Only script jobs
+      expect(manifest.annotations).toEqual({ fetchStatus: 'none', count: 0 });
 
       // Verify build.json exists
       const buildPath = path.join(buildDir, 'build.json');
@@ -280,6 +282,7 @@ describe('Snapshot Command', () => {
       vi.spyOn(snapshot['restClient'], 'getJobLog').mockRejectedValue(
         new Error('API request failed with status 404: Log not found')
       );
+      vi.spyOn(snapshot['restClient'], 'getBuildAnnotations').mockResolvedValue([]);
 
       const result = await snapshot.execute({
         buildRef: 'myorg/mypipeline/42',
@@ -289,15 +292,16 @@ describe('Snapshot Command', () => {
       // Should return 1 because not all steps succeeded
       expect(result).toBe(1);
 
-      // Verify manifest shows error
+      // Verify manifest shows error with v2 structure
       const buildDir = path.join(tempDir, 'myorg', 'mypipeline', '42');
       const manifestPath = path.join(buildDir, 'manifest.json');
       const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
 
-      expect(manifest.complete).toBe(false);
-      expect(manifest.steps[0].status).toBe('failed');
-      expect(manifest.steps[0].error).toBe('not_found');
-      expect(manifest.steps[0].retryable).toBe(false);
+      expect(manifest.fetchComplete).toBe(false);
+      expect(manifest.steps[0].fetchStatus).toBe('failed');
+      expect(manifest.fetchErrors).toBeDefined();
+      expect(manifest.fetchErrors[0].error).toBe('not_found');
+      expect(manifest.fetchErrors[0].retryable).toBe(false);
     });
 
     it('should output JSON when --json flag is set', async () => {
@@ -319,6 +323,7 @@ describe('Snapshot Command', () => {
 
       vi.spyOn(snapshot['restClient'], 'getBuild').mockResolvedValue(mockBuild);
       vi.spyOn(snapshot['restClient'], 'getJobLog').mockResolvedValue(mockLog);
+      vi.spyOn(snapshot['restClient'], 'getBuildAnnotations').mockResolvedValue([]);
 
       // Capture console output
       const consoleSpy = vi.fn();
@@ -337,7 +342,7 @@ describe('Snapshot Command', () => {
       expect(consoleSpy).toHaveBeenCalled();
       const output = consoleSpy.mock.calls[0][0];
       const parsed = JSON.parse(output);
-      expect(parsed.version).toBe(1);
+      expect(parsed.version).toBe(2);
       expect(parsed.buildRef).toBe('myorg/mypipeline/42');
     });
 
@@ -350,6 +355,7 @@ describe('Snapshot Command', () => {
       };
 
       const getBuildSpy = vi.spyOn(snapshot['restClient'], 'getBuild').mockResolvedValue(mockBuild);
+      vi.spyOn(snapshot['restClient'], 'getBuildAnnotations').mockResolvedValue([]);
 
       await snapshot.execute({
         buildRef: 'https://buildkite.com/acme/pipeline/builds/99',
@@ -362,6 +368,74 @@ describe('Snapshot Command', () => {
       const buildDir = path.join(tempDir, 'acme', 'pipeline', '99');
       const stats = await fs.stat(buildDir);
       expect(stats.isDirectory()).toBe(true);
+    });
+
+    it('should capture annotations when present', async () => {
+      const mockBuild = {
+        id: 'build-123',
+        number: 42,
+        state: 'failed',
+        message: 'Test build',
+        jobs: [],
+      };
+
+      const mockAnnotations = [
+        { id: 'ann-1', context: 'test-failure', style: 'error', body_html: '<p>Test failed</p>' },
+        { id: 'ann-2', context: 'coverage', style: 'info', body_html: '<p>Coverage: 80%</p>' },
+      ];
+
+      vi.spyOn(snapshot['restClient'], 'getBuild').mockResolvedValue(mockBuild);
+      vi.spyOn(snapshot['restClient'], 'getBuildAnnotations').mockResolvedValue(mockAnnotations);
+
+      await snapshot.execute({
+        buildRef: 'myorg/mypipeline/42',
+        outputDir: tempDir,
+      });
+
+      // Verify annotations.json exists
+      const buildDir = path.join(tempDir, 'myorg', 'mypipeline', '42');
+      const annotationsPath = path.join(buildDir, 'annotations.json');
+      const annotationsFile = JSON.parse(await fs.readFile(annotationsPath, 'utf-8'));
+
+      expect(annotationsFile.count).toBe(2);
+      expect(annotationsFile.annotations).toHaveLength(2);
+      expect(annotationsFile.annotations[0].context).toBe('test-failure');
+
+      // Verify manifest reflects annotation status
+      const manifestPath = path.join(buildDir, 'manifest.json');
+      const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
+      expect(manifest.annotations).toEqual({ fetchStatus: 'success', count: 2 });
+    });
+
+    it('should handle annotation fetch failure gracefully', async () => {
+      const mockBuild = {
+        id: 'build-123',
+        number: 42,
+        state: 'passed',
+        jobs: [],
+      };
+
+      vi.spyOn(snapshot['restClient'], 'getBuild').mockResolvedValue(mockBuild);
+      vi.spyOn(snapshot['restClient'], 'getBuildAnnotations').mockRejectedValue(
+        new Error('API request failed with status 403')
+      );
+
+      const result = await snapshot.execute({
+        buildRef: 'myorg/mypipeline/42',
+        outputDir: tempDir,
+      });
+
+      // Should return 1 because annotation fetch failed
+      expect(result).toBe(1);
+
+      // Verify manifest shows annotation failure
+      const buildDir = path.join(tempDir, 'myorg', 'mypipeline', '42');
+      const manifestPath = path.join(buildDir, 'manifest.json');
+      const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
+
+      expect(manifest.fetchComplete).toBe(false);
+      expect(manifest.annotations.fetchStatus).toBe('failed');
+      expect(manifest.annotations.count).toBe(0);
     });
   });
 });
