@@ -8,7 +8,8 @@
 Improve the discoverability and usability of the `bktide snapshot` command by:
 1. Adding comprehensive documentation to the README
 2. Enhancing the manifest.json structure to mirror Buildkite's API for easier navigation
-3. Providing contextual post-command tips that guide users to relevant data
+3. Adding annotations support to capture test failures and warnings
+4. Providing contextual post-command tips that guide users to relevant data
 
 ## Background
 
@@ -17,14 +18,16 @@ The snapshot command was successfully used by an AI agent to debug CI failures, 
 - **Discoverability**: Agent didn't know snapshot existed until the user suggested it
 - **Output structure unclear**: Had to explore directory structure through trial and error
 - **No navigation guidance**: After capture, no clear path to finding relevant data
+- **Missing annotations**: Snapshot doesn't capture annotations, which contain test failure summaries and warnings visible in Buildkite UI
 
-The command IS registered in `--help` and works well, but needs better positioning and user guidance.
+The command IS registered in `--help` and works well, but needs better positioning, user guidance, and more complete data capture.
 
 ## Goals
 
 1. **Increase discoverability**: Make snapshot prominent in README as a tool for deep debugging and tool integration
 2. **Improve navigability**: Enhance manifest.json to be a comprehensive index that mirrors Buildkite's API structure
-3. **Guide users**: Show contextual tips after snapshot completes with specific commands to find relevant data
+3. **Capture complete context**: Add annotations to provide test failures, warnings, and other structured information
+4. **Guide users**: Show contextual tips after snapshot completes with specific commands to find relevant data
 
 ## Design
 
@@ -50,6 +53,10 @@ The command IS registered in `--help` and works well, but needs better positioni
     "message": "Fix login bug",
     "branch": "main",
     "commit": "abc123"
+  },
+  "annotations": {
+    "fetchStatus": "success",
+    "count": 3
   },
   "steps": [
     {
@@ -83,6 +90,7 @@ The command IS registered in `--help` and works well, but needs better positioni
 - Rename `status` → `fetchStatus` to avoid confusion with `state`
 - Rename `complete` → `fetchComplete` for clarity
 - Expand `build` section with commonly needed fields
+- Add `annotations` section with fetch status and count
 - Separate `fetchErrors` array for steps that failed to fetch
 - Version bump to 2 to indicate format change
 
@@ -90,6 +98,50 @@ The command IS registered in `--help` and works well, but needs better positioni
 - Quick filtering: `jq '.steps[] | select(.state == "failed")'`
 - No need to open individual step.json files
 - Clear separation: `state` = build result, `fetchStatus` = did we get the log
+- Annotations status visible at a glance
+
+#### Annotations File Structure
+
+Annotations are saved separately as `annotations.json`:
+
+```json
+{
+  "fetchedAt": "2026-01-24T12:00:00Z",
+  "count": 3,
+  "annotations": [
+    {
+      "id": "annotation-uuid",
+      "context": "rspec",
+      "style": "error",
+      "body": {
+        "html": "<details><summary>3 failures</summary>...",
+        "url": "https://buildkite.com/..."
+      },
+      "created_at": "2026-01-24T12:00:00Z"
+    },
+    {
+      "id": "annotation-uuid-2",
+      "context": "rubocop",
+      "style": "warning",
+      "body": {
+        "html": "5 offenses detected",
+        "url": "https://buildkite.com/..."
+      },
+      "created_at": "2026-01-24T12:00:00Z"
+    }
+  ]
+}
+```
+
+**Annotation fetch statuses:**
+- `success` - Annotations fetched successfully (count > 0)
+- `none` - No annotations present (count = 0)
+- `failed` - API request failed (error details in fetchErrors)
+
+**Implementation notes:**
+- Use REST API endpoint: `/v2/organizations/{org}/pipelines/{pipeline}/builds/{number}/annotations`
+- Store raw HTML in body.html (preserves formatting, links, tables)
+- Consistent `fetchStatus` naming with steps
 
 ### 2. README Documentation
 
@@ -124,6 +176,7 @@ Snapshots are saved to `~/.bktide/snapshots/org/pipeline/build/` with:
 
 - **manifest.json** - Build metadata and step index for quick filtering
 - **build.json** - Complete build data from Buildkite API
+- **annotations.json** - Test failures, warnings, and structured information from annotations
 - **steps/NN-name/log.txt** - Full logs for each step
 - **steps/NN-name/step.json** - Step metadata (state, exit code, timing)
 
@@ -133,6 +186,11 @@ Snapshots are saved to `~/.bktide/snapshots/org/pipeline/build/` with:
 ```bash
 cd ~/.bktide/snapshots/org/pipeline/123
 jq -r '.steps[] | select(.state == "failed") | "\(.id): \(.label)"' manifest.json
+```
+
+**View test failure summaries:**
+```bash
+jq -r '.annotations[] | select(.style == "error") | "\(.context): \(.body.html)"' annotations.json
 ```
 
 **Search logs for errors:**
@@ -166,10 +224,12 @@ tar -czf build-123-investigation.tar.gz ~/.bktide/snapshots/org/pipeline/123
 
 Snapshot saved to ~/.bktide/snapshots/gusto/zenpayroll/1407050/
   20 step(s) captured
+  3 annotation(s) captured
   manifest.json has full build metadata and step index
 
 Next steps:
   → List failures:   jq -r '.steps[] | select(.state == "failed") | "\(.id): \(.label)"' manifest.json
+  → View annotations: jq -r '.annotations[] | {context, style}' annotations.json
   → Get exit codes:  jq -r '.steps[] | "\(.id): exit \(.exit_status)"' manifest.json
   → View a log:      cat steps/01-rspec-system/log.txt
   → Search errors:   grep -r "Error\|Failed\|Exception" steps/
@@ -197,11 +257,12 @@ Next steps:
 - Use `TipStyle.ACTIONS` for "Next steps:" formatting
 - Show relative paths from snapshot directory
 - Contextual based on build state (failed vs passed)
+- Include annotation tips when annotations are present
 - Check `this.options.tips !== false` in execute() before calling
 
 ## Implementation Plan
 
-### Phase 1: Enhanced Manifest
+### Phase 1: Enhanced Manifest & Annotations Support
 
 **File:** `src/commands/Snapshot.ts`
 
@@ -209,18 +270,48 @@ Next steps:
    - Bump version to 2
    - Rename `complete` → `fetchComplete`
    - Expand `build` section
+   - Add `annotations` section with fetchStatus and count
    - Add `fetchErrors` array
 
 2. Update `StepResult` interface:
    - Add `job: any` field to store full job object
 
-3. Update `buildManifest()` method:
+3. Add `AnnotationResult` interface:
+   ```typescript
+   interface AnnotationResult {
+     fetchStatus: 'success' | 'none' | 'failed';
+     count: number;
+     error?: string;
+     message?: string;
+   }
+   ```
+
+4. Add REST API method in `BuildkiteRestClient`:
+   ```typescript
+   public async getBuildAnnotations(
+     org: string,
+     pipeline: string,
+     buildNumber: number
+   ): Promise<Annotation[]>
+   ```
+
+5. Add `fetchAndSaveAnnotations()` method:
+   - Fetch annotations from REST API
+   - Save to `annotations.json`
+   - Return AnnotationResult with fetch status
+
+6. Update `buildManifest()` method:
    - Include job fields in steps array (flat structure)
+   - Add annotations section
    - Rename status fields for clarity
    - Separate fetch errors into dedicated array
 
-4. Update `fetchAndSaveStep()`:
+7. Update `fetchAndSaveStep()`:
    - Return full job object in StepResult
+
+8. Update `execute()` method:
+   - Call `fetchAndSaveAnnotations()` after saving build.json
+   - Include annotation count in output
 
 ### Phase 2: Post-Command Tips
 
@@ -241,6 +332,7 @@ Next steps:
 
 2. Add `displayNavigationTips()` method:
    - Build contextual tips array based on build state
+   - Include annotation tips when annotations exist
    - Use relative paths for commands
    - Call `this.reporter.tips(tips, TipStyle.ACTIONS)`
 
@@ -274,18 +366,27 @@ Next steps:
 1. **Manifest structure:**
    - Verify version 2 format
    - Confirm all job fields are included
+   - Check annotations section is present
    - Check fetchErrors array is only included when present
 
-2. **Tips display:**
+2. **Annotations:**
+   - Test build with annotations (fetchStatus: success, count > 0)
+   - Test build without annotations (fetchStatus: none, count = 0)
+   - Test annotations fetch failure (fetchStatus: failed, error details)
+   - Verify annotations.json structure and HTML body preservation
+   - Test REST API endpoint integration
+
+3. **Tips display:**
    - Test with `--tips` (should show)
    - Test with `--no-tips` (should not show)
    - Test with `--quiet` (should not show)
-   - Test with failed build (contextual tips)
+   - Test with failed build (contextual tips including annotations)
    - Test with passed build + --all (contextual tips)
+   - Verify annotation tips only show when annotations exist
 
-3. **Backwards compatibility:**
+4. **Backwards compatibility:**
    - Existing snapshots (version 1) should still be readable
-   - Tools parsing manifest.json may need updates
+   - Tools parsing manifest.json may need updates for version 2
 
 ## Success Metrics
 
@@ -299,3 +400,10 @@ Next steps:
 - Consider `bktide analyze <snapshot-dir>` command for common queries
 - Shell completion for snapshot paths
 - Snapshot diff tool to compare builds
+- `--annotations-only` flag to re-fetch annotations without re-fetching logs (see `docs/ideas/snapshot-annotations-support.md`)
+
+## Related Documentation
+
+- Original snapshot design: `docs/plans/2025-01-21-snapshot-command-design.md`
+- Annotations support ideas: `docs/ideas/snapshot-annotations-support.md`
+- User feedback that inspired this work: `docs/retrospective/2026-01-23-claude-code-usage-feedback.md`
