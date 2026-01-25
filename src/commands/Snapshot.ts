@@ -188,7 +188,17 @@ export class Snapshot extends BaseCommand {
       spinner.update('Saving build data…');
       await this.saveBuildJson(outputDir, build);
 
-      // 6. Filter and fetch jobs
+      // 6. Fetch and save annotations
+      spinner.update('Fetching annotations…');
+      const annotationResult = await this.fetchAndSaveAnnotations(
+        outputDir,
+        buildRef.org,
+        buildRef.pipeline,
+        buildRef.number,
+        options.debug
+      );
+
+      // 7. Filter and fetch jobs
       const allJobs = build.jobs || [];
 
       // Filter to script jobs only
@@ -240,11 +250,18 @@ export class Snapshot extends BaseCommand {
         progressBar.complete(`Fetched ${totalJobs} step${totalJobs > 1 ? 's' : ''}`);
       }
 
-      // 7. Write manifest
-      const manifest = this.buildManifest(buildRef.org, buildRef.pipeline, buildRef.number, build, stepResults);
+      // 8. Write manifest
+      const manifest = this.buildManifest(
+        buildRef.org,
+        buildRef.pipeline,
+        buildRef.number,
+        build,
+        stepResults,
+        annotationResult  // Add annotation result
+      );
       await this.saveManifest(outputDir, manifest);
 
-      // 8. Output based on options
+      // 9. Output based on options
       if (options.json) {
         logger.console(JSON.stringify(manifest, null, 2));
       } else {
@@ -264,6 +281,16 @@ export class Snapshot extends BaseCommand {
           logger.console(`  No steps to capture (build metadata saved)`);
         }
 
+        if (annotationResult.count > 0) {
+          logger.console(`  ${annotationResult.count} annotation(s) captured`);
+        } else if (annotationResult.fetchStatus === 'none') {
+          if (options.debug) {
+            logger.console(`  No annotations present`);
+          }
+        } else if (annotationResult.fetchStatus === 'failed') {
+          logger.console(`  Warning: Failed to fetch annotations`);
+        }
+
         if (fetchErrorCount > 0) {
           logger.console(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`);
         }
@@ -275,7 +302,7 @@ export class Snapshot extends BaseCommand {
         }
       }
 
-      return manifest.complete ? 0 : 1;
+      return manifest.fetchComplete ? 0 : 1;
     } catch (error) {
       spinner.stop();
       const errorMessage = error instanceof Error ? error.message : String(error);
