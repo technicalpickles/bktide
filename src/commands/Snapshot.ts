@@ -2,7 +2,8 @@ import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { logger } from '../services/logger.js';
 import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { Progress } from '../ui/progress.js';
-import { getStateIcon, SEMANTIC_COLORS, BUILD_STATUS_THEME } from '../ui/theme.js';
+import { getStateIcon, SEMANTIC_COLORS, BUILD_STATUS_THEME, TipStyle } from '../ui/theme.js';
+import { Reporter } from '../ui/reporter.js';
 import { formatDistanceToNow } from 'date-fns';
 import fs from 'fs/promises';
 import path from 'path';
@@ -147,6 +148,12 @@ export function getStepDirName(index: number, label: string): string {
 
 export class Snapshot extends BaseCommand {
   static requiresToken = true;
+  private reporter: Reporter;
+
+  constructor(options?: Partial<SnapshotOptions>) {
+    super(options);
+    this.reporter = new Reporter(options?.format || 'plain', options?.quiet, options?.tips);
+  }
 
   async execute(options: SnapshotOptions): Promise<number> {
     if (options.debug) {
