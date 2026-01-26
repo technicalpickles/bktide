@@ -102,3 +102,30 @@ Next steps:
 - High: Add --force-interactive / env var (blocks testing)
 - Medium: Fix path display (UX issue)
 - Low: stdout/stderr ordering (may not be real issue)
+
+## Resolution
+
+**Date:** 2026-01-24
+
+All issues have been addressed:
+
+1. ✅ **Force Interactive Support**: Added `BKTIDE_FORCE_INTERACTIVE` env var to enable testing tips in non-TTY environments
+
+2. ✅ **Path Display**: Updated `displayNavigationTips()` to use tilde paths instead of ugly relative paths
+   - Before: `../../../../../.bktide/snapshots/...`
+   - After: `~/.bktide/snapshots/...`
+
+3. ✅ **Stream Ordering**: Added stderr flush after progress bar to prevent output interleaving
+
+**Testing:**
+```bash
+# Force interactive mode for testing
+BKTIDE_FORCE_INTERACTIVE=1 npm run dev -- snapshot org/pipeline/123
+
+# Normal usage in terminal
+node dist/index.js snapshot org/pipeline/123
+```
+
+**See Also:**
+- Implementation plan: `docs/plans/2026-01-24-snapshot-tips-display-fixes.md`
+- Developer docs: `docs/developer/development.md`
