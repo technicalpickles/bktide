@@ -27,71 +27,71 @@ import { parseBuildkiteReference } from '../../src/utils/parseBuildkiteReference
 describe('parseBuildkiteReference', () => {
   describe('pipeline references', () => {
     it('should parse slash format pipeline reference', () => {
-      const result = parseBuildkiteReference('gusto/schemaflow');
+      const result = parseBuildkiteReference('acme/example-pipeline');
       expect(result).toEqual({
         type: 'pipeline',
-        org: 'gusto',
-        pipeline: 'schemaflow',
+        org: 'acme',
+        pipeline: 'example-pipeline',
       });
     });
 
     it('should handle trailing slashes', () => {
-      const result = parseBuildkiteReference('gusto/schemaflow/');
+      const result = parseBuildkiteReference('acme/example-pipeline/');
       expect(result).toEqual({
         type: 'pipeline',
-        org: 'gusto',
-        pipeline: 'schemaflow',
+        org: 'acme',
+        pipeline: 'example-pipeline',
       });
     });
   });
 
   describe('build references', () => {
     it('should parse slash format build reference', () => {
-      const result = parseBuildkiteReference('gusto/schemaflow/76');
+      const result = parseBuildkiteReference('acme/example-pipeline/76');
       expect(result).toEqual({
         type: 'build',
-        org: 'gusto',
-        pipeline: 'schemaflow',
+        org: 'acme',
+        pipeline: 'example-pipeline',
         buildNumber: 76,
       });
     });
 
     it('should parse hash format build reference', () => {
-      const result = parseBuildkiteReference('gusto/schemaflow#76');
+      const result = parseBuildkiteReference('acme/example-pipeline#76');
       expect(result).toEqual({
         type: 'build',
-        org: 'gusto',
-        pipeline: 'schemaflow',
+        org: 'acme',
+        pipeline: 'example-pipeline',
         buildNumber: 76,
       });
     });
 
     it('should parse build URL', () => {
-      const result = parseBuildkiteReference('https://buildkite.com/gusto/schemaflow/builds/76');
+      const result = parseBuildkiteReference('https://buildkite.com/acme/example-pipeline/builds/76');
       expect(result).toEqual({
         type: 'build',
-        org: 'gusto',
-        pipeline: 'schemaflow',
+        org: 'acme',
+        pipeline: 'example-pipeline',
         buildNumber: 76,
       });
     });
 
     it('should handle http URLs and normalize to https', () => {
-      const result = parseBuildkiteReference('http://buildkite.com/gusto/schemaflow/builds/76');
+      const result = parseBuildkiteReference('http://buildkite.com/acme/example-pipeline/builds/76');
       expect(result).toEqual({
         type: 'build',
-        org: 'gusto',
-        pipeline: 'schemaflow',
+        org: 'acme',
+        pipeline: 'example-pipeline',
         buildNumber: 76,
       });
     });
 
     it('should ignore /steps/canvas path segments', () => {
-      const result = parseBuildkiteReference('https://buildkite.com/gusto/schemaflow/builds/76/steps/canvas');
+      const result = parseBuildkiteReference('https://buildkite.com/acme/example-pipeline/builds/76/steps/canvas');
       expect(result).toEqual({
         type: 'build',
-        org: 'gusto',
-        pipeline: 'schemaflow',
+        org: 'acme',
+        pipeline: 'example-pipeline',
         buildNumber: 76,
       });
     });
@@ -99,22 +99,22 @@ describe('parseBuildkiteReference', () => {
 
   describe('build with step references', () => {
     it('should parse URL with step ID query parameter', () => {
-      const result = parseBuildkiteReference('https://buildkite.com/gusto/schemaflow/builds/76?sid=019adb19-bd83-4149-b2a7-ece1d7a41c9d');
+      const result = parseBuildkiteReference('https://buildkite.com/acme/example-pipeline/builds/76?sid=019adb19-bd83-4149-b2a7-ece1d7a41c9d');
       expect(result).toEqual({
         type: 'build-with-step',
-        org: 'gusto',
-        pipeline: 'schemaflow',
+        org: 'acme',
+        pipeline: 'example-pipeline',
         buildNumber: 76,
         stepId: '019adb19-bd83-4149-b2a7-ece1d7a41c9d',
       });
     });
 
     it('should extract step ID from URL with path segments', () => {
-      const result = parseBuildkiteReference('https://buildkite.com/gusto/schemaflow/builds/76/steps/canvas?sid=019adb19-bd83-4149-b2a7-ece1d7a41c9d');
+      const result = parseBuildkiteReference('https://buildkite.com/acme/example-pipeline/builds/76/steps/canvas?sid=019adb19-bd83-4149-b2a7-ece1d7a41c9d');
       expect(result).toEqual({
         type: 'build-with-step',
-        org: 'gusto',
-        pipeline: 'schemaflow',
+        org: 'acme',
+        pipeline: 'example-pipeline',
         buildNumber: 76,
         stepId: '019adb19-bd83-4149-b2a7-ece1d7a41c9d',
       });
@@ -131,7 +131,7 @@ describe('parseBuildkiteReference', () => {
     });
 
     it('should throw error for invalid build number', () => {
-      expect(() => parseBuildkiteReference('gusto/schemaflow/abc')).toThrow('Invalid build number');
+      expect(() => parseBuildkiteReference('acme/example-pipeline/abc')).toThrow('Invalid build number');
     });
   });
 });
@@ -1426,7 +1426,7 @@ Expected: Build succeeds
 
 ### Step 4: Manual test (if you have a token)
 
-Run: `cd .worktrees/smart-reference && node dist/index.js gusto/schemaflow`
+Run: `cd .worktrees/smart-reference && node dist/index.js acme/example-pipeline`
 
 Expected: Should attempt to show pipeline (may fail if no access to that org)
 
@@ -1503,16 +1503,16 @@ Paste any Buildkite URL or use short-hand formats, and bktide will figure out wh
 
 ```bash
 # Pipeline view (shows metadata + recent builds)
-bktide gusto/schemaflow
-bktide https://buildkite.com/gusto/schemaflow
+bktide acme/example-pipeline
+bktide https://buildkite.com/acme/example-pipeline
 
 # Build view (shows comprehensive build details)
-bktide gusto/schemaflow/76
-bktide gusto/schemaflow#76
-bktide https://buildkite.com/gusto/schemaflow/builds/76
+bktide acme/example-pipeline/76
+bktide acme/example-pipeline#76
+bktide https://buildkite.com/acme/example-pipeline/builds/76
 
 # Step logs (shows build context + step logs)
-bktide https://buildkite.com/gusto/schemaflow/builds/76?sid=019adb19-bd83-4149-b2a7-ece1d7a41c9d
+bktide https://buildkite.com/acme/example-pipeline/builds/76?sid=019adb19-bd83-4149-b2a7-ece1d7a41c9d
 ```
 
 **Log display options:**
@@ -1662,12 +1662,12 @@ If you get a permission error when viewing logs:
 ### View a Pipeline
 
 ```bash
-$ bktide gusto/schemaflow
+$ bktide acme/example-pipeline
 
-Pipeline: gusto/schemaflow
+Pipeline: acme/example-pipeline
 Description: Schema migration workflow for data platform
 Default Branch: main
-Repository: github.com/gusto/schemaflow
+Repository: github.com/acme/example-pipeline
 
 Recent Builds:
 ┌────────┬─────────┬─────────┬──────────────┬────────────┐
@@ -1681,7 +1681,7 @@ Recent Builds:
 ### View a Build
 
 ```bash
-$ bktide gusto/schemaflow#76
+$ bktide acme/example-pipeline#76
 
 # Shows comprehensive build details with jobs and failure info
 ```
@@ -1689,9 +1689,9 @@ $ bktide gusto/schemaflow#76
 ### View Step Logs
 
 ```bash
-$ bktide "https://buildkite.com/gusto/schemaflow/builds/76?sid=019adb19..."
+$ bktide "https://buildkite.com/acme/example-pipeline/builds/76?sid=019adb19..."
 
-Build: gusto/schemaflow #76
+Build: acme/example-pipeline #76
 Status: ✖ failed
 Started: 2 hours ago
 Duration: 15m 32s

@@ -159,12 +159,12 @@ If you get a permission error when viewing logs:
 ### View a Pipeline
 
 ```bash
-$ bktide gusto/schemaflow
+$ bktide acme/example-pipeline
 
-Pipeline: gusto/schemaflow
+Pipeline: acme/example-pipeline
 Description: Schema migration workflow for data platform
 Default Branch: main
-Repository: github.com/gusto/schemaflow
+Repository: github.com/acme/example-pipeline
 
 Recent Builds:
 ┌────────┬─────────┬─────────┬──────────────┬────────────┐
@@ -178,7 +178,7 @@ Recent Builds:
 ### View a Build
 
 ```bash
-$ bktide gusto/schemaflow#76
+$ bktide acme/example-pipeline#76
 
 # Shows comprehensive build details with jobs and failure info
 ```
@@ -186,9 +186,9 @@ $ bktide gusto/schemaflow#76
 ### View Step Logs
 
 ```bash
-$ bktide "https://buildkite.com/gusto/schemaflow/builds/76?sid=019adb19..."
+$ bktide "https://buildkite.com/acme/example-pipeline/builds/76?sid=019adb19..."
 
-Build: gusto/schemaflow #76
+Build: acme/example-pipeline #76
 Status: ✖ failed
 Started: 2 hours ago
 Duration: 15m 32s

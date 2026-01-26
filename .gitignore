@@ -58,3 +58,6 @@ log/
 
 # Git worktrees
 .worktrees/
+
+# Claude Code local settings (contains personal paths/permissions)
+.claude/settings.local.json

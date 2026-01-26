@@ -19,11 +19,11 @@ Add a smart command to bktide that intelligently parses Buildkite URLs or refere
 
 | Format | Example | Result |
 |--------|---------|--------|
-| Full URL (build) | `https://buildkite.com/gusto/schemaflow/builds/76` | Build overview |
-| Full URL (with step) | `https://buildkite.com/gusto/schemaflow/builds/76?sid=019adb19...` | Step logs |
-| Slash format (build) | `gusto/schemaflow/76` | Build overview |
-| Hash format (build) | `gusto/schemaflow#76` | Build overview |
-| Pipeline reference | `gusto/schemaflow` | Pipeline details + recent builds |
+| Full URL (build) | `https://buildkite.com/acme/example-pipeline/builds/76` | Build overview |
+| Full URL (with step) | `https://buildkite.com/acme/example-pipeline/builds/76?sid=019adb19...` | Step logs |
+| Slash format (build) | `acme/example-pipeline/76` | Build overview |
+| Hash format (build) | `acme/example-pipeline#76` | Build overview |
+| Pipeline reference | `acme/example-pipeline` | Pipeline details + recent builds |
 
 **URL Normalization:**
 - Ignore `/steps/canvas` path segments (treat as build overview)
@@ -78,7 +78,7 @@ type BuildkiteReference =
 
 ## Display Behaviors
 
-### For Pipelines (`gusto/schemaflow`)
+### For Pipelines (`acme/example-pipeline`)
 
 **What to Show:**
 - Pipeline metadata (name, description, default branch, repository, URL)
@@ -92,10 +92,10 @@ type BuildkiteReference =
 
 **Example Output:**
 ```
-Pipeline: gusto/schemaflow
+Pipeline: acme/example-pipeline
 Description: Schema migration workflow for data platform
 Default Branch: main
-Repository: github.com/gusto/schemaflow
+Repository: github.com/acme/example-pipeline
 
 Recent Builds:
 ┌────────┬─────────┬─────────┬──────────────┬────────────┐
@@ -106,7 +106,7 @@ Recent Builds:
 └────────┴─────────┴─────────┴──────────────┴────────────┘
 ```
 
-### For Builds (`gusto/schemaflow/76`)
+### For Builds (`acme/example-pipeline/76`)
 
 **What to Show:**
 - Comprehensive build view with jobs and failure details
@@ -118,7 +118,7 @@ Recent Builds:
 
 **Rationale:** Smart command should be richer by default since users are explicitly asking for a specific build.
 
-### For Builds with Step ID (`gusto/schemaflow/76?sid=...`)
+### For Builds with Step ID (`acme/example-pipeline/76?sid=...`)
 
 **What to Show:**
 1. Build context header (org, pipeline, build number, status, timing)
@@ -134,7 +134,7 @@ Recent Builds:
 
 **Example Output:**
 ```
-Build: gusto/schemaflow #76
+Build: acme/example-pipeline #76
 Status: ✖ failed
 Started: 2 hours ago
 Duration: 15m 32s
@@ -237,9 +237,9 @@ interface JobLog {
 
 | Scenario | Error Message |
 |----------|---------------|
-| Invalid reference format | `Invalid Buildkite reference. Examples: gusto/schemaflow, gusto/schemaflow/76, https://buildkite.com/...` |
-| Pipeline not found | `Pipeline not found: gusto/schemaflow. Check organization and pipeline names.` |
-| Build not found | `Build not found: gusto/schemaflow/76. Build may not exist or you may not have access.` |
+| Invalid reference format | `Invalid Buildkite reference. Examples: acme/example-pipeline, acme/example-pipeline/76, https://buildkite.com/...` |
+| Pipeline not found | `Pipeline not found: acme/example-pipeline. Check organization and pipeline names.` |
+| Build not found | `Build not found: acme/example-pipeline/76. Build may not exist or you may not have access.` |
 | Step not found | `Step not found in build #76. The step ID may be invalid or the step may have been deleted.` |
 | Missing log permissions | `Your API token needs 'read_build_logs' scope to view logs. Update your token at: https://buildkite.com/user/api-access-tokens` |
 | Failed to fetch logs | `Failed to fetch logs: [API error]. Try again or use --debug for details.` |
@@ -252,7 +252,7 @@ interface JobLog {
 - Show clear error when logs fail due to missing scope
 
 ### URL Variations
-- Trailing slashes: normalize `gusto/schemaflow/` → `gusto/schemaflow`
+- Trailing slashes: normalize `acme/example-pipeline/` → `acme/example-pipeline`
 - HTTP vs HTTPS: normalize to HTTPS
 - Step URLs without query params: ignore `/steps/canvas`, treat as build
 - Invalid step IDs: fetch build metadata, show "Step not found" error
