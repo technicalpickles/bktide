@@ -396,7 +396,7 @@ it('should display soft failures on PASSED build', async () => {
 
 ### Manual Validation
 
-Test against real Buildkite builds (like gusto/zenpayroll/1404486) to verify:
+Test against real Buildkite builds (like acme/webapp/1404486) to verify:
 1. `softFailed` field is populated correctly
 2. Visual display matches design
 3. JSON output includes correct fields

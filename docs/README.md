@@ -36,6 +36,16 @@ The documentation is organized into four main sections based on who needs the in
 
 **When to add here**: Changelogs, process documentation, complete reference materials, configuration guides
 
+### 🔄 [Retrospectives](retrospective/)
+**Real-world feedback** - Usage learnings, pain points, success stories
+
+- **Usage Reports**: Real sessions showing what worked and what didn't
+- **Integration Stories**: How bktide fits into larger workflows
+- **Pain Points**: Friction discovered in actual use
+- **Action Items**: Concrete improvements from feedback
+
+**When to add here**: Real-world usage feedback, discovered issues, workflow learnings, integration experiences
+
 ### 📦 [Archive](archive/)
 **Historical context** - Old planning docs, migrations, progress tracking
 
@@ -74,6 +84,15 @@ The documentation is organized into four main sections based on who needs the in
 - ❌ Step-by-step tutorials
 - ❌ Troubleshooting guides
 
+### Retrospectives (`docs/retrospective/`)
+- ✅ Real usage feedback and learnings
+- ✅ Pain points discovered in workflows
+- ✅ Integration stories and use cases
+- ✅ Success stories and what worked well
+- ✅ Concrete improvement suggestions
+- ❌ Planned features (use plans/ instead)
+- ❌ General complaints without context
+
 ### Archive (`docs/archive/`)
 - ✅ Completed planning documents
 - ✅ Historical progress records
@@ -83,6 +102,10 @@ The documentation is organized into four main sections based on who needs the in
 - ❌ Current user documentation
 
 ## Quick Decision Tree
+
+**Is this real-world usage feedback or a learning from actual use?**
+- Yes → `docs/retrospective/`
+- No → Continue
 
 **Is this for end users?**
 - Yes → `docs/user/`
@@ -106,6 +129,7 @@ Each section has its own README with detailed navigation:
 - [User Documentation](user/)
 - [Developer Documentation](developer/)
 - [Reference Documentation](reference/)
+- [Retrospectives](retrospective/)
 - [Archive](archive/)
 
 ## Contributing to Documentation
