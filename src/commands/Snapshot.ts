@@ -277,6 +277,11 @@ export class Snapshot extends BaseCommand {
         }
 
         progressBar.complete(`Fetched ${totalJobs} step${totalJobs > 1 ? 's' : ''}`);
+
+        // Force stderr flush to prevent output interleaving
+        if (process.stderr.write) {
+          process.stderr.write('');
+        }
       }
 
       // 8. Write manifest
