@@ -576,11 +576,11 @@ export class Snapshot extends BaseCommand {
     const buildState = build.state?.toLowerCase();
     const isFailed = buildState === 'failed' || buildState === 'failing';
 
-    // Relative path for commands
-    const relPath = path.relative(process.cwd(), outputDir);
-    const manifestPath = path.join(relPath, 'manifest.json');
-    const stepsPath = path.join(relPath, 'steps');
-    const annotationsPath = path.join(relPath, 'annotations.json');
+    // Use tilde paths for readability
+    const basePath = pathWithTilde(outputDir);
+    const manifestPath = path.join(basePath, 'manifest.json');
+    const stepsPath = path.join(basePath, 'steps');
+    const annotationsPath = path.join(basePath, 'annotations.json');
 
     logger.console(`  manifest.json has full build metadata and step index`);
     logger.console('');
