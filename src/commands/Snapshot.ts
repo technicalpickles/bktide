@@ -146,6 +146,18 @@ export function getStepDirName(index: number, label: string): string {
   return `${num}-${sanitized || 'step'}`;
 }
 
+/**
+ * Convert absolute path to use tilde (~) for home directory
+ * Makes paths more readable and portable
+ */
+function pathWithTilde(absolutePath: string): string {
+  const homeDir = os.homedir();
+  if (absolutePath.startsWith(homeDir)) {
+    return absolutePath.replace(homeDir, '~');
+  }
+  return absolutePath;
+}
+
 export class Snapshot extends BaseCommand {
   static requiresToken = true;
   private reporter: Reporter;
