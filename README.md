@@ -379,6 +379,15 @@ Snapshots are saved to `~/.bktide/snapshots/org/pipeline/build/` with:
 ### Common Use Cases
 
 **Find what failed:**
+
+All commands use tilde paths (`~/.bktide/...`) and can be run from any directory:
+
+```bash
+jq -r '.steps[] | select(.state == "failed") | "\(.id): \(.label)"' ~/.bktide/snapshots/org/pipeline/123/manifest.json
+```
+
+Or navigate to the snapshot directory first:
+
 ```bash
 cd ~/.bktide/snapshots/org/pipeline/123
 jq -r '.steps[] | select(.state == "failed") | "\(.id): \(.label)"' manifest.json
