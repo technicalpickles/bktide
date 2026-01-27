@@ -431,51 +431,57 @@ Common mistakes and fixes:
 
 ## Case Study: Snapshot Command
 
-The `snapshot` command demonstrates both good patterns and areas for improvement.
+The `snapshot` command has been refactored to follow the design system patterns.
+
+### Improvements Made
+
+1. **Formatter pattern**: Now uses `PlainTextFormatter` and `JsonFormatter` instead of direct `logger.console()` calls
+2. **Shared utilities**: Uses `calculateJobStats()` from `src/utils/jobStats.ts` and `formatBuildDuration()` from `src/utils/formatUtils.ts`
+3. **Tip formatting**: Uses `formatTips()` with proper `--no-tips` support
+4. **Consistent styling**: Uses `SEMANTIC_COLORS` and `getStateIcon()` throughout
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `src/formatters/snapshot/Formatter.ts` | Types and interface definitions |
+| `src/formatters/snapshot/PlainTextFormatter.ts` | Plain text output formatter |
+| `src/formatters/snapshot/JsonFormatter.ts` | JSON output formatter |
+| `src/formatters/snapshot/index.ts` | Factory function and exports |
+| `src/utils/jobStats.ts` | Shared job statistics calculation and formatting |
+
+### Usage Example
+
+```typescript
+import { FormatterFactory, FormatterType, SnapshotData } from '../formatters/index.js';
+
+// Create snapshot data
+const snapshotData: SnapshotData = {
+  manifest,
+  build,
+  outputDir,
+  scriptJobs,
+  stepResults,
+  fetchAll,
+};
+
+// Get appropriate formatter
+const formatter = FormatterFactory.getFormatter(
+  FormatterType.SNAPSHOT,
+  options.json ? 'json' : 'plain'
+);
+
+// Format and output
+const output = (formatter as any).formatSnapshot(snapshotData, {
+  tips: options.tips !== false
+});
+logger.console(output);
+```
 
 ### What It Does Well
 
 1. **Progress feedback**: Uses spinner and progress bar for multi-step operations
 2. **Exit codes**: Returns 0 for complete snapshots, 1 for partial
 3. **JSON output**: `--json` flag for scripted usage
-4. **State icons**: Uses `getStateIcon()` and `BUILD_STATUS_THEME`
-
-### Areas for Improvement
-
-1. **Direct logger.console calls**: The command outputs directly rather than through a formatter
-   ```typescript
-   // Current (bypasses formatter pattern)
-   logger.console(`Snapshot saved to ${outputDir}`);
-
-   // Better (through formatter)
-   return SnapshotPlainFormatter.format(manifest, outputDir);
-   ```
-
-2. **Inline tip formatting**: Uses raw strings instead of `formatTips()`
-   ```typescript
-   // Current
-   logger.console(`  Tip: ${skippedCount} passing step(s) skipped...`);
-
-   // Better
-   const tips = [`${skippedCount} passing step(s) skipped. Use --all to capture all logs.`];
-   logger.console(formatTips(tips, TipStyle.INDIVIDUAL, false));
-   ```
-
-3. **Stats formatting inline**: Job statistics built inline rather than reusable
-   ```typescript
-   // Current - inline construction
-   let statsStr = `${scriptJobs.length} steps:`;
-   const parts: string[] = [];
-   if (passed > 0) parts.push(SEMANTIC_COLORS.success(`${passed} passed`));
-   // ...
-
-   // Better - extract to shared formatter
-   formatJobStats(scriptJobs);
-   ```
-
-### Recommended Refactoring
-
-1. Create `src/formatters/snapshot/SnapshotPlainFormatter.ts`
-2. Move `displayBuildSummary()` to use shared build formatting
-3. Use `formatTips()` for all hints
-4. Extract job stats formatting to shared utility
+4. **Formatter pattern**: All output goes through formatters, not direct logger calls
+5. **Shared utilities**: Job stats and duration formatting are reusable across commands
