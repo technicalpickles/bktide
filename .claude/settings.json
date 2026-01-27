@@ -1,0 +1,6 @@
+{
+  "enabledPlugins": {
+    "superpowers@superpowers-marketplace": true,
+    "dev-tools@pickled-claude-plugins": true
+  }
+}
