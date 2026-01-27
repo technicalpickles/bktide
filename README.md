@@ -362,13 +362,18 @@ bktide snapshot org/pipeline/123
 # Capture all steps (not just failures)
 bktide snapshot org/pipeline/123 --all
 
+# Force re-fetch (bypass incremental update)
+bktide snapshot org/pipeline/123 --force
+
 # Custom output location
 bktide snapshot org/pipeline/123 --output-dir ./investigation
 ```
 
+Subsequent runs detect changes automatically. If the build hasn't changed, it shows "Snapshot already up to date" and skips re-fetching.
+
 ### What Gets Captured
 
-Snapshots are saved to `~/.bktide/snapshots/org/pipeline/build/` with:
+Snapshots are saved to `./tmp/bktide/snapshots/org/pipeline/build/` (relative to cwd) with:
 
 - **manifest.json** - Build metadata and step index for quick filtering
 - **build.json** - Complete build data from Buildkite API
@@ -380,16 +385,8 @@ Snapshots are saved to `~/.bktide/snapshots/org/pipeline/build/` with:
 
 **Find what failed:**
 
-All commands use tilde paths (`~/.bktide/...`) and can be run from any directory:
-
 ```bash
-jq -r '.steps[] | select(.state == "failed") | "\(.id): \(.label)"' ~/.bktide/snapshots/org/pipeline/123/manifest.json
-```
-
-Or navigate to the snapshot directory first:
-
-```bash
-cd ~/.bktide/snapshots/org/pipeline/123
+cd ./tmp/bktide/snapshots/org/pipeline/123
 jq -r '.steps[] | select(.state == "failed") | "\(.id): \(.label)"' manifest.json
 ```
 
@@ -406,13 +403,15 @@ grep -r "Error\|Exception" steps/
 **Feed to AI agents:**
 ```bash
 bktide snapshot org/pipeline/123
-claude "analyze failures in ~/.bktide/snapshots/org/pipeline/123"
+claude "analyze failures in ./tmp/bktide/snapshots/org/pipeline/123"
 ```
 
 **Share with teammates:**
 ```bash
-tar -czf build-123-investigation.tar.gz ~/.bktide/snapshots/org/pipeline/123
+tar -czf build-123-investigation.tar.gz ./tmp/bktide/snapshots/org/pipeline/123
 ```
+
+**Note:** Add `./tmp/` to your `.gitignore` if using the default location.
 
 ## Global Options
 
