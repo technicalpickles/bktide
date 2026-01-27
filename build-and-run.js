@@ -64,8 +64,12 @@ if (args.length > 0 && args[0].endsWith('.ts')) {
   cliArgs = [...args];
 }
 
-console.log(`🚀 Running ${entryPoint} with source maps enabled...`);
-console.log(`Command-line arguments: ${cliArgs.join(' ')}`);
+if (cliArgs.length > 0) {
+  console.log(`🚀 Running: ${entryPoint} ${cliArgs.join(' ')}`);
+} else {
+  console.log(`🚀 Running: ${entryPoint}`);
+}
+console.log('────────────────────────── bktide output ──────────────────────────');
 
 // Run the compiled code with source maps enabled
 const nodeResult = spawnSync('node', ['--enable-source-maps', entryPoint, ...cliArgs], {
