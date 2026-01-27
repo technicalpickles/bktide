@@ -244,7 +244,8 @@ describe('Snapshot Command', () => {
 
       vi.spyOn(snapshot['client'], 'getBuildSummaryWithAllJobs').mockResolvedValue(mockBuildData);
       vi.spyOn(snapshot['restClient'], 'getJobLog').mockResolvedValue(mockLog);
-      vi.spyOn(snapshot['restClient'], 'getBuildAnnotations').mockResolvedValue([]);
+      vi.spyOn(snapshot['client'], 'getAnnotationTimestamps').mockResolvedValue([]);
+      vi.spyOn(snapshot['client'], 'getAnnotationsFull').mockResolvedValue([]);
 
       const result = await snapshot.execute({
         buildRef: 'myorg/mypipeline/42',
@@ -266,7 +267,8 @@ describe('Snapshot Command', () => {
       expect(manifest.buildRef).toBe('myorg/mypipeline/42');
       expect(manifest.fetchComplete).toBe(true);
       expect(manifest.steps).toHaveLength(2); // Only script jobs
-      expect(manifest.annotations).toEqual({ fetchStatus: 'none', count: 0 });
+      expect(manifest.annotations.fetchStatus).toBe('none');
+      expect(manifest.annotations.count).toBe(0);
 
       // Verify build.json exists
       const buildPath = path.join(buildDir, 'build.json');
@@ -327,7 +329,8 @@ describe('Snapshot Command', () => {
       vi.spyOn(snapshot['restClient'], 'getJobLog').mockRejectedValue(
         new Error('API request failed with status 404: Log not found')
       );
-      vi.spyOn(snapshot['restClient'], 'getBuildAnnotations').mockResolvedValue([]);
+      vi.spyOn(snapshot['client'], 'getAnnotationTimestamps').mockResolvedValue([]);
+      vi.spyOn(snapshot['client'], 'getAnnotationsFull').mockResolvedValue([]);
 
       const result = await snapshot.execute({
         buildRef: 'myorg/mypipeline/42',
@@ -387,7 +390,8 @@ describe('Snapshot Command', () => {
 
       vi.spyOn(snapshot['client'], 'getBuildSummaryWithAllJobs').mockResolvedValue(mockBuildData);
       vi.spyOn(snapshot['restClient'], 'getJobLog').mockResolvedValue(mockLog);
-      vi.spyOn(snapshot['restClient'], 'getBuildAnnotations').mockResolvedValue([]);
+      vi.spyOn(snapshot['client'], 'getAnnotationTimestamps').mockResolvedValue([]);
+      vi.spyOn(snapshot['client'], 'getAnnotationsFull').mockResolvedValue([]);
 
       // Capture console output
       const consoleSpy = vi.fn();
@@ -428,7 +432,8 @@ describe('Snapshot Command', () => {
       };
 
       const getBuildSpy = vi.spyOn(snapshot['client'], 'getBuildSummaryWithAllJobs').mockResolvedValue(mockBuildData);
-      vi.spyOn(snapshot['restClient'], 'getBuildAnnotations').mockResolvedValue([]);
+      vi.spyOn(snapshot['client'], 'getAnnotationTimestamps').mockResolvedValue([]);
+      vi.spyOn(snapshot['client'], 'getAnnotationsFull').mockResolvedValue([]);
 
       await snapshot.execute({
         buildRef: 'https://buildkite.com/acme/pipeline/builds/99',
@@ -463,12 +468,17 @@ describe('Snapshot Command', () => {
       };
 
       const mockAnnotations = [
-        { id: 'ann-1', context: 'test-failure', style: 'error', body_html: '<p>Test failed</p>' },
-        { id: 'ann-2', context: 'coverage', style: 'info', body_html: '<p>Coverage: 80%</p>' },
+        { uuid: 'ann-1', context: 'test-failure', style: 'error', body: { html: '<p>Test failed</p>' }, updatedAt: '2024-01-01T00:00:00Z' },
+        { uuid: 'ann-2', context: 'coverage', style: 'info', body: { html: '<p>Coverage: 80%</p>' }, updatedAt: '2024-01-01T00:00:00Z' },
+      ];
+      const mockTimestamps = [
+        { uuid: 'ann-1', updatedAt: '2024-01-01T00:00:00Z', createdAt: '2024-01-01T00:00:00Z' },
+        { uuid: 'ann-2', updatedAt: '2024-01-01T00:00:00Z', createdAt: '2024-01-01T00:00:00Z' },
       ];
 
       vi.spyOn(snapshot['client'], 'getBuildSummaryWithAllJobs').mockResolvedValue(mockBuildData);
-      vi.spyOn(snapshot['restClient'], 'getBuildAnnotations').mockResolvedValue(mockAnnotations);
+      vi.spyOn(snapshot['client'], 'getAnnotationTimestamps').mockResolvedValue(mockTimestamps);
+      vi.spyOn(snapshot['client'], 'getAnnotationsFull').mockResolvedValue(mockAnnotations);
 
       await snapshot.execute({
         buildRef: 'myorg/mypipeline/42',
@@ -487,7 +497,9 @@ describe('Snapshot Command', () => {
       // Verify manifest reflects annotation status
       const manifestPath = path.join(buildDir, 'manifest.json');
       const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
-      expect(manifest.annotations).toEqual({ fetchStatus: 'success', count: 2 });
+      expect(manifest.annotations.fetchStatus).toBe('success');
+      expect(manifest.annotations.count).toBe(2);
+      expect(manifest.annotations.items).toHaveLength(2);
     });
 
     it('should handle annotation fetch failure gracefully', async () => {
@@ -508,7 +520,8 @@ describe('Snapshot Command', () => {
       };
 
       vi.spyOn(snapshot['client'], 'getBuildSummaryWithAllJobs').mockResolvedValue(mockBuildData);
-      vi.spyOn(snapshot['restClient'], 'getBuildAnnotations').mockRejectedValue(
+      vi.spyOn(snapshot['client'], 'getAnnotationTimestamps').mockResolvedValue([]);
+      vi.spyOn(snapshot['client'], 'getAnnotationsFull').mockRejectedValue(
         new Error('API request failed with status 403')
       );
 
