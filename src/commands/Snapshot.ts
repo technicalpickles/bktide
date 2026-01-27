@@ -242,9 +242,8 @@ export class Snapshot extends BaseCommand {
       if (!changeResult.hasChanges) {
         spinner.stop();
         logger.console(`Snapshot already up to date: ${pathForDisplay(outputDir)}`);
-        logger.console('');
 
-        // Still show navigation tips
+        // Still show navigation tips (displayNavigationTips adds its own leading blank line)
         const scriptJobs = jobs
           .map((edge: any) => edge.node)
           .filter((job: any) => job.__typename === 'JobTypeCommand' || !job.__typename);
@@ -371,7 +370,7 @@ export class Snapshot extends BaseCommand {
         // Then show snapshot info
         const fetchErrorCount = stepResults.filter(s => s.status === 'failed').length;
 
-        logger.console('');  // Blank line between build summary and snapshot info
+        // Note: displayBuildSummary() already ends with a blank line
         logger.console(`Snapshot saved to ${pathForDisplay(outputDir)}`);
 
         if (stepResults.length > 0) {
@@ -567,9 +566,9 @@ export class Snapshot extends BaseCommand {
         name: result.job.name || '',
         label: result.job.label || '',
         state: result.job.state || 'unknown',
-        exit_status: result.job.exit_status ?? null,
-        started_at: result.job.started_at || null,
-        finished_at: result.job.finished_at || null,
+        exit_status: result.job.exitStatus ?? null,
+        started_at: result.job.startedAt || null,
+        finished_at: result.job.finishedAt || null,
       })),
     };
 
@@ -646,7 +645,13 @@ export class Snapshot extends BaseCommand {
       return { hasChanges: true, reason: 'build_finished_changed' };
     }
 
-    // Compare job states
+    // For terminal builds with matching finishedAt, the build can't have changed
+    // Skip job-level comparison since we may have only stored a subset (e.g., --failed mode)
+    if (existingManifest.fetchComplete) {
+      return { hasChanges: false };
+    }
+
+    // Compare job states (only for incomplete fetches)
     const jobsToRefetch: string[] = [];
     const storedJobMap = new Map(
       existingManifest.steps.map(s => [s.jobId, s])
@@ -784,15 +789,15 @@ export class Snapshot extends BaseCommand {
     const buildState = build.state?.toLowerCase();
     const isFailed = buildState === 'failed' || buildState === 'failing';
 
-    // Use tilde paths for readability
+    // Use relative paths for readability (string concat preserves ./ prefix)
     const basePath = pathForDisplay(outputDir);
-    const manifestPath = path.join(basePath, 'manifest.json');
-    const stepsPath = path.join(basePath, 'steps');
-    const annotationsPath = path.join(basePath, 'annotations.json');
+    const manifestPath = `${basePath}/manifest.json`;
+    const stepsPath = `${basePath}/steps`;
+    const annotationsPath = `${basePath}/annotations.json`;
 
     // Output tips using logger.console to maintain consistent output ordering
     // (reporter.tips uses direct stdout which can race with pino's buffering)
-    logger.console('');  // Blank line before Next steps
+    logger.console(' ');  // Blank line before Next steps
     logger.console('Next steps:');
 
     if (isFailed) {
@@ -810,7 +815,7 @@ export class Snapshot extends BaseCommand {
       if (capturedCount > 0) {
         const firstFailedDir = this.getFirstFailedStepDir(scriptJobs);
         if (firstFailedDir) {
-          logger.console(`  → View a log:      cat ${path.join(stepsPath, firstFailedDir, 'log.txt')}`);
+          logger.console(`  → View a log:      cat ${stepsPath}/${firstFailedDir}/log.txt`);
         }
       }
 
@@ -836,7 +841,7 @@ export class Snapshot extends BaseCommand {
     }
 
     logger.console(`  → Use --no-tips to hide these hints`);
-    logger.console('');
+    logger.console(' ');
     logger.console(SEMANTIC_COLORS.dim(`  → manifest.json has full build metadata and step index`));
   }
 
@@ -899,9 +904,9 @@ export class Snapshot extends BaseCommand {
     if (other > 0) parts.push(SEMANTIC_COLORS.muted(`${other} other`));
     statsStr += ' ' + parts.join(', ');
 
-    logger.console('');
+    logger.console(' ');
     logger.console(statsStr);
 
-    logger.console('');
+    logger.console(' ');
   }
 }
