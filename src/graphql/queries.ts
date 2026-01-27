@@ -329,4 +329,42 @@ export const GET_BUILD_JOBS_PAGE = gql`
     }
   }
   ${JOB_SUMMARY_FIELDS}
+`;
+
+export const GET_BUILD_ANNOTATION_TIMESTAMPS = gql`
+  query GetBuildAnnotationTimestamps($slug: ID!) {
+    build(slug: $slug) {
+      annotations(first: 100) {
+        edges {
+          node {
+            uuid
+            updatedAt
+            createdAt
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const GET_BUILD_ANNOTATIONS_FULL = gql`
+  query GetBuildAnnotationsFull($slug: ID!) {
+    build(slug: $slug) {
+      annotations(first: 100) {
+        edges {
+          node {
+            uuid
+            context
+            style
+            body {
+              html
+              text
+            }
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    }
+  }
 `; 
