@@ -624,7 +624,8 @@ export class Snapshot extends BaseCommand {
     }
 
     logger.console(`  → Use --no-tips to hide these hints`);
-    logger.console(`  manifest.json has full build metadata and step index`);
+    logger.console('');
+    logger.console(SEMANTIC_COLORS.dim(`manifest.json has full build metadata and step index`));
   }
 
   /**
