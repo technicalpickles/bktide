@@ -44,6 +44,10 @@ interface Manifest {
   annotations?: {
     fetchStatus: 'success' | 'none' | 'failed';
     count: number;
+    items?: Array<{
+      uuid: string;
+      updatedAt: string | null;
+    }>;
   };
   steps: Array<{
     // Our metadata
@@ -73,6 +77,7 @@ interface Manifest {
 interface AnnotationResult {
   fetchStatus: 'success' | 'none' | 'failed';
   count: number;
+  items?: Array<{ uuid: string; updatedAt: string | null }>;
   error?: string;
   message?: string;
 }
@@ -469,12 +474,14 @@ export class Snapshot extends BaseCommand {
       const annotationsPath = path.join(outputDir, 'annotations.json');
       await fs.writeFile(annotationsPath, JSON.stringify(annotationsFile, null, 2), 'utf-8');
 
-      // Return result
+      // Return result with items for change detection
+      const items = annotations.map((a: any) => ({ uuid: a.uuid, updatedAt: a.updatedAt || null }));
+
       if (annotations.length === 0) {
-        return { fetchStatus: 'none', count: 0 };
+        return { fetchStatus: 'none', count: 0, items: [] };
       }
 
-      return { fetchStatus: 'success', count: annotations.length };
+      return { fetchStatus: 'success', count: annotations.length, items };
     } catch (error) {
       if (debug) {
         logger.debug(`Failed to fetch annotations:`, error);
@@ -518,6 +525,7 @@ export class Snapshot extends BaseCommand {
       annotations: {
         fetchStatus: annotationResult.fetchStatus,
         count: annotationResult.count,
+        items: annotationResult.items,
       },
       steps: stepResults.map(result => ({
         // Our metadata
