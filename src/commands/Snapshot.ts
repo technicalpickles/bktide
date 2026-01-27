@@ -323,17 +323,14 @@ export class Snapshot extends BaseCommand {
           logger.console(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`);
         }
 
-        // Show tip about --all if we filtered to failed only and there are passing steps
-        if (!fetchAll && scriptJobs.length > jobsToFetch.length) {
-          const skippedCount = scriptJobs.length - jobsToFetch.length;
-          logger.console(`  Tip: ${skippedCount} passing step(s) skipped. Use --all to capture all logs.`);
-        }
+        // Track skipped count for tips section
+        const skippedCount = !fetchAll ? scriptJobs.length - jobsToFetch.length : 0;
 
         logger.console('');
 
         // Show contextual navigation tips (check if tips are enabled)
         if (this.options.tips !== false) {
-          this.displayNavigationTips(outputDir, build, scriptJobs, stepResults.length, annotationResult);
+          this.displayNavigationTips(outputDir, build, scriptJobs, stepResults.length, annotationResult, skippedCount);
         }
       }
 
@@ -570,7 +567,8 @@ export class Snapshot extends BaseCommand {
     build: any,
     scriptJobs: any[],
     capturedCount: number,
-    annotationResult: AnnotationResult
+    annotationResult: AnnotationResult,
+    skippedCount: number
   ): void {
     const buildState = build.state?.toLowerCase();
     const isFailed = buildState === 'failed' || buildState === 'failing';
@@ -605,6 +603,11 @@ export class Snapshot extends BaseCommand {
       }
 
       logger.console(`  → Search errors:   grep -r "Error\\|Failed\\|Exception" ${stepsPath}/`);
+
+      // Show --all tip if steps were skipped
+      if (skippedCount > 0) {
+        logger.console(`  → Use --all to include all ${skippedCount} passing steps`);
+      }
     } else {
       // Tips for passed builds
       logger.console(`  → List all steps:  jq -r '.steps[] | "\\(.id): \\(.label) (\\(.state))"' ${manifestPath}`);
@@ -612,6 +615,11 @@ export class Snapshot extends BaseCommand {
 
       if (capturedCount > 0) {
         logger.console(`  → View a log:      cat ${stepsPath}/01-*/log.txt`);
+      }
+
+      // Show --all tip if steps were skipped (for passed builds using default filter)
+      if (skippedCount > 0) {
+        logger.console(`  → Use --all to include all ${skippedCount} passing steps`);
       }
     }
 
