@@ -253,9 +253,7 @@ export class Snapshot extends BaseCommand {
       spinner.update('Fetching annotations…');
       const annotationResult = await this.fetchAndSaveAnnotations(
         outputDir,
-        buildRef.org,
-        buildRef.pipeline,
-        buildRef.number,
+        buildSlug,
         options.debug
       );
 
@@ -451,13 +449,11 @@ export class Snapshot extends BaseCommand {
 
   private async fetchAndSaveAnnotations(
     outputDir: string,
-    org: string,
-    pipeline: string,
-    buildNumber: number,
+    buildSlug: string,
     debug?: boolean
   ): Promise<AnnotationResult> {
     try {
-      const annotations = await this.restClient.getBuildAnnotations(org, pipeline, buildNumber);
+      const annotations = await this.client.getAnnotationsFull(buildSlug);
 
       if (debug) {
         logger.debug(`Fetched ${annotations.length} annotation(s)`);
