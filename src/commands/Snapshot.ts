@@ -347,7 +347,7 @@ export class Snapshot extends BaseCommand {
   }
 
   private getOutputDir(options: SnapshotOptions, org: string, pipeline: string, buildNumber: number): string {
-    const baseDir = options.outputDir || path.join(os.homedir(), '.bktide', 'snapshots');
+    const baseDir = options.outputDir || path.join(process.cwd(), 'tmp', 'bktide', 'snapshots');
     return path.join(baseDir, org, pipeline, String(buildNumber));
   }
 
