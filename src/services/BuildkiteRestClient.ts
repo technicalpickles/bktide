@@ -363,6 +363,27 @@ export class BuildkiteRestClient {
   }
 
   /**
+   * Get annotations for a build
+   * @param org Organization slug
+   * @param pipeline Pipeline slug
+   * @param buildNumber Build number
+   * @returns Array of annotations
+   */
+  public async getBuildAnnotations(
+    org: string,
+    pipeline: string,
+    buildNumber: number
+  ): Promise<any[]> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/annotations`;
+
+    if (this.debug) {
+      logger.debug(`Fetching annotations for ${org}/${pipeline}/${buildNumber}`);
+    }
+
+    return this.get<any[]>(endpoint);
+  }
+
+  /**
    * Get jobs for a specific build
    */
   public async getBuildJobs(

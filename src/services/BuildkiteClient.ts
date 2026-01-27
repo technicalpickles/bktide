@@ -2,17 +2,19 @@ import { GraphQLClient } from 'graphql-request';
 import { CacheManager } from './CacheManager.js';
 import { getProgressIcon } from '../ui/theme.js';
 // Import the queries - we'll use them for both string queries and typed SDK
-import { 
-  GET_VIEWER, 
-  GET_ORGANIZATIONS, 
+import {
+  GET_VIEWER,
+  GET_ORGANIZATIONS,
   GET_PIPELINES,
   GET_PIPELINE,
-  GET_BUILDS, 
+  GET_BUILDS,
   GET_VIEWER_BUILDS,
   GET_BUILD_ANNOTATIONS,
   GET_BUILD_SUMMARY,
   GET_BUILD_FULL,
-  GET_BUILD_JOBS_PAGE
+  GET_BUILD_JOBS_PAGE,
+  GET_BUILD_ANNOTATION_TIMESTAMPS,
+  GET_BUILD_ANNOTATIONS_FULL
 } from '../graphql/queries.js';
 // Import generated types
 import { 
@@ -863,5 +865,23 @@ export class BuildkiteClient {
         }
       }
     };
+  }
+
+  /**
+   * Get annotation timestamps for change detection (lightweight)
+   */
+  public async getAnnotationTimestamps(buildSlug: string): Promise<Array<{ uuid: string; updatedAt: string | null; createdAt: string }>> {
+    const variables = { slug: buildSlug };
+    const data = await this.query<any>(GET_BUILD_ANNOTATION_TIMESTAMPS.toString(), variables);
+    return (data.build?.annotations?.edges || []).map((edge: any) => edge.node);
+  }
+
+  /**
+   * Get full annotation data
+   */
+  public async getAnnotationsFull(buildSlug: string): Promise<any[]> {
+    const variables = { slug: buildSlug };
+    const data = await this.query<any>(GET_BUILD_ANNOTATIONS_FULL.toString(), variables);
+    return (data.build?.annotations?.edges || []).map((edge: any) => edge.node);
   }
 }
