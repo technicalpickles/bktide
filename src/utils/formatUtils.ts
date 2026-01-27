@@ -92,3 +92,26 @@ export function truncate(str: string, length: number): string {
   if (singleLine.length <= length) return singleLine;
   return singleLine.slice(0, length - 3) + '...';
 }
+
+/**
+ * Format duration from a build or job object's timestamps
+ * Returns empty string if not started
+ */
+export function formatBuildDuration(obj: {
+  startedAt?: string | null;
+  finishedAt?: string | null;
+}): string {
+  if (!obj.startedAt) return '';
+
+  const start = new Date(obj.startedAt).getTime();
+  const end = obj.finishedAt ? new Date(obj.finishedAt).getTime() : Date.now();
+  const seconds = Math.floor((end - start) / 1000);
+
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
+}

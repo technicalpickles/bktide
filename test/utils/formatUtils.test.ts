@@ -3,6 +3,7 @@ import {
   formatStatus,
   formatRelativeDate,
   formatDuration,
+  formatBuildDuration,
   formatSize,
   truncate,
 } from '../../src/utils/formatUtils.js';
@@ -206,6 +207,40 @@ describe('formatUtils', () => {
       const exactString = 'exactly20charlong!!';
       expect(exactString.length).toBe(19);
       expect(truncate(exactString, 19)).toBe(exactString);
+    });
+  });
+
+  describe('formatBuildDuration', () => {
+    it('formats duration from startedAt and finishedAt', () => {
+      const result = formatBuildDuration({
+        startedAt: '2025-01-27T10:00:00Z',
+        finishedAt: '2025-01-27T10:02:30Z',
+      });
+      expect(result).toBe('2m 30s');
+    });
+
+    it('returns empty string when not started', () => {
+      const result = formatBuildDuration({
+        startedAt: null,
+        finishedAt: null,
+      });
+      expect(result).toBe('');
+    });
+
+    it('formats hours for long durations', () => {
+      const result = formatBuildDuration({
+        startedAt: '2025-01-27T10:00:00Z',
+        finishedAt: '2025-01-27T11:30:45Z',
+      });
+      expect(result).toBe('1h 30m');
+    });
+
+    it('formats seconds only for short durations', () => {
+      const result = formatBuildDuration({
+        startedAt: '2025-01-27T10:00:00Z',
+        finishedAt: '2025-01-27T10:00:45Z',
+      });
+      expect(result).toBe('45s');
     });
   });
 });
