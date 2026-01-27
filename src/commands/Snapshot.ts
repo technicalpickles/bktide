@@ -173,6 +173,23 @@ function pathWithTilde(absolutePath: string): string {
   return absolutePath;
 }
 
+/**
+ * Format path for display: use relative ./tmp/... for default location,
+ * tilde path for custom locations
+ */
+function pathForDisplay(absolutePath: string): string {
+  const cwd = process.cwd();
+  const defaultBase = path.join(cwd, 'tmp', 'bktide', 'snapshots');
+
+  // If path is under default location, show as relative
+  if (absolutePath.startsWith(defaultBase)) {
+    return './' + path.relative(cwd, absolutePath);
+  }
+
+  // Otherwise use tilde path
+  return pathWithTilde(absolutePath);
+}
+
 export class Snapshot extends BaseCommand {
   static requiresToken = true;
 
@@ -224,7 +241,7 @@ export class Snapshot extends BaseCommand {
 
       if (!changeResult.hasChanges) {
         spinner.stop();
-        logger.console(`Snapshot already up to date: ${pathWithTilde(outputDir)}`);
+        logger.console(`Snapshot already up to date: ${pathForDisplay(outputDir)}`);
         logger.console('');
 
         // Still show navigation tips
@@ -325,7 +342,7 @@ export class Snapshot extends BaseCommand {
           stepResults.push(stepResult);
         }
 
-        progressBar.complete(`Fetched ${totalJobs} step${totalJobs > 1 ? 's' : ''}`);
+        progressBar.complete('');  // Silent completion, count shown in summary
 
         // Force stderr flush to prevent output interleaving
         if (process.stderr.write) {
@@ -355,7 +372,7 @@ export class Snapshot extends BaseCommand {
         const fetchErrorCount = stepResults.filter(s => s.status === 'failed').length;
 
         logger.console('');  // Blank line between build summary and snapshot info
-        logger.console(`Snapshot saved to ${pathWithTilde(outputDir)}`);
+        logger.console(`Snapshot saved to ${pathForDisplay(outputDir)}`);
 
         if (stepResults.length > 0) {
           logger.console(`  ${stepResults.length} step(s) captured`);
@@ -381,8 +398,6 @@ export class Snapshot extends BaseCommand {
 
         // Track skipped count for tips section
         const skippedCount = !fetchAll ? scriptJobs.length - jobsToFetch.length : 0;
-
-        logger.console('');
 
         // Show contextual navigation tips (check if tips are enabled)
         if (this.options.tips !== false) {
@@ -770,13 +785,14 @@ export class Snapshot extends BaseCommand {
     const isFailed = buildState === 'failed' || buildState === 'failing';
 
     // Use tilde paths for readability
-    const basePath = pathWithTilde(outputDir);
+    const basePath = pathForDisplay(outputDir);
     const manifestPath = path.join(basePath, 'manifest.json');
     const stepsPath = path.join(basePath, 'steps');
     const annotationsPath = path.join(basePath, 'annotations.json');
 
     // Output tips using logger.console to maintain consistent output ordering
     // (reporter.tips uses direct stdout which can race with pino's buffering)
+    logger.console('');  // Blank line before Next steps
     logger.console('Next steps:');
 
     if (isFailed) {
@@ -821,7 +837,7 @@ export class Snapshot extends BaseCommand {
 
     logger.console(`  → Use --no-tips to hide these hints`);
     logger.console('');
-    logger.console(SEMANTIC_COLORS.dim(`manifest.json has full build metadata and step index`));
+    logger.console(SEMANTIC_COLORS.dim(`  → manifest.json has full build metadata and step index`));
   }
 
   /**
