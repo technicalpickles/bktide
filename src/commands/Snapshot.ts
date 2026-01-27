@@ -39,6 +39,7 @@ interface Manifest {
     message: string;
     branch: string;
     commit: string;
+    finishedAt: string | null;
   };
   annotations?: {
     fetchStatus: 'success' | 'none' | 'failed';
@@ -81,6 +82,15 @@ interface AnnotationsFile {
   count: number;
   annotations: any[];  // Raw annotations from Buildkite API
 }
+
+interface BuildChangeResult {
+  hasChanges: boolean;
+  reason?: 'build_running' | 'build_finished_changed' | 'no_existing_manifest' | 'force_refresh';
+  jobsToRefetch?: string[];  // Job IDs that need re-fetching
+  annotationsChanged?: boolean;
+}
+
+const TERMINAL_BUILD_STATES = ['PASSED', 'FAILED', 'CANCELED', 'BLOCKED', 'NOT_RUN'];
 
 type ErrorCategory = 'rate_limited' | 'not_found' | 'permission_denied' | 'network_error' | 'unknown';
 
@@ -203,15 +213,43 @@ export class Snapshot extends BaseCommand {
       const build = buildData.build;
       const jobs = build.jobs?.edges || [];
 
-      // 4. Create directory structure
+      // 4. Check for existing snapshot and detect changes
+      const existingManifest = await this.loadExistingManifest(outputDir);
+      const changeResult = this.detectChanges(build, jobs, existingManifest, options.force === true);
+
+      if (!changeResult.hasChanges) {
+        spinner.stop();
+        logger.console(`Snapshot already up to date: ${pathWithTilde(outputDir)}`);
+        logger.console('');
+
+        // Still show navigation tips
+        const scriptJobs = jobs
+          .map((edge: any) => edge.node)
+          .filter((job: any) => job.__typename === 'JobTypeCommand' || !job.__typename);
+
+        if (this.options.tips !== false && existingManifest) {
+          const annotationResult: AnnotationResult = existingManifest.annotations || { fetchStatus: 'none', count: 0 };
+          this.displayNavigationTips(outputDir, build, scriptJobs, existingManifest.steps.length, annotationResult, 0);
+        }
+        return 0;
+      }
+
+      if (options.debug && changeResult.reason) {
+        logger.debug(`Change detected: ${changeResult.reason}`);
+        if (changeResult.jobsToRefetch) {
+          logger.debug(`Jobs to refetch: ${changeResult.jobsToRefetch.length}`);
+        }
+      }
+
+      // 5. Create directory structure
       spinner.update('Creating directories…');
       await this.createDirectories(outputDir);
 
-      // 5. Save build.json
+      // 6. Save build.json
       spinner.update('Saving build data…');
       await this.saveBuildJson(outputDir, build);
 
-      // 6. Fetch and save annotations
+      // 7. Fetch and save annotations
       spinner.update('Fetching annotations…');
       const annotationResult = await this.fetchAndSaveAnnotations(
         outputDir,
@@ -221,7 +259,7 @@ export class Snapshot extends BaseCommand {
         options.debug
       );
 
-      // 7. Filter and fetch jobs
+      // 8. Filter and fetch jobs
       // Filter to script jobs only (JobTypeCommand)
       const scriptJobs = jobs
         .map((edge: any) => edge.node)
@@ -278,7 +316,7 @@ export class Snapshot extends BaseCommand {
         }
       }
 
-      // 8. Write manifest
+      // 9. Write manifest
       const manifest = this.buildManifest(
         buildRef.org,
         buildRef.pipeline,
@@ -289,7 +327,7 @@ export class Snapshot extends BaseCommand {
       );
       await this.saveManifest(outputDir, manifest);
 
-      // 9. Output based on options
+      // 10. Output based on options
       if (options.json) {
         logger.console(JSON.stringify(manifest, null, 2));
       } else {
@@ -479,6 +517,7 @@ export class Snapshot extends BaseCommand {
         message: build.message?.split('\n')[0] || '',
         branch: build.branch || 'unknown',
         commit: build.commit?.substring(0, 7) || 'unknown',
+        finishedAt: build.finishedAt || null,
       },
       annotations: {
         fetchStatus: annotationResult.fetchStatus,
@@ -519,6 +558,102 @@ export class Snapshot extends BaseCommand {
   private async saveManifest(outputDir: string, manifest: Manifest): Promise<void> {
     const manifestPath = path.join(outputDir, 'manifest.json');
     await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+  }
+
+  /**
+   * Load existing manifest if present
+   * Returns null if no manifest exists or parsing fails
+   */
+  private async loadExistingManifest(outputDir: string): Promise<Manifest | null> {
+    const manifestPath = path.join(outputDir, 'manifest.json');
+    try {
+      const content = await fs.readFile(manifestPath, 'utf-8');
+      const manifest = JSON.parse(content) as Manifest;
+      // Validate it's a v2 manifest
+      if (manifest.version !== 2) {
+        return null;
+      }
+      return manifest;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Detect what has changed since last snapshot
+   * Compares current build state against stored manifest
+   */
+  private detectChanges(
+    currentBuild: any,
+    currentJobs: any[],
+    existingManifest: Manifest | null,
+    force: boolean
+  ): BuildChangeResult {
+    // Force refresh requested
+    if (force) {
+      return { hasChanges: true, reason: 'force_refresh' };
+    }
+
+    // No existing manifest - full fetch needed
+    if (!existingManifest) {
+      return { hasChanges: true, reason: 'no_existing_manifest' };
+    }
+
+    const currentState = currentBuild.state?.toUpperCase();
+
+    // Build still running - always re-fetch
+    if (!TERMINAL_BUILD_STATES.includes(currentState)) {
+      return { hasChanges: true, reason: 'build_running' };
+    }
+
+    // Check if build finished at different time (rebuild scenario)
+    const currentFinishedAt = currentBuild.finishedAt;
+    const storedFinishedAt = existingManifest.build.finishedAt;
+    if (currentFinishedAt !== storedFinishedAt) {
+      return { hasChanges: true, reason: 'build_finished_changed' };
+    }
+
+    // Compare job states
+    const jobsToRefetch: string[] = [];
+    const storedJobMap = new Map(
+      existingManifest.steps.map(s => [s.jobId, s])
+    );
+
+    for (const jobEdge of currentJobs) {
+      const job = jobEdge.node;
+      if (job.__typename !== 'JobTypeCommand' && job.__typename) continue;
+
+      const storedJob = storedJobMap.get(job.id);
+
+      // New job - needs fetch
+      if (!storedJob) {
+        jobsToRefetch.push(job.id);
+        continue;
+      }
+
+      // Job state changed
+      if (job.state !== storedJob.state) {
+        jobsToRefetch.push(job.id);
+        continue;
+      }
+
+      // Job finished at different time
+      if (job.finishedAt !== storedJob.finished_at) {
+        jobsToRefetch.push(job.id);
+      }
+    }
+
+    // If any jobs need re-fetching, there are changes
+    if (jobsToRefetch.length > 0) {
+      return {
+        hasChanges: true,
+        reason: 'build_finished_changed',
+        jobsToRefetch,
+      };
+    }
+
+    // No changes detected
+    return { hasChanges: false };
   }
 
   /**
