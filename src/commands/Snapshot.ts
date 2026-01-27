@@ -2,8 +2,7 @@ import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { logger } from '../services/logger.js';
 import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { Progress } from '../ui/progress.js';
-import { getStateIcon, SEMANTIC_COLORS, BUILD_STATUS_THEME, TipStyle } from '../ui/theme.js';
-import { Reporter } from '../ui/reporter.js';
+import { getStateIcon, SEMANTIC_COLORS, BUILD_STATUS_THEME } from '../ui/theme.js';
 import { formatDistanceToNow } from 'date-fns';
 import fs from 'fs/promises';
 import path from 'path';
@@ -160,12 +159,6 @@ function pathWithTilde(absolutePath: string): string {
 
 export class Snapshot extends BaseCommand {
   static requiresToken = true;
-  private reporter: Reporter;
-
-  constructor(options?: Partial<SnapshotOptions>) {
-    super(options);
-    this.reporter = new Reporter(options?.format || 'plain', options?.quiet, options?.tips);
-  }
 
   async execute(options: SnapshotOptions): Promise<number> {
     if (options.debug) {
@@ -305,7 +298,8 @@ export class Snapshot extends BaseCommand {
         // Then show snapshot info
         const fetchErrorCount = stepResults.filter(s => s.status === 'failed').length;
 
-        logger.console(`Snapshot saved to ${outputDir}`);
+        logger.console('');  // Blank line between build summary and snapshot info
+        logger.console(`Snapshot saved to ${pathWithTilde(outputDir)}`);
 
         if (stepResults.length > 0) {
           logger.console(`  ${stepResults.length} step(s) captured`);
@@ -587,43 +581,42 @@ export class Snapshot extends BaseCommand {
     const stepsPath = path.join(basePath, 'steps');
     const annotationsPath = path.join(basePath, 'annotations.json');
 
-    logger.console(`  manifest.json has full build metadata and step index`);
-    logger.console('');
-
-    const tips: string[] = [];
+    // Output tips using logger.console to maintain consistent output ordering
+    // (reporter.tips uses direct stdout which can race with pino's buffering)
+    logger.console('Next steps:');
 
     if (isFailed) {
       // Tips for failed builds
-      tips.push(`List failures:   jq -r '.steps[] | select(.state == "failed") | "\\(.id): \\(.label)"' ${manifestPath}`);
+      logger.console(`  → List failures:   jq -r '.steps[] | select(.state == "failed") | "\\(.id): \\(.label)"' ${manifestPath}`);
 
       // Add annotation tip if annotations exist
       if (annotationResult.count > 0) {
-        tips.push(`View annotations: jq -r '.annotations[] | {context, style}' ${annotationsPath}`);
+        logger.console(`  → View annotations: jq -r '.annotations[] | {context, style}' ${annotationsPath}`);
       }
 
-      tips.push(`Get exit codes:  jq -r '.steps[] | "\\(.id): exit \\(.exit_status)"' ${manifestPath}`);
+      logger.console(`  → Get exit codes:  jq -r '.steps[] | "\\(.id): exit \\(.exit_status)"' ${manifestPath}`);
 
       // If we captured steps, show how to view first failed log
       if (capturedCount > 0) {
         const firstFailedDir = this.getFirstFailedStepDir(scriptJobs);
         if (firstFailedDir) {
-          tips.push(`View a log:      cat ${path.join(stepsPath, firstFailedDir, 'log.txt')}`);
+          logger.console(`  → View a log:      cat ${path.join(stepsPath, firstFailedDir, 'log.txt')}`);
         }
       }
 
-      tips.push(`Search errors:   grep -r "Error\\|Failed\\|Exception" ${stepsPath}/`);
+      logger.console(`  → Search errors:   grep -r "Error\\|Failed\\|Exception" ${stepsPath}/`);
     } else {
       // Tips for passed builds
-      tips.push(`List all steps:  jq -r '.steps[] | "\\(.id): \\(.label) (\\(.state))"' ${manifestPath}`);
-      tips.push(`Browse logs:     ls ${stepsPath}/`);
+      logger.console(`  → List all steps:  jq -r '.steps[] | "\\(.id): \\(.label) (\\(.state))"' ${manifestPath}`);
+      logger.console(`  → Browse logs:     ls ${stepsPath}/`);
 
       if (capturedCount > 0) {
-        tips.push(`View a log:      cat ${stepsPath}/01-*/log.txt`);
+        logger.console(`  → View a log:      cat ${stepsPath}/01-*/log.txt`);
       }
     }
 
-    // Use ACTIONS style for "Next steps:" formatting
-    this.reporter.tips(tips, TipStyle.ACTIONS);
+    logger.console(`  → Use --no-tips to hide these hints`);
+    logger.console(`  manifest.json has full build metadata and step index`);
   }
 
   /**
