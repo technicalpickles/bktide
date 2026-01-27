@@ -1,4 +1,6 @@
 // src/utils/jobStats.ts
+import { SEMANTIC_COLORS } from '../ui/theme.js';
+
 export interface JobStats {
   total: number;
   passed: number;
@@ -90,4 +92,49 @@ export function calculateJobStats(jobs: any[]): JobStats {
   }
 
   return stats;
+}
+
+/**
+ * Format job stats as a human-readable summary line
+ * Example: "5 steps: 3 passed, 1 failed, 1 soft failure"
+ */
+export function formatJobStatsSummary(stats: JobStats, useColors = true): string {
+  const parts: string[] = [];
+
+  const color = useColors ? SEMANTIC_COLORS : {
+    success: (s: string) => s,
+    error: (s: string) => s,
+    warning: (s: string) => s,
+    info: (s: string) => s,
+    muted: (s: string) => s,
+  };
+
+  if (stats.passed > 0) {
+    parts.push(color.success(`${stats.passed} passed`));
+  }
+  if (stats.failed > 0) {
+    parts.push(color.error(`${stats.failed} failed`));
+  }
+  if (stats.softFailed > 0) {
+    const label = stats.softFailed === 1 ? 'soft failure' : 'soft failures';
+    parts.push(color.warning(`${stats.softFailed} ${label}`));
+  }
+  if (stats.running > 0) {
+    parts.push(color.info(`${stats.running} running`));
+  }
+  if (stats.blocked > 0) {
+    parts.push(color.muted(`${stats.blocked} blocked`));
+  }
+  if (stats.queued > 0) {
+    parts.push(color.muted(`${stats.queued} queued`));
+  }
+  if (stats.skipped > 0) {
+    parts.push(color.muted(`${stats.skipped} skipped`));
+  }
+  if (stats.canceled > 0) {
+    parts.push(color.muted(`${stats.canceled} canceled`));
+  }
+
+  const stepWord = stats.total === 1 ? 'step' : 'steps';
+  return `${stats.total} ${stepWord}: ${parts.join(', ')}`;
 }

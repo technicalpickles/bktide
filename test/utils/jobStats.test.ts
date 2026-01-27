@@ -1,6 +1,6 @@
 // test/utils/jobStats.test.ts
 import { describe, it, expect } from 'vitest';
-import { calculateJobStats, JobStats } from '../../src/utils/jobStats.js';
+import { calculateJobStats, formatJobStatsSummary, JobStats } from '../../src/utils/jobStats.js';
 
 describe('calculateJobStats', () => {
   it('counts passed jobs by exit status 0', () => {
@@ -54,5 +54,60 @@ describe('calculateJobStats', () => {
     expect(stats.softFailed).toBe(1);
     expect(stats.running).toBe(1);
     expect(stats.queued).toBe(1);
+  });
+});
+
+describe('formatJobStatsSummary', () => {
+  it('formats stats as readable summary', () => {
+    const stats = {
+      total: 5,
+      passed: 3,
+      failed: 1,
+      softFailed: 1,
+      running: 0,
+      blocked: 0,
+      skipped: 0,
+      canceled: 0,
+      queued: 0,
+    };
+    const summary = formatJobStatsSummary(stats);
+    expect(summary).toContain('5 steps:');
+    expect(summary).toContain('3 passed');
+    expect(summary).toContain('1 failed');
+    expect(summary).toContain('1 soft failure');
+  });
+
+  it('omits zero counts', () => {
+    const stats = {
+      total: 2,
+      passed: 2,
+      failed: 0,
+      softFailed: 0,
+      running: 0,
+      blocked: 0,
+      skipped: 0,
+      canceled: 0,
+      queued: 0,
+    };
+    const summary = formatJobStatsSummary(stats);
+    expect(summary).toContain('2 passed');
+    expect(summary).not.toContain('failed');
+  });
+
+  it('handles singular/plural correctly', () => {
+    const stats = {
+      total: 1,
+      passed: 1,
+      failed: 0,
+      softFailed: 0,
+      running: 0,
+      blocked: 0,
+      skipped: 0,
+      canceled: 0,
+      queued: 0,
+    };
+    const summary = formatJobStatsSummary(stats);
+    expect(summary).toContain('1 step:');
+    expect(summary).not.toContain('steps');
   });
 });
