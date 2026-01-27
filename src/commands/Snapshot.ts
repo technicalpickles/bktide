@@ -254,13 +254,27 @@ export class Snapshot extends BaseCommand {
       spinner.update('Saving build data…');
       await this.saveBuildJson(outputDir, build);
 
-      // 7. Fetch and save annotations
-      spinner.update('Fetching annotations…');
-      const annotationResult = await this.fetchAndSaveAnnotations(
-        outputDir,
-        buildSlug,
-        options.debug
-      );
+      // 7. Check and fetch annotations if changed
+      spinner.update('Checking annotations…');
+      let annotationResult: AnnotationResult;
+
+      const annotationsChanged = await this.checkAnnotationsChanged(buildSlug, existingManifest);
+      if (annotationsChanged || options.force) {
+        spinner.update('Fetching annotations…');
+        annotationResult = await this.fetchAndSaveAnnotations(
+          outputDir,
+          buildSlug,
+          options.debug
+        );
+      } else {
+        // Use existing annotation data
+        annotationResult = existingManifest?.annotations
+          ? { fetchStatus: existingManifest.annotations.fetchStatus, count: existingManifest.annotations.count, items: existingManifest.annotations.items }
+          : { fetchStatus: 'none', count: 0 };
+        if (options.debug) {
+          logger.debug('Annotations unchanged, using cached data');
+        }
+      }
 
       // 8. Filter and fetch jobs
       // Filter to script jobs only (JobTypeCommand)
@@ -658,6 +672,48 @@ export class Snapshot extends BaseCommand {
 
     // No changes detected
     return { hasChanges: false };
+  }
+
+  /**
+   * Check if annotations have changed
+   * Returns true if any annotation is new or has been updated
+   */
+  private async checkAnnotationsChanged(
+    buildSlug: string,
+    existingManifest: Manifest | null
+  ): Promise<boolean> {
+    if (!existingManifest?.annotations?.items) {
+      return true;  // No stored annotations, need to fetch
+    }
+
+    try {
+      const currentTimestamps = await this.client.getAnnotationTimestamps(buildSlug);
+
+      // Create map of stored annotations
+      const storedMap = new Map(
+        existingManifest.annotations.items.map(a => [a.uuid, a.updatedAt])
+      );
+
+      // Check for new or updated annotations
+      for (const current of currentTimestamps) {
+        const storedUpdatedAt = storedMap.get(current.uuid);
+        if (storedUpdatedAt === undefined) {
+          return true;  // New annotation
+        }
+        if (current.updatedAt !== storedUpdatedAt) {
+          return true;  // Updated annotation
+        }
+      }
+
+      // Check count matches
+      if (currentTimestamps.length !== existingManifest.annotations.items.length) {
+        return true;  // Annotation count changed (deleted)
+      }
+
+      return false;
+    } catch {
+      return true;  // Error checking, re-fetch to be safe
+    }
   }
 
   /**
