@@ -2,8 +2,7 @@ import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { logger } from '../services/logger.js';
 import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { Progress } from '../ui/progress.js';
-import { getStateIcon, SEMANTIC_COLORS, BUILD_STATUS_THEME } from '../ui/theme.js';
-import { formatDistanceToNow } from 'date-fns';
+import { FormatterFactory, FormatterType, SnapshotData } from '../formatters/index.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -65,26 +64,6 @@ export function categorizeError(error: Error): StepError {
   }
   return { error: 'unknown', message: error.message, retryable: true };
 }
-
-
-/**
- * Format duration from milliseconds or date range
- */
-function formatDuration(startedAt: string | null, finishedAt: string | null): string {
-  if (!startedAt) return '';
-  const start = new Date(startedAt).getTime();
-  const end = finishedAt ? new Date(finishedAt).getTime() : Date.now();
-  const seconds = Math.floor((end - start) / 1000);
-
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m`;
-}
-
 
 /**
  * Generate a sanitized directory name for a step
@@ -210,36 +189,24 @@ export class Snapshot extends BaseCommand {
       const manifest = this.buildManifest(buildRef.org, buildRef.pipeline, buildRef.number, build, stepResults);
       await this.saveManifest(outputDir, manifest);
 
-      // 8. Output based on options
-      if (options.json) {
-        logger.console(JSON.stringify(manifest, null, 2));
-      } else {
-        // Show build summary first
-        this.displayBuildSummary(build, scriptJobs);
+      // 8. Output using formatter
+      const snapshotData: SnapshotData = {
+        manifest,
+        build,
+        outputDir,
+        scriptJobs,
+        stepResults,
+        fetchAll,
+      };
 
-        // Then show snapshot info
-        const fetchErrorCount = stepResults.filter(s => s.status === 'failed').length;
-
-        logger.console(`Snapshot saved to ${outputDir}`);
-
-        if (stepResults.length > 0) {
-          logger.console(`  ${stepResults.length} step(s) captured`);
-        } else if (!fetchAll) {
-          logger.console(`  No failed steps to capture (build metadata saved)`);
-        } else {
-          logger.console(`  No steps to capture (build metadata saved)`);
-        }
-
-        if (fetchErrorCount > 0) {
-          logger.console(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`);
-        }
-
-        // Show tip about --all if we filtered to failed only and there are passing steps
-        if (!fetchAll && scriptJobs.length > jobsToFetch.length) {
-          const skippedCount = scriptJobs.length - jobsToFetch.length;
-          logger.console(`  Tip: ${skippedCount} passing step(s) skipped. Use --all to capture all logs.`);
-        }
-      }
+      const formatter = FormatterFactory.getFormatter(
+        FormatterType.SNAPSHOT,
+        options.json ? 'json' : 'plain'
+      );
+      const output = (formatter as any).formatSnapshot(snapshotData, {
+        tips: options.tips !== false
+      });
+      logger.console(output);
 
       return manifest.complete ? 0 : 1;
     } catch (error) {
@@ -366,70 +333,5 @@ export class Snapshot extends BaseCommand {
     }
 
     return false;
-  }
-
-  /**
-   * Display build summary similar to `build` command
-   */
-  private displayBuildSummary(build: any, scriptJobs: any[]): void {
-    const state = build.state || 'unknown';
-    const icon = getStateIcon(state);
-    const theme = BUILD_STATUS_THEME[state.toUpperCase() as keyof typeof BUILD_STATUS_THEME];
-    const coloredIcon = theme ? theme.color(icon) : icon;
-    const message = build.message?.split('\n')[0] || 'No message';
-    const duration = formatDuration(build.startedAt, build.finishedAt);
-    const durationStr = duration ? ` ${SEMANTIC_COLORS.dim(duration)}` : '';
-
-    // First line: status + message + build number + duration
-    const coloredState = theme ? theme.color(state.toUpperCase()) : state.toUpperCase();
-    logger.console(`${coloredIcon} ${coloredState} ${message} ${SEMANTIC_COLORS.dim(`#${build.number}`)}${durationStr}`);
-
-    // Second line: author + branch + commit + time
-    const author = build.createdBy?.name || build.createdBy?.email || 'Unknown';
-    const branch = build.branch || 'unknown';
-    const commit = build.commit?.substring(0, 7) || 'unknown';
-    const created = build.createdAt ? formatDistanceToNow(new Date(build.createdAt), { addSuffix: true }) : '';
-    logger.console(`         ${author} • ${SEMANTIC_COLORS.identifier(branch)} • ${commit} • ${SEMANTIC_COLORS.dim(created)}`);
-
-    // Job statistics
-    const passed = scriptJobs.filter(j => {
-      if (j.exitStatus !== null && j.exitStatus !== undefined) {
-        return parseInt(j.exitStatus, 10) === 0;
-      }
-      return j.state === 'PASSED' || j.passed === true;
-    }).length;
-
-    const hardFailed = scriptJobs.filter(j => {
-      if (j.exitStatus !== null && j.exitStatus !== undefined) {
-        const exitCode = parseInt(j.exitStatus, 10);
-        return exitCode !== 0 && j.softFailed !== true;
-      }
-      return (j.state === 'FAILED' || j.passed === false) && j.softFailed !== true;
-    }).length;
-
-    const softFailed = scriptJobs.filter(j => {
-      if (j.exitStatus !== null && j.exitStatus !== undefined) {
-        const exitCode = parseInt(j.exitStatus, 10);
-        return exitCode !== 0 && j.softFailed === true;
-      }
-      return (j.state === 'FAILED' || j.passed === false) && j.softFailed === true;
-    }).length;
-
-    const running = scriptJobs.filter(j => j.state === 'RUNNING').length;
-    const other = scriptJobs.length - passed - hardFailed - softFailed - running;
-
-    let statsStr = `${scriptJobs.length} steps:`;
-    const parts: string[] = [];
-    if (passed > 0) parts.push(SEMANTIC_COLORS.success(`${passed} passed`));
-    if (hardFailed > 0) parts.push(SEMANTIC_COLORS.error(`${hardFailed} failed`));
-    if (softFailed > 0) parts.push(SEMANTIC_COLORS.warning(`▲ ${softFailed} soft failure${softFailed > 1 ? 's' : ''}`));
-    if (running > 0) parts.push(SEMANTIC_COLORS.info(`${running} running`));
-    if (other > 0) parts.push(SEMANTIC_COLORS.muted(`${other} other`));
-    statsStr += ' ' + parts.join(', ');
-
-    logger.console('');
-    logger.console(statsStr);
-
-    logger.console('');
   }
 }
