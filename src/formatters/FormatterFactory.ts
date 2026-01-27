@@ -7,16 +7,18 @@ import { getErrorFormatter } from './errors/index.js';
 import { getTokenFormatter } from './token/index.js';
 import { getAnnotationFormatter } from './annotations/index.js';
 import { getBuildDetailFormatter } from './build-detail/index.js';
+import { getSnapshotFormatter } from './snapshot/index.js';
 
 export enum FormatterType {
   PIPELINE = 'pipeline',
-  BUILD = 'build', 
+  BUILD = 'build',
   VIEWER = 'viewer',
   ORGANIZATION = 'organization',
   ERROR = 'error',
   TOKEN = 'token',
   ANNOTATION = 'annotation',
-  BUILD_DETAIL = 'build-detail'
+  BUILD_DETAIL = 'build-detail',
+  SNAPSHOT = 'snapshot'
 }
 
 export class FormatterFactory {
@@ -47,6 +49,8 @@ export class FormatterFactory {
         return getAnnotationFormatter(normalizedFormat);
       case FormatterType.BUILD_DETAIL:
         return getBuildDetailFormatter(normalizedFormat) as any;
+      case FormatterType.SNAPSHOT:
+        return getSnapshotFormatter(normalizedFormat) as unknown as BaseFormatter;
       default:
         throw new Error(`Unknown formatter type: ${type}`);
     }
