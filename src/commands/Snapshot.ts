@@ -14,6 +14,7 @@ export interface SnapshotOptions extends BaseCommandOptions {
   json?: boolean;
   failed?: boolean;
   all?: boolean;
+  force?: boolean;
 }
 
 interface StepResult {

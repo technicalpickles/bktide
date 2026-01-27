@@ -390,6 +390,7 @@ program
   .option('--json', 'Output manifest JSON to stdout')
   .option('--failed', 'Only fetch failed steps (default behavior)')
   .option('--all', 'Fetch all steps, not just failed ones')
+  .option('--force', 'Force full re-fetch, bypassing change detection')
   .action(createCommandHandler(Snapshot));
 
 // Add pipeline command
