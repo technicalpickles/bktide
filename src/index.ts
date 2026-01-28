@@ -24,6 +24,7 @@ import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
 import { logger, setLogLevel } from './services/logger.js';
 import { WidthAwareHelp } from './ui/help.js';
+import { enhanceCommanderError } from './utils/commander-error-handler.js';
 
 // Set a global error handler for uncaught exceptions
 const uncaughtExceptionHandler = (err: Error) => {
@@ -64,6 +65,35 @@ initializeErrorHandling();
 
 const program = new Command();
 program.allowUnknownOption();
+
+// Configure custom error output to enhance Commander.js errors
+program.configureOutput({
+  writeErr: (str: string) => {
+    // Try to extract command name from different error formats
+    // "too many arguments for 'builds'" or "missing required argument 'build'"
+    let commandName = '';
+
+    const tooManyMatch = str.match(/for '(\w+)'/);
+    if (tooManyMatch) {
+      commandName = tooManyMatch[1];
+    } else {
+      // For missing argument, get the command from process.argv
+      // The command is typically the first non-option argument after 'bktide'
+      const args = process.argv.slice(2);
+      const cmdArg = args.find(a => !a.startsWith('-'));
+      if (cmdArg) {
+        commandName = cmdArg;
+      }
+    }
+
+    // Get the extra args from process.argv
+    const commandIndex = process.argv.findIndex(arg => arg === commandName);
+    const extraArgs = commandIndex >= 0 ? process.argv.slice(commandIndex + 1).filter(a => !a.startsWith('-')) : [];
+
+    const enhanced = enhanceCommanderError(str, commandName, extraArgs);
+    process.stderr.write(enhanced + '\n');
+  }
+});
 
 // Define a generic interface for the command classes that includes the execute method
 interface CommandWithExecute {
