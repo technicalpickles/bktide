@@ -3,9 +3,13 @@ import { logger } from '../services/logger.js';
 import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { Progress } from '../ui/progress.js';
 import { FormatterFactory, FormatterType, SnapshotData } from '../formatters/index.js';
+import { getStepDirName } from '../utils/stepUtils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
+
+// Re-export for backward compatibility
+export { getStepDirName };
 
 export interface SnapshotOptions extends BaseCommandOptions {
   buildRef?: string;
@@ -63,21 +67,6 @@ export function categorizeError(error: Error): StepError {
     return { error: 'network_error', message: error.message, retryable: true };
   }
   return { error: 'unknown', message: error.message, retryable: true };
-}
-
-/**
- * Generate a sanitized directory name for a step
- */
-export function getStepDirName(index: number, label: string): string {
-  const num = String(index + 1).padStart(2, '0');
-  const sanitized = label
-    .replace(/:[^:]+:/g, '')           // Remove emoji shortcodes like :hammer:
-    .replace(/[^a-zA-Z0-9-]/g, '-')    // Replace non-alphanumeric with dashes
-    .replace(/-+/g, '-')               // Collapse multiple dashes
-    .replace(/^-|-$/g, '')             // Trim leading/trailing dashes
-    .toLowerCase()
-    .slice(0, 50);                     // Limit length
-  return `${num}-${sanitized || 'step'}`;
 }
 
 export class Snapshot extends BaseCommand {

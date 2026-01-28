@@ -1,7 +1,8 @@
 // src/formatters/snapshot/PlainTextFormatter.ts
+import path from 'path';
 import { SnapshotFormatter, SnapshotData, SnapshotFormatterOptions } from './Formatter.js';
-import { SEMANTIC_COLORS, getStateIcon, BUILD_STATUS_THEME, formatTips, TipStyle } from '../../ui/theme.js';
-import { formatBuildDuration } from '../../utils/formatUtils.js';
+import { SEMANTIC_COLORS, getStateIcon, BUILD_STATUS_THEME } from '../../ui/theme.js';
+import { formatBuildDuration, pathWithTilde, getFirstFailedStepDir } from '../../utils/formatUtils.js';
 import { calculateJobStats, formatJobStatsSummary } from '../../utils/jobStats.js';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -39,23 +40,78 @@ export class PlainTextFormatter implements SnapshotFormatter {
       lines.push(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`);
     }
 
-    // Tips
+    // Navigation tips (actionable commands)
     if (options?.tips !== false) {
-      const tips: string[] = [];
-
-      // Tip about --all if we filtered
-      if (!fetchAll && scriptJobs.length > stepResults.length) {
-        const skippedCount = scriptJobs.length - stepResults.length;
-        tips.push(`${skippedCount} passing step(s) skipped. Use --all to capture all logs.`);
-      }
-
-      if (tips.length > 0) {
-        lines.push('');
-        lines.push(formatTips(tips, TipStyle.INDIVIDUAL, false));
-      }
+      lines.push('');
+      lines.push(...this.formatNavigationTips(data));
     }
 
     return lines.join('\n');
+  }
+
+  private formatNavigationTips(data: SnapshotData): string[] {
+    const { build, outputDir, scriptJobs, stepResults, fetchAll, annotationResult } = data;
+    const lines: string[] = [];
+
+    const buildState = build.state?.toLowerCase();
+    const isFailed = buildState === 'failed' || buildState === 'failing';
+
+    // Use tilde paths for readability
+    const basePath = pathWithTilde(outputDir);
+    const manifestPath = path.join(basePath, 'manifest.json');
+    const stepsPath = path.join(basePath, 'steps');
+    const annotationsPath = path.join(basePath, 'annotations.json');
+
+    lines.push('Next steps:');
+
+    if (isFailed) {
+      // Tips for failed builds
+      lines.push(
+        `  → List failures:    jq -r '.steps[] | select(.state == "failed") | "\\(.id): \\(.label)"' ${manifestPath}`
+      );
+
+      // Add annotation tip if annotations exist
+      if (annotationResult?.count && annotationResult.count > 0) {
+        lines.push(`  → View annotations: jq -r '.annotations[] | {context, style}' ${annotationsPath}`);
+      }
+
+      lines.push(`  → Get exit codes:   jq -r '.steps[] | "\\(.id): exit \\(.exit_status)"' ${manifestPath}`);
+
+      // If we captured steps, show how to view first failed log
+      if (stepResults.length > 0) {
+        const firstFailedDir = getFirstFailedStepDir(scriptJobs);
+        if (firstFailedDir) {
+          lines.push(`  → View a log:       cat ${path.join(stepsPath, firstFailedDir, 'log.txt')}`);
+        }
+      }
+
+      lines.push(`  → Search errors:    grep -r "Error\\|Failed\\|Exception" ${stepsPath}/`);
+
+      // Show --all tip if steps were skipped
+      if (!fetchAll && scriptJobs.length > stepResults.length) {
+        const skippedCount = scriptJobs.length - stepResults.length;
+        lines.push(`  → Use --all to include all ${skippedCount} passing steps`);
+      }
+    } else {
+      // Tips for passed builds
+      lines.push(`  → List all steps:   jq -r '.steps[] | "\\(.id): \\(.label) (\\(.state))"' ${manifestPath}`);
+      lines.push(`  → Browse logs:      ls ${stepsPath}/`);
+
+      if (stepResults.length > 0) {
+        lines.push(`  → View a log:       cat ${stepsPath}/01-*/log.txt`);
+      }
+
+      // Show --all tip if steps were skipped
+      if (!fetchAll && scriptJobs.length > stepResults.length) {
+        const skippedCount = scriptJobs.length - stepResults.length;
+        lines.push(`  → Use --all to include all ${skippedCount} passing steps`);
+      }
+    }
+
+    lines.push(`  → Use --no-tips to hide these hints`);
+    lines.push(`  manifest.json has full build metadata and step index`);
+
+    return lines;
   }
 
   private formatBuildHeader(build: any): string {

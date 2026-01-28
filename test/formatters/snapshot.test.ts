@@ -59,4 +59,44 @@ describe('Snapshot PlainTextFormatter', () => {
     const output = formatter.formatSnapshot(data, { tips: false });
     expect(output).not.toContain('--all');
   });
+
+  describe('navigation tips', () => {
+    const failedBuildData = {
+      ...mockData,
+      build: { ...mockData.build, state: 'FAILED' },
+      scriptJobs: [
+        { name: 'test', exitStatus: '1', state: 'FAILED' },
+      ],
+      stepResults: [{ id: '01-test', jobId: 'job1', status: 'success' as const }],
+      annotationResult: { fetchStatus: 'success' as const, count: 2 },
+    };
+
+    it('shows jq commands for failed builds', () => {
+      const output = formatter.formatSnapshot(failedBuildData);
+      expect(output).toContain('Next steps:');
+      expect(output).toContain('jq');
+      expect(output).toContain('manifest.json');
+    });
+
+    it('shows annotation tip when annotations exist', () => {
+      const output = formatter.formatSnapshot(failedBuildData);
+      expect(output).toContain('annotations.json');
+    });
+
+    it('shows grep command for searching errors', () => {
+      const output = formatter.formatSnapshot(failedBuildData);
+      expect(output).toContain('grep');
+      expect(output).toContain('Error');
+    });
+
+    it('hides navigation tips when tips option is false', () => {
+      const output = formatter.formatSnapshot(failedBuildData, { tips: false });
+      expect(output).not.toContain('Next steps:');
+    });
+
+    it('shows --no-tips hint', () => {
+      const output = formatter.formatSnapshot(failedBuildData);
+      expect(output).toContain('--no-tips');
+    });
+  });
 });

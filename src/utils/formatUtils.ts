@@ -6,7 +6,7 @@
  */
 import os from 'os';
 import { SEMANTIC_COLORS } from '../ui/theme.js';
-import { getStepDirName } from '../commands/Snapshot.js';
+import { getStepDirName } from './stepUtils.js';
 
 /**
  * Format a build/job status with icon and color
