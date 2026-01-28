@@ -29,6 +29,11 @@ export interface SnapshotData {
   scriptJobs: any[];
   stepResults: StepResult[];
   fetchAll: boolean;
+  // Optional annotation data for navigation tips
+  annotationResult?: {
+    fetchStatus: 'success' | 'none' | 'failed';
+    count: number;
+  };
 }
 
 export interface SnapshotFormatterOptions extends FormatterOptions {
