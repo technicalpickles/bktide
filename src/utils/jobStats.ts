@@ -117,7 +117,7 @@ export function formatJobStatsSummary(stats: JobStats, useColors = true): string
   }
   if (stats.softFailed > 0) {
     const label = stats.softFailed === 1 ? 'soft failure' : 'soft failures';
-    parts.push(color.warning(`${stats.softFailed} ${label}`));
+    parts.push(color.warning(`▲ ${stats.softFailed} ${label}`));
   }
   if (stats.running > 0) {
     parts.push(color.info(`${stats.running} running`));

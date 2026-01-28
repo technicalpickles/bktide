@@ -74,7 +74,7 @@ describe('formatJobStatsSummary', () => {
     expect(summary).toContain('5 steps:');
     expect(summary).toContain('3 passed');
     expect(summary).toContain('1 failed');
-    expect(summary).toContain('1 soft failure');
+    expect(summary).toContain('▲ 1 soft failure');
   });
 
   it('omits zero counts', () => {
