@@ -101,6 +101,96 @@ Valid formats:
 
 ---
 
+## Input Affordances
+
+Accept what users have. Users copy URLs from browsers, remember shorthand, or prefer explicit flags. Support all of them.
+
+### The Two Approaches
+
+Every resource-identifying command should support both:
+
+| Approach | Example | Best For |
+|----------|---------|----------|
+| **Explicit flags** | `bktide build --org acme --pipeline app --number 123` | Scripts, tab completion, discoverability |
+| **Smart references** | `bktide acme/app/123` or `bktide <url>` | Quick access, copy-paste workflows |
+
+Both should produce identical output and support the same options (`--format`, `--debug`, etc.).
+
+### Supported Input Formats
+
+For build references, accept all common formats:
+
+```bash
+# Shorthand formats
+org/pipeline/123        # Slash-separated
+org/pipeline#123        # Hash notation (like GitHub issues)
+
+# Full URLs (copy-paste from browser)
+https://buildkite.com/org/pipeline/builds/123
+https://buildkite.com/org/pipeline/builds/123?sid=step-id
+
+# Explicit flags (scriptable, discoverable)
+--org org --pipeline pipeline --number 123
+```
+
+### Error Messages for Invalid Input
+
+When input doesn't match any format, show what's valid:
+
+```bash
+# Bad - unclear
+Error: Invalid reference
+
+# Good - shows valid formats
+Error: Build reference 'foo' not recognized
+
+Valid formats:
+  • org/pipeline/123
+  • org/pipeline#123
+  • https://buildkite.com/org/pipeline/builds/123
+  • --org <org> --pipeline <pipeline> --number <number>
+
+Examples:
+  bktide build acme/web-app/456
+  bktide build https://buildkite.com/acme/web-app/builds/456
+```
+
+### Discoverability vs. Convenience
+
+| Need | Use | Why |
+|------|-----|-----|
+| Learning the CLI | Explicit flags | Tab completion, `--help` shows options |
+| Quick daily use | Smart references | Fewer keystrokes, paste URLs directly |
+| Scripts/automation | Explicit flags | Self-documenting, no parsing ambiguity |
+| Sharing commands | Either | Both are valid, explicit is clearer |
+
+**Guideline:** Smart references route to explicit commands internally. Users can always "expand" a smart reference to see what explicit command it maps to.
+
+### Implementation Pattern
+
+```typescript
+// 1. Parse the reference (handles all formats)
+const ref = parseBuildRef(input);
+
+// 2. Route to explicit command with parsed values
+return showBuild({
+  org: ref.org,
+  pipeline: ref.pipeline,
+  number: ref.number,
+  ...options
+});
+```
+
+See `src/utils/parseBuildRef.ts` for the reference parser implementation.
+
+### Cross-Reference
+
+For detailed user-facing documentation of supported formats, see:
+- **User guide:** [`docs/user/smart-reference.md`](../user/smart-reference.md)
+- **Design doc:** [`docs/plans/2025-12-08-smart-reference-command-design.md`](../plans/2025-12-08-smart-reference-command-design.md)
+
+---
+
 ## Visual Design Principles
 
 ### Progressive Disclosure
