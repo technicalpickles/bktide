@@ -1,6 +1,6 @@
 # CLI Design System Improvements Implementation Plan
 
-> **Status:** ✅ **COMPLETED** - All 10 tasks implemented and verified.
+> **Status:** 🚧 **IN PROGRESS** - Tasks 1-10 complete. Tasks 11-14 added to restore lost functionality.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -9,6 +9,16 @@
 **Architecture:** Extract duplicated job stats and duration formatting into shared utilities. Create snapshot formatters following the existing entity-formatter pattern. Refactor Snapshot.ts to use formatters instead of direct logger.console() calls.
 
 **Tech Stack:** TypeScript, Vitest for testing, chalk for colors, date-fns for time formatting
+
+## Regressions Identified (Post-Task 10 Review)
+
+During testing, the following regressions were found compared to the pre-refactor version:
+
+1. **Missing ▲ symbol** - Soft failures should show `▲ 2 soft failures` but currently show `2 soft failures`
+2. **Lost navigation tips** - The `displayNavigationTips()` method with actionable `jq`/`cat`/`grep` commands was removed during the formatter refactor
+3. **Lost helper functions** - `pathWithTilde()` and `getFirstFailedStepDir()` were removed
+
+Tasks 11-14 restore this functionality.
 
 ---
 
@@ -906,6 +916,383 @@ After completing all tasks:
 
 ---
 
+## Task 11: Fix Missing ▲ Symbol for Soft Failures
+
+**Files:**
+- Modify: `src/utils/jobStats.ts`
+- Modify: `test/utils/jobStats.test.ts`
+
+**Context:** The plan specified `▲` prefix for soft failures but the implementation omitted it.
+
+**Step 1: Update test to expect ▲ symbol**
+
+In `test/utils/jobStats.test.ts`, update the test:
+
+```typescript
+it('formats stats as readable summary', () => {
+  const stats = {
+    total: 5,
+    passed: 3,
+    failed: 1,
+    softFailed: 1,
+    // ... other fields
+  };
+  const summary = formatJobStatsSummary(stats);
+  expect(summary).toContain('▲ 1 soft failure');  // Note the ▲
+});
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `npm test -- test/utils/jobStats.test.ts`
+Expected: FAIL - missing ▲ symbol
+
+**Step 3: Fix implementation**
+
+In `src/utils/jobStats.ts`, change line ~120:
+
+```typescript
+// Before:
+parts.push(color.warning(`${stats.softFailed} ${label}`));
+
+// After:
+parts.push(color.warning(`▲ ${stats.softFailed} ${label}`));
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `npm test -- test/utils/jobStats.test.ts`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add src/utils/jobStats.ts test/utils/jobStats.test.ts
+git commit -m "fix: restore ▲ symbol for soft failures in job stats"
+```
+
+---
+
+## Task 12: Add Path Utilities for Navigation Tips
+
+**Files:**
+- Modify: `src/utils/formatUtils.ts`
+- Modify: `test/utils/formatUtils.test.ts`
+
+**Step 1: Write failing tests**
+
+Add to `test/utils/formatUtils.test.ts`:
+
+```typescript
+import { pathWithTilde, getFirstFailedStepDir } from '../../src/utils/formatUtils.js';
+import os from 'os';
+
+describe('pathWithTilde', () => {
+  it('replaces home directory with tilde', () => {
+    const homePath = `${os.homedir()}/some/path`;
+    expect(pathWithTilde(homePath)).toBe('~/some/path');
+  });
+
+  it('leaves non-home paths unchanged', () => {
+    expect(pathWithTilde('/var/log/test')).toBe('/var/log/test');
+  });
+});
+
+describe('getFirstFailedStepDir', () => {
+  it('returns first failed step directory name', () => {
+    const jobs = [
+      { name: 'setup', exitStatus: '0', state: 'FINISHED' },
+      { name: 'test-unit', exitStatus: '1', state: 'FAILED' },
+      { name: 'test-integration', exitStatus: '1', state: 'FAILED' },
+    ];
+    expect(getFirstFailedStepDir(jobs)).toBe('02-test-unit');
+  });
+
+  it('returns null when no failed steps', () => {
+    const jobs = [
+      { name: 'setup', exitStatus: '0', state: 'FINISHED' },
+    ];
+    expect(getFirstFailedStepDir(jobs)).toBeNull();
+  });
+});
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `npm test -- test/utils/formatUtils.test.ts`
+Expected: FAIL
+
+**Step 3: Write implementation**
+
+Add to `src/utils/formatUtils.ts`:
+
+```typescript
+import os from 'os';
+import { getStepDirName } from '../commands/Snapshot.js';
+
+/**
+ * Replace home directory with ~ for readable paths
+ */
+export function pathWithTilde(fullPath: string): string {
+  const home = os.homedir();
+  if (fullPath.startsWith(home)) {
+    return fullPath.replace(home, '~');
+  }
+  return fullPath;
+}
+
+/**
+ * Get the directory name of the first failed step
+ * Used to show example commands in navigation tips
+ */
+export function getFirstFailedStepDir(jobs: any[]): string | null {
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i];
+    const exitCode = job.exitStatus !== null && job.exitStatus !== undefined
+      ? parseInt(job.exitStatus, 10)
+      : null;
+
+    if (exitCode !== null && exitCode !== 0) {
+      return getStepDirName(i, job.name || job.label || 'step');
+    }
+    if (job.state === 'FAILED' || job.passed === false) {
+      return getStepDirName(i, job.name || job.label || 'step');
+    }
+  }
+  return null;
+}
+```
+
+**Step 4: Export getStepDirName from Snapshot.ts**
+
+Ensure `getStepDirName` is exported (it should already be).
+
+**Step 5: Run test to verify it passes**
+
+Run: `npm test -- test/utils/formatUtils.test.ts`
+Expected: PASS
+
+**Step 6: Commit**
+
+```bash
+git add src/utils/formatUtils.ts test/utils/formatUtils.test.ts
+git commit -m "feat: add pathWithTilde and getFirstFailedStepDir helpers"
+```
+
+---
+
+## Task 13: Add Navigation Tips to SnapshotData Interface
+
+**Files:**
+- Modify: `src/formatters/snapshot/Formatter.ts`
+
+**Step 1: Extend SnapshotData interface**
+
+Add annotation data to support navigation tips:
+
+```typescript
+export interface SnapshotData {
+  manifest: Manifest;
+  build: any;
+  outputDir: string;
+  scriptJobs: any[];
+  stepResults: StepResult[];
+  fetchAll: boolean;
+  // New fields for navigation tips
+  annotationResult?: {
+    fetchStatus: 'success' | 'none' | 'failed';
+    count: number;
+  };
+}
+```
+
+**Step 2: Update Snapshot.ts to pass annotation data**
+
+In `src/commands/Snapshot.ts`, update the snapshotData construction to include annotation info if available.
+
+**Step 3: Commit**
+
+```bash
+git add src/formatters/snapshot/Formatter.ts src/commands/Snapshot.ts
+git commit -m "feat: extend SnapshotData with annotation info for tips"
+```
+
+---
+
+## Task 14: Restore Navigation Tips in PlainTextFormatter
+
+**Files:**
+- Modify: `src/formatters/snapshot/PlainTextFormatter.ts`
+- Modify: `test/formatters/snapshot.test.ts`
+
+**Step 1: Write failing tests for navigation tips**
+
+Add to `test/formatters/snapshot.test.ts`:
+
+```typescript
+describe('navigation tips', () => {
+  const failedBuildData = {
+    ...mockData,
+    build: { ...mockData.build, state: 'FAILED' },
+    scriptJobs: [
+      { name: 'test', exitStatus: '1', state: 'FAILED' },
+    ],
+    stepResults: [{ id: '01-test', jobId: 'job1', status: 'success' as const }],
+    annotationResult: { fetchStatus: 'success' as const, count: 2 },
+  };
+
+  it('shows jq commands for failed builds', () => {
+    const output = formatter.formatSnapshot(failedBuildData);
+    expect(output).toContain('Next steps:');
+    expect(output).toContain('jq');
+    expect(output).toContain('manifest.json');
+  });
+
+  it('shows annotation tip when annotations exist', () => {
+    const output = formatter.formatSnapshot(failedBuildData);
+    expect(output).toContain('annotations.json');
+  });
+
+  it('shows grep command for searching errors', () => {
+    const output = formatter.formatSnapshot(failedBuildData);
+    expect(output).toContain('grep');
+    expect(output).toContain('Error');
+  });
+
+  it('hides navigation tips when tips option is false', () => {
+    const output = formatter.formatSnapshot(failedBuildData, { tips: false });
+    expect(output).not.toContain('Next steps:');
+  });
+
+  it('shows --no-tips hint', () => {
+    const output = formatter.formatSnapshot(failedBuildData);
+    expect(output).toContain('--no-tips');
+  });
+});
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `npm test -- test/formatters/snapshot.test.ts`
+Expected: FAIL
+
+**Step 3: Implement navigation tips**
+
+Update `src/formatters/snapshot/PlainTextFormatter.ts`:
+
+```typescript
+import { pathWithTilde, getFirstFailedStepDir } from '../../utils/formatUtils.js';
+import path from 'path';
+
+// In formatSnapshot(), replace the Tips section with:
+
+// Navigation tips (actionable commands)
+if (options?.tips !== false) {
+  lines.push('');
+  lines.push(...this.formatNavigationTips(data));
+}
+
+// Add new method:
+private formatNavigationTips(data: SnapshotData): string[] {
+  const { build, outputDir, scriptJobs, stepResults, fetchAll, annotationResult } = data;
+  const lines: string[] = [];
+
+  const buildState = build.state?.toLowerCase();
+  const isFailed = buildState === 'failed' || buildState === 'failing';
+
+  // Use tilde paths for readability
+  const basePath = pathWithTilde(outputDir);
+  const manifestPath = path.join(basePath, 'manifest.json');
+  const stepsPath = path.join(basePath, 'steps');
+  const annotationsPath = path.join(basePath, 'annotations.json');
+
+  lines.push('Next steps:');
+
+  if (isFailed) {
+    // Tips for failed builds
+    lines.push(`  → List failures:    jq -r '.steps[] | select(.state == "failed") | "\\(.id): \\(.label)"' ${manifestPath}`);
+
+    // Add annotation tip if annotations exist
+    if (annotationResult?.count && annotationResult.count > 0) {
+      lines.push(`  → View annotations: jq -r '.annotations[] | {context, style}' ${annotationsPath}`);
+    }
+
+    lines.push(`  → Get exit codes:   jq -r '.steps[] | "\\(.id): exit \\(.exit_status)"' ${manifestPath}`);
+
+    // If we captured steps, show how to view first failed log
+    if (stepResults.length > 0) {
+      const firstFailedDir = getFirstFailedStepDir(scriptJobs);
+      if (firstFailedDir) {
+        lines.push(`  → View a log:       cat ${path.join(stepsPath, firstFailedDir, 'log.txt')}`);
+      }
+    }
+
+    lines.push(`  → Search errors:    grep -r "Error\\|Failed\\|Exception" ${stepsPath}/`);
+
+    // Show --all tip if steps were skipped
+    if (!fetchAll && scriptJobs.length > stepResults.length) {
+      const skippedCount = scriptJobs.length - stepResults.length;
+      lines.push(`  → Use --all to include all ${skippedCount} passing steps`);
+    }
+  } else {
+    // Tips for passed builds
+    lines.push(`  → List all steps:   jq -r '.steps[] | "\\(.id): \\(.label) (\\(.state))"' ${manifestPath}`);
+    lines.push(`  → Browse logs:      ls ${stepsPath}/`);
+
+    if (stepResults.length > 0) {
+      lines.push(`  → View a log:       cat ${stepsPath}/01-*/log.txt`);
+    }
+
+    // Show --all tip if steps were skipped
+    if (!fetchAll && scriptJobs.length > stepResults.length) {
+      const skippedCount = scriptJobs.length - stepResults.length;
+      lines.push(`  → Use --all to include all ${skippedCount} passing steps`);
+    }
+  }
+
+  lines.push(`  → Use --no-tips to hide these hints`);
+  lines.push(`  manifest.json has full build metadata and step index`);
+
+  return lines;
+}
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `npm test -- test/formatters/snapshot.test.ts`
+Expected: PASS
+
+**Step 5: Manual verification**
+
+```bash
+npm run dev -- snapshot org/pipeline/123
+# Should show "Next steps:" with jq/cat/grep commands
+```
+
+**Step 6: Commit**
+
+```bash
+git add src/formatters/snapshot/PlainTextFormatter.ts test/formatters/snapshot.test.ts
+git commit -m "feat: restore navigation tips in snapshot formatter"
+```
+
+---
+
+## Verification Checklist (Updated)
+
+After completing all tasks:
+
+- [x] **Run all tests**: `npm test` - 269 tests passing
+- [ ] **Test snapshot command**: `bin/bktide snapshot org/pipeline/123`
+- [ ] **Verify ▲ symbol**: Output shows `▲ X soft failures`
+- [ ] **Verify navigation tips**: Output shows `Next steps:` with `jq` commands
+- [ ] **Test --no-tips**: `bin/bktide snapshot org/pipeline/123 --no-tips`
+- [ ] **Test --json**: `bin/bktide snapshot org/pipeline/123 --json`
+- [ ] **Test accessibility**: `NO_COLOR=1 bin/bktide snapshot org/pipeline/123`
+- [ ] **Test ASCII mode**: `BKTIDE_ASCII=1 bin/bktide snapshot org/pipeline/123`
+
+---
+
 ## Summary
 
 | Task | Description | New Files | Status |
@@ -920,3 +1307,7 @@ After completing all tasks:
 | 8 | Refactor Snapshot command | (modify `Snapshot.ts`) | ✅ |
 | 9 | Wire --no-tips option | (verify wiring) | ✅ |
 | 10 | Update documentation | (modify docs) | ✅ |
+| 11 | Fix missing ▲ symbol | (modify `jobStats.ts`) | ⬚ |
+| 12 | Add path utilities | (modify `formatUtils.ts`) | ⬚ |
+| 13 | Extend SnapshotData interface | (modify `Formatter.ts`) | ⬚ |
+| 14 | Restore navigation tips | (modify `PlainTextFormatter.ts`) | ⬚ |
