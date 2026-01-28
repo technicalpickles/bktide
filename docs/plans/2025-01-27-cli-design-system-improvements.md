@@ -1,6 +1,6 @@
 # CLI Design System Improvements Implementation Plan
 
-> **Status:** ✅ **COMPLETE** - Tasks 1-14 implemented. Follow-up tasks 15-17 documented for color treatment alignment.
+> **Status:** ✅ **COMPLETE** - All tasks (1-17) implemented, including color treatment alignment.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -1311,6 +1311,9 @@ After completing all tasks:
 | 12 | Add path utilities | (modify `formatUtils.ts`) | ✅ |
 | 13 | Extend SnapshotData interface | (modify `Formatter.ts`) | ✅ |
 | 14 | Restore navigation tips | (modify `PlainTextFormatter.ts`) | ✅ |
+| 15 | Add warning color to fetch error | (modify `PlainTextFormatter.ts`) | ✅ |
+| 16 | Dim navigation tips section | (modify `PlainTextFormatter.ts`) | ✅ |
+| 17 | Apply consistent identifier treatment | (modify `PlainTextFormatter.ts`) | ✅ |
 
 ---
 
@@ -1318,62 +1321,20 @@ After completing all tasks:
 
 Code review identified several areas where the snapshot formatter's color treatment doesn't fully align with the design system recommendations.
 
-### Task 15: Add Warning Color to Fetch Error Message
+### Task 15: Add Warning Color to Fetch Error Message ✅
 
 **File:** `src/formatters/snapshot/PlainTextFormatter.ts`
 
-The warning about fetch errors (line ~40) should use `SEMANTIC_COLORS.warning()`:
+Wrapped fetch error warning with `SEMANTIC_COLORS.warning()`.
 
-```typescript
-// Current:
-lines.push(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`);
-
-// Should be:
-lines.push(SEMANTIC_COLORS.warning(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`));
-```
-
-### Task 16: Dim Navigation Tips Section
+### Task 16: Dim Navigation Tips Section ✅
 
 **File:** `src/formatters/snapshot/PlainTextFormatter.ts`
 
-Per the design system: "Tips appear at end, dimmed". The navigation tips section should use dimmed colors:
+Applied `SEMANTIC_COLORS.dim()` to all navigation tips per design system principle "Tips appear at end, dimmed".
 
-```typescript
-// Current:
-lines.push('Next steps:');
-lines.push(`  → List failures: ...`);
-
-// Should be:
-lines.push(SEMANTIC_COLORS.dim('Next steps:'));
-lines.push(SEMANTIC_COLORS.dim(`  → List failures: ...`));
-```
-
-Alternatively, consider using `formatTips()` with `TipStyle.ACTIONS` for consistency with other commands.
-
-### Task 17: Consistent Identifier Treatment
+### Task 17: Consistent Identifier Treatment ✅
 
 **File:** `src/formatters/snapshot/PlainTextFormatter.ts`
 
-The commit hash in build details should use `SEMANTIC_COLORS.identifier()` or `SEMANTIC_COLORS.dim()` for consistency with branch treatment:
-
-```typescript
-// Current (line ~137):
-return `         ${author} • ${SEMANTIC_COLORS.identifier(branch)} • ${commit} • ...`;
-
-// Option A - treat as identifier like branch:
-return `         ${author} • ${SEMANTIC_COLORS.identifier(branch)} • ${SEMANTIC_COLORS.identifier(commit)} • ...`;
-
-// Option B - dim as secondary info:
-return `         ${author} • ${SEMANTIC_COLORS.identifier(branch)} • ${SEMANTIC_COLORS.dim(commit)} • ...`;
-```
-
-### Design System Reference
-
-From `docs/developer/ui-design-system.md`:
-
-| Principle | Current | Recommendation |
-|-----------|---------|----------------|
-| "Tips appear at end, dimmed" | Tips uncolored | Use `SEMANTIC_COLORS.dim()` |
-| "Never color alone - pair with symbols" | ✅ Already doing this | N/A |
-| "Warning = yellow" | Warning uncolored | Use `SEMANTIC_COLORS.warning()` |
-| "Identifier = cyan" | Branch colored, commit not | Consistent treatment |
+Applied `SEMANTIC_COLORS.dim()` to commit hash (secondary info like timestamp, while branch uses identifier color).

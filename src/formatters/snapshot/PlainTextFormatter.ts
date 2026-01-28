@@ -37,7 +37,7 @@ export class PlainTextFormatter implements SnapshotFormatter {
     // Warning for fetch errors
     const fetchErrorCount = stepResults.filter(s => s.status === 'failed').length;
     if (fetchErrorCount > 0) {
-      lines.push(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`);
+      lines.push(SEMANTIC_COLORS.warning(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`));
     }
 
     // Navigation tips (actionable commands)
@@ -52,6 +52,7 @@ export class PlainTextFormatter implements SnapshotFormatter {
   private formatNavigationTips(data: SnapshotData): string[] {
     const { build, outputDir, scriptJobs, stepResults, fetchAll, annotationResult } = data;
     const lines: string[] = [];
+    const dim = SEMANTIC_COLORS.dim;
 
     const buildState = build.state?.toLowerCase();
     const isFailed = buildState === 'failed' || buildState === 'failing';
@@ -62,54 +63,54 @@ export class PlainTextFormatter implements SnapshotFormatter {
     const stepsPath = path.join(basePath, 'steps');
     const annotationsPath = path.join(basePath, 'annotations.json');
 
-    lines.push('Next steps:');
+    lines.push(dim('Next steps:'));
 
     if (isFailed) {
       // Tips for failed builds
       lines.push(
-        `  → List failures:    jq -r '.steps[] | select(.state == "failed") | "\\(.id): \\(.label)"' ${manifestPath}`
+        dim(`  → List failures:    jq -r '.steps[] | select(.state == "failed") | "\\(.id): \\(.label)"' ${manifestPath}`)
       );
 
       // Add annotation tip if annotations exist
       if (annotationResult?.count && annotationResult.count > 0) {
-        lines.push(`  → View annotations: jq -r '.annotations[] | {context, style}' ${annotationsPath}`);
+        lines.push(dim(`  → View annotations: jq -r '.annotations[] | {context, style}' ${annotationsPath}`));
       }
 
-      lines.push(`  → Get exit codes:   jq -r '.steps[] | "\\(.id): exit \\(.exit_status)"' ${manifestPath}`);
+      lines.push(dim(`  → Get exit codes:   jq -r '.steps[] | "\\(.id): exit \\(.exit_status)"' ${manifestPath}`));
 
       // If we captured steps, show how to view first failed log
       if (stepResults.length > 0) {
         const firstFailedDir = getFirstFailedStepDir(scriptJobs);
         if (firstFailedDir) {
-          lines.push(`  → View a log:       cat ${path.join(stepsPath, firstFailedDir, 'log.txt')}`);
+          lines.push(dim(`  → View a log:       cat ${path.join(stepsPath, firstFailedDir, 'log.txt')}`));
         }
       }
 
-      lines.push(`  → Search errors:    grep -r "Error\\|Failed\\|Exception" ${stepsPath}/`);
+      lines.push(dim(`  → Search errors:    grep -r "Error\\|Failed\\|Exception" ${stepsPath}/`));
 
       // Show --all tip if steps were skipped
       if (!fetchAll && scriptJobs.length > stepResults.length) {
         const skippedCount = scriptJobs.length - stepResults.length;
-        lines.push(`  → Use --all to include all ${skippedCount} passing steps`);
+        lines.push(dim(`  → Use --all to include all ${skippedCount} passing steps`));
       }
     } else {
       // Tips for passed builds
-      lines.push(`  → List all steps:   jq -r '.steps[] | "\\(.id): \\(.label) (\\(.state))"' ${manifestPath}`);
-      lines.push(`  → Browse logs:      ls ${stepsPath}/`);
+      lines.push(dim(`  → List all steps:   jq -r '.steps[] | "\\(.id): \\(.label) (\\(.state))"' ${manifestPath}`));
+      lines.push(dim(`  → Browse logs:      ls ${stepsPath}/`));
 
       if (stepResults.length > 0) {
-        lines.push(`  → View a log:       cat ${stepsPath}/01-*/log.txt`);
+        lines.push(dim(`  → View a log:       cat ${stepsPath}/01-*/log.txt`));
       }
 
       // Show --all tip if steps were skipped
       if (!fetchAll && scriptJobs.length > stepResults.length) {
         const skippedCount = scriptJobs.length - stepResults.length;
-        lines.push(`  → Use --all to include all ${skippedCount} passing steps`);
+        lines.push(dim(`  → Use --all to include all ${skippedCount} passing steps`));
       }
     }
 
-    lines.push(`  → Use --no-tips to hide these hints`);
-    lines.push(`  manifest.json has full build metadata and step index`);
+    lines.push(dim(`  → Use --no-tips to hide these hints`));
+    lines.push(dim(`  manifest.json has full build metadata and step index`));
 
     return lines;
   }
@@ -135,6 +136,6 @@ export class PlainTextFormatter implements SnapshotFormatter {
       ? formatDistanceToNow(new Date(build.createdAt), { addSuffix: true })
       : '';
 
-    return `         ${author} • ${SEMANTIC_COLORS.identifier(branch)} • ${commit} • ${SEMANTIC_COLORS.dim(created)}`;
+    return `         ${author} • ${SEMANTIC_COLORS.identifier(branch)} • ${SEMANTIC_COLORS.dim(commit)} • ${SEMANTIC_COLORS.dim(created)}`;
   }
 }
