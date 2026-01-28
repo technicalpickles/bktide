@@ -6,7 +6,10 @@ import {
   formatBuildDuration,
   formatSize,
   truncate,
+  pathWithTilde,
+  getFirstFailedStepDir,
 } from '../../src/utils/formatUtils.js';
+import os from 'os';
 
 describe('formatUtils', () => {
   describe('formatStatus', () => {
@@ -241,6 +244,35 @@ describe('formatUtils', () => {
         finishedAt: '2025-01-27T10:00:45Z',
       });
       expect(result).toBe('45s');
+    });
+  });
+
+  describe('pathWithTilde', () => {
+    it('replaces home directory with tilde', () => {
+      const homePath = `${os.homedir()}/some/path`;
+      expect(pathWithTilde(homePath)).toBe('~/some/path');
+    });
+
+    it('leaves non-home paths unchanged', () => {
+      expect(pathWithTilde('/var/log/test')).toBe('/var/log/test');
+    });
+  });
+
+  describe('getFirstFailedStepDir', () => {
+    it('returns first failed step directory name', () => {
+      const jobs = [
+        { name: 'setup', exitStatus: '0', state: 'FINISHED' },
+        { name: 'test-unit', exitStatus: '1', state: 'FAILED' },
+        { name: 'test-integration', exitStatus: '1', state: 'FAILED' },
+      ];
+      expect(getFirstFailedStepDir(jobs)).toBe('02-test-unit');
+    });
+
+    it('returns null when no failed steps', () => {
+      const jobs = [
+        { name: 'setup', exitStatus: '0', state: 'FINISHED' },
+      ];
+      expect(getFirstFailedStepDir(jobs)).toBeNull();
     });
   });
 });
