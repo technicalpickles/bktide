@@ -2,6 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { enhanceCommanderError } from '../../src/utils/commander-error-handler.js';
 
 describe('enhanceCommanderError', () => {
+  describe('error format consistency', () => {
+    it('uses standard error format with icon', () => {
+      const result = enhanceCommanderError(
+        "error: missing required argument 'build'",
+        'build',
+        []
+      );
+
+      expect(result).toMatch(/^✖/); // Starts with error icon
+    });
+  });
+
   describe('too many arguments', () => {
     it('suggests --org and --pipeline for builds with org/pipeline pattern', () => {
       const result = enhanceCommanderError(

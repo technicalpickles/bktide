@@ -63,29 +63,41 @@ function handleTooManyArgs(commandName: string, args: string[]): string {
   // Pattern: builds gesso/zenpayroll -> --org gesso --pipeline zenpayroll
   if (commandName === 'builds' && arg.includes('/')) {
     const [org, pipeline] = arg.split('/');
-    return `Did you mean: bktide builds --org ${org} --pipeline ${pipeline}
+    return `✖ Error
 
-The 'builds' command uses flags instead of positional arguments.
-Run 'bktide builds --help' for all options.`;
+Did you mean: bktide builds --org ${org} --pipeline ${pipeline}
+
+To fix this:
+  1. Use --org and --pipeline flags instead of positional argument
+  2. Run 'bktide builds --help' for all options`;
   }
 
   // Pattern: pipelines gesso -> --org gesso
   if (commandName === 'pipelines' && arg && !arg.includes('/')) {
-    return `Did you mean: bktide pipelines --org ${arg}
+    return `✖ Error
 
-The 'pipelines' command uses --org flag instead of positional argument.
-Run 'bktide pipelines --help' for all options.`;
+Did you mean: bktide pipelines --org ${arg}
+
+To fix this:
+  1. Use --org flag instead of positional argument
+  2. Run 'bktide pipelines --help' for all options`;
   }
 
   // Pattern: orgs extraarg -> no args needed
   if (commandName === 'orgs' || commandName === 'viewer' || commandName === 'token') {
-    return `The '${commandName}' command doesn't accept arguments.
+    return `✖ Error
 
-Run 'bktide ${commandName} --help' for available options.`;
+The '${commandName}' command doesn't accept arguments.
+
+To fix this:
+  1. Remove the extra argument
+  2. Run 'bktide ${commandName} --help' for available options`;
   }
 
   // Generic fallback
-  return `Unexpected argument: ${arg}
+  return `✖ Error
+
+Unexpected argument: ${arg}
 
 Run 'bktide ${commandName} --help' for usage information.`;
 }
@@ -94,7 +106,9 @@ function handleMissingArg(commandName: string): string {
   const example = COMMAND_EXAMPLES[commandName];
 
   if (example) {
-    return `Missing required argument for '${commandName}'
+    return `✖ Error
+
+Missing required argument for '${commandName}'
 
 Usage: ${example.usage}
 Example: ${example.example}
@@ -102,7 +116,9 @@ Example: ${example.example}
 Run 'bktide ${commandName} --help' for more information.`;
   }
 
-  return `Missing required argument for '${commandName}'
+  return `✖ Error
+
+Missing required argument for '${commandName}'
 
 Run 'bktide ${commandName} --help' for usage information.`;
 }
@@ -112,7 +128,9 @@ function handleUnknownOption(originalError: string, commandName: string): string
   const match = originalError.match(/unknown option '([^']+)'/);
   const option = match ? match[1] : 'unknown';
 
-  return `Unknown option: ${option}
+  return `✖ Error
+
+Unknown option: ${option}
 
 Run 'bktide ${commandName} --help' to see available options.`;
 }
