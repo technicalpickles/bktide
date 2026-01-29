@@ -18,12 +18,27 @@ export interface ViewerBuildsOptions extends BaseCommandOptions {
   tips?: boolean;
 }
 
+const VALID_STATES = [
+  'running', 'scheduled', 'passed', 'failing', 'failed',
+  'canceled', 'canceling', 'blocked', 'not_run', 'skipped'
+];
+
 export class ListBuilds extends BaseCommand {
   constructor(options?: Partial<ViewerBuildsOptions>) {
     super(options);
   }
 
   async execute(options: ViewerBuildsOptions): Promise<number> {
+    // Validate state option if provided
+    if (options.state && !VALID_STATES.includes(options.state.toLowerCase())) {
+      const validList = VALID_STATES.join(', ');
+      process.stderr.write(
+        `Invalid state '${options.state}'\n` +
+        `Valid states: ${validList}\n`
+      );
+      return 1;
+    }
+
     await this.ensureInitialized();
     
     const executeStartTime = process.hrtime.bigint();
