@@ -63,7 +63,7 @@ export const GET_PIPELINES = gql`
 export const GET_PIPELINE = gql`
   query GetPipeline($organizationSlug: ID!, $pipelineSlug: String!) {
     organization(slug: $organizationSlug) {
-      pipelines(first: 1, search: $pipelineSlug) {
+      pipelines(first: 50, search: $pipelineSlug) {
         edges {
           node {
             uuid

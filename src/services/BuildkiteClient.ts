@@ -515,6 +515,7 @@ export class BuildkiteClient {
 
   /**
    * Get a single pipeline by organization and pipeline slug
+   * Prefers exact slug match over partial/fuzzy matches
    */
   public async getPipeline(
     orgSlug: string,
@@ -530,12 +531,25 @@ export class BuildkiteClient {
     }
 
     const data = await this.query<any>(GET_PIPELINE.toString(), variables);
-    
+
+    const pipelines = data.organization?.pipelines?.edges || [];
+
     if (this.debug) {
-      logger.debug('Pipeline data:', data);
+      logger.debug('Pipeline search results:', {
+        count: pipelines.length,
+        slugs: pipelines.map((e: any) => e.node?.slug),
+      });
     }
 
-    return data.organization?.pipelines?.edges?.[0]?.node;
+    // Prefer exact slug match over partial match
+    const exactMatch = pipelines.find((edge: any) => edge.node?.slug === pipelineSlug);
+    const result = exactMatch?.node || pipelines[0]?.node;
+
+    if (this.debug && exactMatch) {
+      logger.debug('Found exact slug match:', exactMatch.node?.slug);
+    }
+
+    return result;
   }
 
   /**
