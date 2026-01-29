@@ -11,3 +11,4 @@ export * from './Snapshot.js';
 export * from './ShowPipeline.js';
 export * from './ShowLogs.js';
 export * from './SmartShow.js';
+export * from './Prime.js';
