@@ -129,12 +129,16 @@ export class ShowBuild extends BaseCommand {
         fetchAllJobs: true,
         onProgress: progressCallback
       });
-      
+
       // Clear the progress line
       if (progressCallback) {
         process.stderr.write('\r\x1b[K'); // Clear the line
       }
-      
+
+      if (!buildData?.build) {
+        throw new Error(`Build not found: ${buildSlug}`);
+      }
+
       // If we need full details (like command text), fetch that separately
       if (options.full) {
         // For now, getBuildFull still provides more detailed fields
@@ -145,7 +149,11 @@ export class ShowBuild extends BaseCommand {
       return buildData;
     } else {
       // Just get the summary with first 100 jobs
-      return await this.client.getBuildSummary(buildSlug);
+      const buildData = await this.client.getBuildSummary(buildSlug);
+      if (!buildData?.build) {
+        throw new Error(`Build not found: ${buildSlug}`);
+      }
+      return buildData;
     }
   }
 }
