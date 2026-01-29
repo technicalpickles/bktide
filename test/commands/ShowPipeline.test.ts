@@ -299,6 +299,58 @@ describe('ShowPipeline Command', () => {
       );
     });
 
+    it('should prefer exact slug match over partial match', async () => {
+      // Mock GraphQL response with multiple pipelines - partial match first
+      setTestData({
+        organization: {
+          pipelines: {
+            edges: [
+              {
+                node: {
+                  uuid: 'partial-uuid',
+                  id: 'partial-id',
+                  name: 'Zenpayroll MCP Evals',
+                  slug: 'zenpayroll-mcp-evals',
+                  description: 'MCP evaluation pipeline',
+                  url: 'https://buildkite.com/gusto/zenpayroll-mcp-evals',
+                  defaultBranch: 'main',
+                  repository: { url: 'https://github.com/gusto/zenpayroll-mcp-evals' },
+                },
+              },
+              {
+                node: {
+                  uuid: 'exact-uuid',
+                  id: 'exact-id',
+                  name: 'Zenpayroll',
+                  slug: 'zenpayroll',
+                  description: 'Main zenpayroll pipeline',
+                  url: 'https://buildkite.com/gusto/zenpayroll',
+                  defaultBranch: 'main',
+                  repository: { url: 'https://github.com/gusto/zenpayroll' },
+                },
+              },
+            ],
+          },
+        },
+      });
+
+      const consoleCalls: string[] = [];
+      vi.spyOn(logger, 'console').mockImplementation((msg) => {
+        consoleCalls.push(msg);
+      });
+
+      const exitCode = await command.execute({
+        reference: 'gusto/zenpayroll',
+        token: 'test-token',
+      });
+
+      expect(exitCode).toBe(0);
+      const fullOutput = consoleCalls.join('\n');
+      // Should show the exact match pipeline, not the partial match
+      expect(fullOutput).toContain('Zenpayroll');
+      expect(fullOutput).not.toContain('zenpayroll-mcp-evals');
+    });
+
     it('should show tips by default', async () => {
       setTestData({
         organization: {
