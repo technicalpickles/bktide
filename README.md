@@ -10,6 +10,7 @@ Command-line interface for Buildkite CI/CD workflows with rich shell completions
 - **📊 Multiple Output Formats**: Plain text, JSON, or Alfred-compatible output
 - **🔐 Secure Token Storage**: System keychain integration for API credentials
 - **⚡ Performance**: Built-in caching for faster repeated operations
+- **🤖 AI/LLM Integration**: Export agent rules for Claude Code, Cursor, and other AI tools
 
 ## Installation
 
@@ -280,6 +281,23 @@ bktide completions zsh
 # Auto-detect your shell and generate completions
 bktide completions
 ```
+
+### AI/LLM Integration
+
+Export agent rules to teach AI assistants how to use bktide for CI debugging.
+
+```bash
+# View the rules
+bktide prime
+
+# Append to Claude Code memory
+bktide prime >> ~/.claude/CLAUDE.md
+
+# Append to Cursor rules
+bktide prime >> .cursor/rules.md
+```
+
+The rules include common workflows for investigating failing builds and integrating with GitHub PRs.
 
 ## API Token
 

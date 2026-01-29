@@ -18,7 +18,8 @@ import {
   Snapshot,
   ShowPipeline,
   ShowLogs,
-  SmartShow
+  SmartShow,
+  Prime
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
@@ -526,6 +527,17 @@ program
     const exitCode = await handler.execute({ shell, quiet: program.opts().quiet, debug: program.opts().debug });
     process.exitCode = exitCode;
   });
+
+// Add prime command
+program
+  .command('prime')
+  .description('Output LLM/AI agent rules for Buildkite CI integration')
+  .addHelpText('after', `
+Examples:
+  $ bktide prime                        # View rules
+  $ bktide prime >> ~/.claude/CLAUDE.md # Append to Claude Code memory
+`)
+  .action(createCommandHandler(Prime));
 
 program
   .command('boom')
