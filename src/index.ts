@@ -479,7 +479,12 @@ program
 // Add prime command
 program
   .command('prime')
-  .description('Output agent rules for Buildkite CI integration')
+  .description('Output LLM/AI agent rules for Buildkite CI integration')
+  .addHelpText('after', `
+Examples:
+  $ bktide prime                        # View rules
+  $ bktide prime >> ~/.claude/CLAUDE.md # Append to Claude Code memory
+`)
   .action(createCommandHandler(Prime));
 
 program
