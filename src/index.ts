@@ -25,6 +25,7 @@ import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
 import { logger, setLogLevel } from './services/logger.js';
 import { WidthAwareHelp } from './ui/help.js';
 import { enhanceCommanderError } from './utils/commander-error-handler.js';
+import { parseBuildkiteReference } from './utils/parseBuildkiteReference.js';
 
 // Set a global error handler for uncaught exceptions
 const uncaughtExceptionHandler = (err: Error) => {
@@ -295,7 +296,21 @@ program
       }
     }
     else if (commandName === 'builds') {
-      // Create builds-specific options structure
+      // Parse positional reference if provided
+      const positionalRef = cmd.args?.[0];
+      if (positionalRef && !mergedOptions.org && !mergedOptions.pipeline) {
+        try {
+          const ref = parseBuildkiteReference(positionalRef);
+          mergedOptions.org = ref.org;
+          mergedOptions.pipeline = ref.pipeline;
+        } catch {
+          // Invalid format - will be handled by existing validation or API
+          if (mergedOptions.debug) {
+            logger.debug(`Could not parse reference: ${positionalRef}`);
+          }
+        }
+      }
+
       cmd.buildOptions = {
         organization: mergedOptions.org,
         pipeline: mergedOptions.pipeline,
@@ -305,7 +320,7 @@ program
         page: mergedOptions.page ? parseInt(mergedOptions.page) : 1,
         filter: mergedOptions.filter
       };
-      
+
       if (mergedOptions.debug) {
         logger.debug('Build options:', cmd.buildOptions);
       }
@@ -377,6 +392,7 @@ program
 program
   .command('builds')
   .description('List builds for the current user')
+  .argument('[reference]', 'Pipeline reference (org/pipeline) - shorthand for --org and --pipeline')
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-p, --pipeline <pipeline>', 'Filter by pipeline slug')
   .option('-b, --branch <branch>', 'Filter by branch name')
