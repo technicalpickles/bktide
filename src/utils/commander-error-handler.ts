@@ -60,27 +60,47 @@ export function enhanceCommanderError(
 function handleTooManyArgs(commandName: string, args: string[]): string {
   const arg = args[0] || '';
 
-  // Pattern: builds gesso/zenpayroll -> --org gesso --pipeline zenpayroll
-  if (commandName === 'builds' && arg.includes('/')) {
-    const [org, pipeline] = arg.split('/');
+  // Pattern: builds with invalid reference format
+  if (commandName === 'builds') {
+    if (arg.includes('/')) {
+      return `✖ Error
+
+Could not parse '${arg}' as a pipeline reference.
+
+Expected format: org/pipeline
+Example: bktide builds myorg/mypipeline
+
+Run 'bktide builds --help' for all options.`;
+    }
     return `✖ Error
 
-Did you mean: bktide builds --org ${org} --pipeline ${pipeline}
+Unexpected argument: ${arg}
 
-To fix this:
-  1. Use --org and --pipeline flags instead of positional argument
-  2. Run 'bktide builds --help' for all options`;
+Usage: bktide builds [org/pipeline] [options]
+Example: bktide builds myorg/mypipeline --state failed
+
+Run 'bktide builds --help' for all options.`;
   }
 
-  // Pattern: pipelines gesso -> --org gesso
-  if (commandName === 'pipelines' && arg && !arg.includes('/')) {
+  // Pattern: pipelines with extra args
+  if (commandName === 'pipelines') {
+    if (arg.includes('/')) {
+      return `✖ Error
+
+The 'pipelines' command expects just an org, not org/pipeline.
+
+Did you mean: bktide pipelines ${arg.split('/')[0]}
+
+Run 'bktide pipelines --help' for all options.`;
+    }
     return `✖ Error
 
-Did you mean: bktide pipelines --org ${arg}
+Unexpected argument: ${arg}
 
-To fix this:
-  1. Use --org flag instead of positional argument
-  2. Run 'bktide pipelines --help' for all options`;
+Usage: bktide pipelines [org] [options]
+Example: bktide pipelines myorg --count 10
+
+Run 'bktide pipelines --help' for all options.`;
   }
 
   // Pattern: orgs extraarg -> no args needed

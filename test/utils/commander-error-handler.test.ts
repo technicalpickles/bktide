@@ -15,26 +15,26 @@ describe('enhanceCommanderError', () => {
   });
 
   describe('too many arguments', () => {
-    it('suggests --org and --pipeline for builds with org/pipeline pattern', () => {
+    it('shows usage for builds with invalid reference', () => {
       const result = enhanceCommanderError(
         "error: too many arguments for 'builds'. Expected 0 arguments but got 1.",
         'builds',
-        ['gesso/zenpayroll']
+        ['invalid']
       );
 
-      expect(result).toContain('Did you mean');
-      expect(result).toContain('--org gesso --pipeline zenpayroll');
+      expect(result).toContain('Unexpected argument');
+      expect(result).toContain('bktide builds [org/pipeline]');
     });
 
-    it('suggests --org for pipelines with single arg', () => {
+    it('suggests org-only for pipelines with org/pipeline', () => {
       const result = enhanceCommanderError(
         "error: too many arguments for 'pipelines'. Expected 0 arguments but got 1.",
         'pipelines',
-        ['gesso']
+        ['gesso/zenpayroll']
       );
 
-      expect(result).toContain('Did you mean');
-      expect(result).toContain('--org gesso');
+      expect(result).toContain('expects just an org');
+      expect(result).toContain('bktide pipelines gesso');
     });
   });
 
