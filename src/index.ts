@@ -278,13 +278,18 @@ program
     const commandName = cmd.name();
 
     if (commandName === 'pipelines') {
-      // Create pipeline-specific options structure
+      // Parse positional arg if provided and --org not specified
+      const positionalOrg = cmd.args?.[0];
+      if (positionalOrg && !mergedOptions.org) {
+        mergedOptions.org = positionalOrg;
+      }
+
       cmd.pipelineOptions = {
         organization: mergedOptions.org,
         count: mergedOptions.count ? parseInt(mergedOptions.count) : undefined,
         filter: mergedOptions.filter
       };
-      
+
       if (mergedOptions.debug) {
         logger.debug('Pipeline options:', cmd.pipelineOptions);
       }
@@ -362,6 +367,7 @@ program
 program
   .command('pipelines')
   .description('List pipelines for an organization')
+  .argument('[org]', 'Organization slug (shorthand for --org)')
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-n, --count <count>', 'Limit to specified number of pipelines per organization')
   .option('--filter <name>', 'Filter pipelines by name (case insensitive)')
