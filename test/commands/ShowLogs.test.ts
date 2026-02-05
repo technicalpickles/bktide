@@ -244,5 +244,72 @@ describe('ShowLogs Command', () => {
         expect.stringContaining('Invalid build reference')
       );
     });
+
+    describe('--follow mode', () => {
+      it('should exit immediately if job is already complete', async () => {
+        // Job is already in 'passed' state (from default mock)
+        const exitCode = await command.execute({
+          buildRef: 'org/pipeline/123',
+          stepId: 'step-id-1',
+          token: 'test-token',
+          follow: true,
+        });
+
+        expect(exitCode).toBe(0);
+        expect(logger.console).toHaveBeenCalled();
+      });
+
+      it('should poll until job completes', async () => {
+        // Start with running job
+        let pollCount = 0;
+        const originalBuild = (globalThis as any).__testOverride_rest_build;
+
+        // Override to simulate job transitioning from running to passed
+        Object.defineProperty(globalThis, '__testOverride_rest_build', {
+          get() {
+            pollCount++;
+            if (pollCount <= 2) {
+              return {
+                ...originalBuild,
+                jobs: [{
+                  ...originalBuild.jobs[0],
+                  state: 'running',
+                  finished_at: null,
+                }],
+              };
+            }
+            // After 2 polls, job is complete
+            return originalBuild;
+          },
+          configurable: true,
+        });
+
+        // Mock logs that grow
+        let logContent = 'Line 1\n';
+        Object.defineProperty(globalThis, '__testOverride_rest_logs', {
+          get() {
+            const content = logContent;
+            logContent += `Line ${pollCount + 1}\n`;
+            return {
+              content,
+              size: content.length,
+              url: 'https://api.buildkite.com/logs',
+            };
+          },
+          configurable: true,
+        });
+
+        const exitCode = await command.execute({
+          buildRef: 'org/pipeline/123',
+          stepId: 'step-id-1',
+          token: 'test-token',
+          follow: true,
+          pollInterval: 0.1, // Fast polling for test
+        });
+
+        expect(exitCode).toBe(0);
+        expect(pollCount).toBeGreaterThan(1);
+      });
+    });
   });
 });
