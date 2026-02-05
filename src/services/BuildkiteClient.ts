@@ -1,6 +1,7 @@
 import { GraphQLClient } from 'graphql-request';
 import { CacheManager } from './CacheManager.js';
 import { getProgressIcon } from '../ui/theme.js';
+import { AuthenticationError } from '../errors/index.js';
 // Import the queries - we'll use them for both string queries and typed SDK
 import {
   GET_VIEWER,
@@ -164,13 +165,13 @@ export class BuildkiteClient {
       if (isAuthError && this.debug) {
         logger.debug('Authentication error detected, not caching result');
       }
-      
+
       if (this.debug) {
         logger.error(error as any, 'Error in GraphQL query');
         // Log raw error information
-        logger.debug('Raw error object:', { 
-          error, 
-          type: typeof error, 
+        logger.debug('Raw error object:', {
+          error,
+          type: typeof error,
           constructor: (error as any)?.constructor?.name,
           keys: error && typeof error === 'object' ? Object.keys(error as any) : undefined
         });
@@ -186,6 +187,12 @@ export class BuildkiteClient {
           });
         }
       }
+
+      // Convert authentication errors to user-friendly AuthenticationError
+      if (isAuthError) {
+        throw AuthenticationError.fromGraphQLError(error as Error);
+      }
+
       throw error;
     }
   }
@@ -197,29 +204,44 @@ export class BuildkiteClient {
     // Check for common authentication error patterns
     if (error.response?.errors) {
       const errors = error.response.errors;
-      return errors.some((err: any) => 
-        err.message?.includes('unauthorized') || 
-        err.message?.includes('authentication') || 
+      return errors.some((err: any) =>
+        err.message?.includes('unauthorized') ||
+        err.message?.includes('authentication') ||
         err.message?.includes('permission') ||
         err.message?.includes('invalid token')
       );
     }
-    
+
     // Check for HTTP status codes that indicate auth issues
     if (error.response?.status) {
       const status = error.response.status;
       return status === 401 || status === 403;
     }
-    
+
     // Check error message directly
     if (error.message) {
-      return error.message.includes('unauthorized') || 
-             error.message.includes('authentication') || 
+      return error.message.includes('unauthorized') ||
+             error.message.includes('authentication') ||
              error.message.includes('permission') ||
              error.message.includes('invalid token');
     }
-    
+
     return false;
+  }
+
+  /**
+   * Execute a GraphQL request with authentication error handling.
+   * Wraps this.client.request() to convert auth errors to AuthenticationError.
+   */
+  private async request<T>(query: string, variables?: Record<string, any>): Promise<T> {
+    try {
+      return await this.client.request<T>(query, variables);
+    } catch (error) {
+      if (this.isAuthenticationError(error)) {
+        throw AuthenticationError.fromGraphQLError(error as Error);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -238,8 +260,8 @@ export class BuildkiteClient {
       if (this.debug) {
         logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL mutation: ${operationName}`);
       }
-      
-      const result = await this.client.request<T>(mutation, variables);
+
+      const result = await this.request<T>(mutation, variables);
       
       // Invalidate relevant caches after mutations
       if (this.cacheManager) {
@@ -388,7 +410,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<GetViewerQuery>(GET_VIEWER.toString());
+    const result = await this.request<GetViewerQuery>(GET_VIEWER.toString());
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -425,7 +447,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<GetOrganizationsQuery>(GET_ORGANIZATIONS.toString());
+    const result = await this.request<GetOrganizationsQuery>(GET_ORGANIZATIONS.toString());
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -497,7 +519,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<GetPipelinesQuery>(GET_PIPELINES.toString(), variables);
+    const result = await this.request<GetPipelinesQuery>(GET_PIPELINES.toString(), variables);
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -586,7 +608,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<GetBuildsQuery>(GET_BUILDS.toString(), variables);
+    const result = await this.request<GetBuildsQuery>(GET_BUILDS.toString(), variables);
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -628,7 +650,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<GetViewerBuildsQuery>(GET_VIEWER_BUILDS.toString(), variables);
+    const result = await this.request<GetViewerBuildsQuery>(GET_VIEWER_BUILDS.toString(), variables);
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -678,7 +700,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<any>(GET_BUILD_ANNOTATIONS.toString(), variables);
+    const result = await this.request<any>(GET_BUILD_ANNOTATIONS.toString(), variables);
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -715,7 +737,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<any>(GET_BUILD_SUMMARY.toString(), variables);
+    const result = await this.request<any>(GET_BUILD_SUMMARY.toString(), variables);
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -752,7 +774,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<any>(GET_BUILD_FULL.toString(), variables);
+    const result = await this.request<any>(GET_BUILD_FULL.toString(), variables);
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
