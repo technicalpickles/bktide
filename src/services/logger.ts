@@ -8,9 +8,15 @@ fs.mkdirSync(logDir, { recursive: true });
 
 const logFile = path.join(logDir, 'cli.log');
 
+// Check for debug flag early, before Commander parses options.
+// Pino transports filter at initialization time (worker threads with immutable config),
+// so we need to know the level before creating the logger.
+const debugFlagPresent = process.argv.some(arg => arg === '--debug' || arg === '-d');
+const effectiveLevel = debugFlagPresent ? 'debug' : (process.env.LOG_LEVEL || 'info');
+
 export const logger = pino(
   {
-    level: process.env.LOG_LEVEL || 'info',
+    level: effectiveLevel,
     customLevels: {
       console: 80
     },
@@ -29,11 +35,12 @@ export const logger = pino(
             errorProps: 'err,error,stack,message,code,details'
           }
         },
-        // Debug output with pretty formatting
+        // Debug output with pretty formatting (to stderr)
         {
           target: 'pino-pretty',
-          level: 'trace',
+          level: effectiveLevel,  // Only show when --debug or LOG_LEVEL enables it
           options: {
+            destination: 2,  // stderr - keeps debug separate from stdout for JSON/Alfred
             colorize: true,
             sync: true,
             translateTime: 'HH:MM:ss.l',
@@ -67,12 +74,13 @@ export const logger = pino(
 export const { info, warn, error, debug, trace, fatal } = logger;
 
 /**
- * Changes the logging level of the current logger instance
+ * Changes the logging level of the current logger instance.
+ * Note: This only affects the logger threshold, not transport filtering.
+ * For debug output to stderr, use --debug flag or LOG_LEVEL env var at startup.
  * @param level The new log level to set
  */
 export function setLogLevel(level: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal' | 'console'): void {
   logger.level = level;
-  debug(`Log level changed to ${level}`);
 }
 
 /**

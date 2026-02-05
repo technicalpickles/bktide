@@ -301,8 +301,20 @@ The rules include common workflows for investigating failing builds and integrat
 
 ## API Token
 
-You'll need a Buildkite API token with GraphQL scopes. Create one at:
+You'll need a Buildkite API token. Create one at:
 https://buildkite.com/user/api-access-tokens
+
+### Required Scopes
+
+Enable these scopes when creating your token:
+
+- **GraphQL API Access** - Required for all API queries
+- **Read Builds** - View builds, jobs, and logs
+- **Read Organizations** - List and access organizations
+- **Read Pipelines** - View pipeline configurations
+- **Read User** - Access your user information
+
+All five scopes are required for full bktide functionality.
 
 ### Providing your token
 
