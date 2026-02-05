@@ -203,7 +203,7 @@ export class ManageToken extends BaseCommand {
       try {
         validation = await BaseCommand.credentialManager.validateToken(token, {
           format: options?.format,
-          showProgress: false  // Don't show progress since we're showing formatted output
+          showProgress: true
         });
         isValid = validation.valid && validation.canListOrganizations;
       } catch (error) {
