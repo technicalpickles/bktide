@@ -1,6 +1,7 @@
 import { BaseErrorFormatter, ErrorFormatter, ErrorFormatterOptions } from './Formatter.js';
 import { COLORS, SYMBOLS, formatTips, TipStyle } from '../../ui/theme.js';
 import { wrapText, termWidth } from '../../ui/width.js';
+import { AuthenticationError } from '../../errors/index.js';
 
 /**
  * Plain text formatter for errors with structured sections
@@ -28,11 +29,20 @@ export class PlainTextFormatter extends BaseErrorFormatter implements ErrorForma
       const errorName = this.getErrorName(error);
       const errorMessage = this.getErrorMessage(error);
       sections.push(COLORS.error(`${SYMBOLS.error} ERROR   ${errorName}`));
-      
+
       // Message section (wrapped for readability)
       if (errorMessage && errorMessage !== errorName) {
         const wrappedMessage = wrapText(errorMessage, contentWidth);
         wrappedMessage.forEach(line => {
+          sections.push(`         ${line}`);
+        });
+      }
+
+      // Details section for AuthenticationError
+      if (error instanceof AuthenticationError && error.details) {
+        sections.push('');
+        const wrappedDetails = wrapText(error.details, contentWidth);
+        wrappedDetails.forEach(line => {
           sections.push(`         ${line}`);
         });
       }
@@ -92,16 +102,21 @@ export class PlainTextFormatter extends BaseErrorFormatter implements ErrorForma
   /**
    * Get contextual hints based on the error
    */
-  private getContextualHints(_error: unknown, message: string): string[] {
+  private getContextualHints(error: unknown, message: string): string[] {
+    // Use structured suggestions from AuthenticationError if available
+    if (error instanceof AuthenticationError) {
+      return error.suggestions;
+    }
+
     const hints: string[] = [];
     const lowerMessage = message.toLowerCase();
-    
-    // Authentication errors
-    if (lowerMessage.includes('auth') || lowerMessage.includes('unauthorized') || 
+
+    // Authentication errors (fallback detection for non-AuthenticationError)
+    if (lowerMessage.includes('auth') || lowerMessage.includes('unauthorized') ||
         lowerMessage.includes('401') || lowerMessage.includes('token')) {
       hints.push('Check your token: bktide token --check');
       hints.push('Store a new token: bktide token --store');
-      hints.push('Set token via: export BUILDKITE_API_TOKEN=<your-token>');
+      hints.push('Get a token at: https://buildkite.com/user/api-access-tokens');
     }
     // Network errors
     else if (lowerMessage.includes('econnrefused') || lowerMessage.includes('network') ||

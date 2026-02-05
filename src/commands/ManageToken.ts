@@ -169,36 +169,25 @@ export class ManageToken extends BaseCommand {
   }
 
   private async checkToken(options?: { format?: string }): Promise<TokenCheckResult> {
-    // In Alfred, check presence of env var as token existence
-    const hasToken = isRunningInAlfred()
-      ? Boolean(process.env.BUILDKITE_API_TOKEN || process.env.BK_TOKEN)
-      : await BaseCommand.credentialManager.hasToken();
-    let isValid = false;
-    let validation: TokenValidationStatus = { 
-      valid: false, 
-      canListOrganizations: false,
-      organizations: {} 
-    };
     const errors: unknown[] = [];
 
-    if (hasToken) {
-      // Get the token for validation
-      const token = isRunningInAlfred()
-        ? (process.env.BUILDKITE_API_TOKEN || process.env.BK_TOKEN)
-        : await BaseCommand.credentialManager.getToken();
-      if (!token) {
-        const tokenStatus: TokenStatus = {
-          hasToken: false,
-          isValid: false,
-          validation: { 
-            valid: false, 
-            canListOrganizations: false,
-            organizations: {} 
-          }
-        };
-        return { status: tokenStatus, errors };
-      }
+    // Get token using standard resolution: --token flag > env var > keychain
+    // This ensures `bktide token --check --token <token>` validates the provided token
+    // and `BUILDKITE_API_TOKEN=<token> bktide token --check` works as expected
+    const token = this.options.token
+      || process.env.BUILDKITE_API_TOKEN
+      || process.env.BK_TOKEN
+      || await BaseCommand.credentialManager.getToken();
 
+    const hasToken = !!token;
+    let isValid = false;
+    let validation: TokenValidationStatus = {
+      valid: false,
+      canListOrganizations: false,
+      organizations: {}
+    };
+
+    if (hasToken && token) {
       // Validate the token using the CredentialManager
       try {
         validation = await BaseCommand.credentialManager.validateToken(token, {
@@ -210,16 +199,16 @@ export class ManageToken extends BaseCommand {
         errors.push(error);
       }
     }
-    
+
     const tokenStatus: TokenStatus = {
       hasToken,
       isValid,
       validation
     };
-    
+
     const formattedResult = this.formatter.formatTokenStatus(tokenStatus);
     logger.console(formattedResult);
-    
+
     return { status: tokenStatus, errors };
   }
 } 
