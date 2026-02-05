@@ -7,6 +7,36 @@ import { SEMANTIC_COLORS, formatError } from '../ui/theme.js';
 import { Progress } from '../ui/progress.js';
 import * as fs from 'fs/promises';
 
+// Terminal states where job is complete
+export const TERMINAL_JOB_STATES = ['passed', 'failed', 'canceled', 'timed_out', 'skipped', 'broken'];
+
+// Error categorization for retry logic
+export type ErrorCategory = 'rate_limited' | 'not_found' | 'permission_denied' | 'network_error' | 'unknown';
+
+export interface PollError {
+  category: ErrorCategory;
+  message: string;
+  retryable: boolean;
+}
+
+export function categorizePollError(error: Error): PollError {
+  const message = error.message.toLowerCase();
+
+  if (message.includes('rate limit') || message.includes('429')) {
+    return { category: 'rate_limited', message: error.message, retryable: true };
+  }
+  if (message.includes('not found') || message.includes('404')) {
+    return { category: 'not_found', message: error.message, retryable: false };
+  }
+  if (message.includes('permission') || message.includes('403') || message.includes('401')) {
+    return { category: 'permission_denied', message: error.message, retryable: false };
+  }
+  if (message.includes('network') || message.includes('econnrefused') || message.includes('enotfound')) {
+    return { category: 'network_error', message: error.message, retryable: true };
+  }
+  return { category: 'unknown', message: error.message, retryable: true };
+}
+
 export interface ShowLogsOptions extends BaseCommandOptions {
   buildRef: string;
   stepId?: string;
