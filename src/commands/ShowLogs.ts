@@ -13,6 +13,8 @@ export interface ShowLogsOptions extends BaseCommandOptions {
   full?: boolean;
   lines?: number;
   save?: string;
+  follow?: boolean;
+  pollInterval?: number;
 }
 
 export class ShowLogs extends BaseCommand {
