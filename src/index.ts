@@ -488,6 +488,8 @@ program
   .option('--full', 'Show all log lines')
   .option('--lines <n>', 'Show last N lines', '50')
   .option('--save <path>', 'Save logs to file')
+  .option('-f, --follow', 'Follow logs as they stream (until job completes)')
+  .option('--poll-interval <seconds>', 'Polling interval in seconds (default: 3)', '3')
   .action(async function(this: ExtendedCommand, buildRef: string, stepId?: string) {
     try {
       const options = this.mergedOptions || this.opts();
@@ -508,6 +510,8 @@ program
         full: options.full,
         lines: options.lines ? parseInt(options.lines) : 50,
         save: options.save,
+        follow: options.follow,
+        pollInterval: options.pollInterval ? parseInt(options.pollInterval) : 3,
       });
 
       process.exitCode = exitCode;

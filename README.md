@@ -232,6 +232,23 @@ bktide logs org/pipeline/123 <step-id> --save logs.txt
 
 **Note:** Viewing step logs requires `read_build_logs` scope on your API token.
 
+### Follow Logs in Real-Time
+
+Stream logs as they're written (useful for watching running jobs):
+
+```bash
+# Follow logs until job completes
+bktide logs org/pipeline/123 <step-id> --follow
+
+# Follow with custom poll interval (default: 3 seconds)
+bktide logs org/pipeline/123 <step-id> --follow --poll-interval 5
+
+# Combine with other options
+bktide logs org/pipeline/123 <step-id> --follow --lines 100
+```
+
+**Note:** Following logs uses polling (2 API calls per interval). For long-running jobs, consider using `--poll-interval 5` or higher to reduce API usage.
+
 ### Smart Reference Command
 
 Paste any Buildkite URL or use short-hand formats, and bktide will figure out what to show.
