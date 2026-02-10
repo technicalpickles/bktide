@@ -90,7 +90,7 @@ export class BuildPoller {
     this._jobStates.clear();
 
     // Initial fetch
-    const build = await this._client.getBuild(
+    let build = await this._client.getBuild(
       buildRef.org,
       buildRef.pipeline,
       buildRef.buildNumber
@@ -105,8 +105,36 @@ export class BuildPoller {
       return build;
     }
 
-    // TODO: Implement polling loop in next task
-    throw new Error('Polling not yet implemented');
+    // Polling loop
+    const currentInterval = this._options.initialInterval;
+
+    while (!this._stopped) {
+      await this.sleep(currentInterval);
+
+      if (this._stopped) break;
+
+      build = await this._client.getBuild(
+        buildRef.org,
+        buildRef.pipeline,
+        buildRef.buildNumber
+      );
+
+      // Process job state changes
+      this.processJobChanges(build.jobs || []);
+
+      // Check if complete
+      if (isTerminalState(build.state)) {
+        this._callbacks.onBuildComplete(build);
+        return build;
+      }
+    }
+
+    // Stopped externally
+    return build;
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   private processJobChanges(jobs: any[]): void {

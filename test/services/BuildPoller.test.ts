@@ -175,4 +175,42 @@ describe('watch', () => {
     expect(callbackSpies.onBuildComplete).toHaveBeenCalledWith(completedBuild);
     expect(mockClient.getBuild).toHaveBeenCalledTimes(1);
   });
+
+  it('should poll until build completes', async () => {
+    vi.useFakeTimers();
+
+    const runningBuild = {
+      number: 42,
+      state: 'running',
+      jobs: [{ id: 'job-1', name: 'test', state: 'running' }],
+    };
+    const completedBuild = {
+      number: 42,
+      state: 'passed',
+      jobs: [{ id: 'job-1', name: 'test', state: 'passed' }],
+    };
+
+    const getBuildSpy = vi.spyOn(mockClient, 'getBuild')
+      .mockResolvedValueOnce(runningBuild)
+      .mockResolvedValueOnce(runningBuild)
+      .mockResolvedValueOnce(completedBuild);
+
+    const poller = new BuildPoller(mockClient, callbacks, { initialInterval: 1000 });
+    const watchPromise = poller.watch(buildRef);
+
+    // First call is immediate
+    await vi.advanceTimersByTimeAsync(0);
+    expect(getBuildSpy).toHaveBeenCalledTimes(1);
+
+    // Second call after interval
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(getBuildSpy).toHaveBeenCalledTimes(2);
+
+    // Third call completes the build
+    await vi.advanceTimersByTimeAsync(1000);
+
+    const result = await watchPromise;
+    expect(result.state).toBe('passed');
+    expect(callbackSpies.onBuildComplete).toHaveBeenCalledWith(completedBuild);
+  });
 });
