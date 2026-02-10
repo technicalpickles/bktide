@@ -212,33 +212,77 @@ export class ShowBuild extends BaseCommand {
     const timeoutMinutes = parseInt(String(options.timeout || '30'), 10);
     const pollIntervalSeconds = parseInt(String(options.pollInterval || '5'), 10);
 
-    // Get token for polling
+    // Create non-caching client for polling
     const token = await BaseCommand.getToken(options);
     if (!token) {
-      logger.error('API token required for watch mode');
+      logger.error('No API token available');
       return 1;
     }
+    const pollClient = new BuildkiteRestClient(token, { caching: false, debug: options.debug });
 
-    // Create non-caching client for polling
-    const pollClient = new BuildkiteRestClient(
-      token,
-      { caching: false, debug: options.debug }
-    );
+    const isJson = options.format === 'json';
 
-    this.displayWatchHeader(buildRef.number, timeoutMinutes);
+    // Display header
+    if (isJson) {
+      logger.console(JSON.stringify({
+        type: 'watching',
+        build: { number: buildRef.number, org: buildRef.org, pipeline: buildRef.pipeline },
+        timeout: `${timeoutMinutes}m`,
+        timestamp: new Date().toISOString(),
+      }));
+    } else {
+      this.displayWatchHeader(buildRef.number, timeoutMinutes);
+    }
 
     const poller = new BuildPoller(pollClient, {
-      onJobStateChange: (change) => this.displayJobEvent(change),
-      onBuildComplete: (build) => this.displayFinalSummary(build),
+      onJobStateChange: (change) => {
+        if (isJson) {
+          logger.console(JSON.stringify({
+            type: 'job_changed',
+            job: { id: change.job.id, name: change.job.name, state: change.job.state },
+            previousState: change.previousState,
+            timestamp: change.timestamp.toISOString(),
+          }));
+        } else {
+          this.displayJobEvent(change);
+        }
+      },
+      onBuildComplete: (build) => {
+        if (isJson) {
+          logger.console(JSON.stringify({
+            type: 'build_complete',
+            build: { number: build.number, state: build.state },
+            exitCode: build.state?.toLowerCase() === 'passed' ? 0 : 1,
+            timestamp: new Date().toISOString(),
+          }));
+        } else {
+          this.displayFinalSummary(build);
+        }
+      },
       onError: (err, willRetry) => {
-        if (willRetry) {
+        if (isJson) {
+          logger.console(JSON.stringify({
+            type: 'error',
+            error: err,
+            willRetry,
+            timestamp: new Date().toISOString(),
+          }));
+        } else if (willRetry) {
           logger.console(SEMANTIC_COLORS.warning(`⚠ ${err.message}, retrying...`));
         } else {
           logger.console(SEMANTIC_COLORS.error(`✗ ${err.message}`));
         }
       },
       onTimeout: () => {
-        logger.console(SEMANTIC_COLORS.warning(`⏱ Timeout reached (${timeoutMinutes}m). Build still running.`));
+        if (isJson) {
+          logger.console(JSON.stringify({
+            type: 'timeout',
+            timeout: `${timeoutMinutes}m`,
+            timestamp: new Date().toISOString(),
+          }));
+        } else {
+          logger.console(SEMANTIC_COLORS.warning(`⏱ Timeout reached (${timeoutMinutes}m). Build still running.`));
+        }
       },
     }, {
       initialInterval: pollIntervalSeconds * 1000,
