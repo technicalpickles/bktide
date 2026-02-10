@@ -1,6 +1,6 @@
 // test/services/BuildPoller.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { BuildPoller, TERMINAL_BUILD_STATES, BuildPollerCallbacks, BuildRef } from '../../src/services/BuildPoller.js';
+import { BuildPoller, TERMINAL_BUILD_STATES, BuildPollerCallbacks, BuildRef, categorizeError } from '../../src/services/BuildPoller.js';
 import { BuildkiteRestClient } from '../../src/services/BuildkiteRestClient.js';
 
 describe('BuildPoller', () => {
@@ -65,5 +65,37 @@ describe('BuildPoller', () => {
       // Verify by checking watch exits early (tested in integration)
       expect(true).toBe(true);
     });
+  });
+});
+
+describe('categorizeError', () => {
+  it('should categorize rate limit errors', () => {
+    const result = categorizeError(new Error('Rate limit exceeded (429)'));
+    expect(result.category).toBe('rate_limited');
+    expect(result.retryable).toBe(true);
+  });
+
+  it('should categorize not found errors', () => {
+    const result = categorizeError(new Error('Build not found (404)'));
+    expect(result.category).toBe('not_found');
+    expect(result.retryable).toBe(false);
+  });
+
+  it('should categorize permission errors', () => {
+    const result = categorizeError(new Error('Permission denied (403)'));
+    expect(result.category).toBe('permission_denied');
+    expect(result.retryable).toBe(false);
+  });
+
+  it('should categorize network errors', () => {
+    const result = categorizeError(new Error('ECONNREFUSED'));
+    expect(result.category).toBe('network_error');
+    expect(result.retryable).toBe(true);
+  });
+
+  it('should default to unknown for other errors', () => {
+    const result = categorizeError(new Error('Something weird happened'));
+    expect(result.category).toBe('unknown');
+    expect(result.retryable).toBe(true);
   });
 });

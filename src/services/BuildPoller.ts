@@ -36,6 +36,24 @@ export interface BuildRef {
   buildNumber: number;
 }
 
+export function categorizeError(error: Error): PollError {
+  const message = error.message.toLowerCase();
+
+  if (message.includes('rate limit') || message.includes('429')) {
+    return { category: 'rate_limited', message: error.message, retryable: true };
+  }
+  if (message.includes('not found') || message.includes('404')) {
+    return { category: 'not_found', message: error.message, retryable: false };
+  }
+  if (message.includes('permission') || message.includes('403') || message.includes('401')) {
+    return { category: 'permission_denied', message: error.message, retryable: false };
+  }
+  if (message.includes('network') || message.includes('econnrefused') || message.includes('enotfound')) {
+    return { category: 'network_error', message: error.message, retryable: true };
+  }
+  return { category: 'unknown', message: error.message, retryable: true };
+}
+
 const DEFAULT_OPTIONS: Required<BuildPollerOptions> = {
   initialInterval: 5000,
   maxInterval: 30000,
