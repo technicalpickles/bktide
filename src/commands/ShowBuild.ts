@@ -3,6 +3,9 @@ import { logger } from '../services/logger.js';
 import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { Progress } from '../ui/progress.js';
+import { BuildPoller, BuildRef, JobStateChange } from '../services/BuildPoller.js';
+import { BuildkiteRestClient } from '../services/BuildkiteRestClient.js';
+import { getStateIcon, SEMANTIC_COLORS } from '../ui/theme.js';
 
 export interface ShowBuildOptions extends BaseCommandOptions {
   jobs?: boolean;
@@ -23,10 +26,15 @@ export class ShowBuild extends BaseCommand {
   static requiresToken = true;
 
   async execute(options: ShowBuildOptions): Promise<number> {
+    // Handle watch mode
+    if (options.watch) {
+      return this.executeWatchMode(options);
+    }
+
     if (options.debug) {
       logger.debug('Starting ShowBuild command execution', options);
     }
-    
+
     if (!options.buildArg) {
       logger.error('Build reference is required');
       return 1;
@@ -159,5 +167,86 @@ export class ShowBuild extends BaseCommand {
       }
       return buildData;
     }
+  }
+
+  private displayWatchHeader(buildNumber: number, timeoutMinutes: number): void {
+    logger.console(`Watching build #${buildNumber} (timeout: ${timeoutMinutes}m)`);
+    logger.console(SEMANTIC_COLORS.muted('Press Ctrl+C to stop\n'));
+  }
+
+  private displayJobEvent(change: JobStateChange): void {
+    const time = change.timestamp.toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    const icon = getStateIcon(change.job.state);
+    const name = change.job.name || change.job.label || 'unknown';
+    const action = change.previousState === null ? 'started' : change.job.state;
+
+    logger.console(`${time}  ${icon} ${name} ${action}`);
+  }
+
+  private displayFinalSummary(build: any): void {
+    const icon = getStateIcon(build.state);
+    const jobCount = build.jobs?.length || 0;
+    logger.console(`\n${icon} Build #${build.number} ${build.state} (${jobCount} jobs)`);
+  }
+
+  private async executeWatchMode(options: ShowBuildOptions): Promise<number> {
+    if (!options.buildArg) {
+      logger.error('Build reference is required');
+      return 1;
+    }
+
+    await this.ensureInitialized();
+
+    const buildRef = parseBuildRef(options.buildArg);
+    const ref: BuildRef = {
+      org: buildRef.org,
+      pipeline: buildRef.pipeline,
+      buildNumber: buildRef.number,
+    };
+
+    const timeoutMinutes = parseInt(String(options.timeout || '30'), 10);
+    const pollIntervalSeconds = parseInt(String(options.pollInterval || '5'), 10);
+
+    // Get token for polling
+    const token = await BaseCommand.getToken(options);
+    if (!token) {
+      logger.error('API token required for watch mode');
+      return 1;
+    }
+
+    // Create non-caching client for polling
+    const pollClient = new BuildkiteRestClient(
+      token,
+      { caching: false, debug: options.debug }
+    );
+
+    this.displayWatchHeader(buildRef.number, timeoutMinutes);
+
+    const poller = new BuildPoller(pollClient, {
+      onJobStateChange: (change) => this.displayJobEvent(change),
+      onBuildComplete: (build) => this.displayFinalSummary(build),
+      onError: (err, willRetry) => {
+        if (willRetry) {
+          logger.console(SEMANTIC_COLORS.warning(`⚠ ${err.message}, retrying...`));
+        } else {
+          logger.console(SEMANTIC_COLORS.error(`✗ ${err.message}`));
+        }
+      },
+      onTimeout: () => {
+        logger.console(SEMANTIC_COLORS.warning(`⏱ Timeout reached (${timeoutMinutes}m). Build still running.`));
+      },
+    }, {
+      initialInterval: pollIntervalSeconds * 1000,
+      timeout: timeoutMinutes * 60 * 1000,
+    });
+
+    const build = await poller.watch(ref);
+
+    return build.state?.toLowerCase() === 'passed' ? 0 : 1;
   }
 }
