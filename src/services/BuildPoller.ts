@@ -74,6 +74,7 @@ export class BuildPoller {
   private _options: Required<BuildPollerOptions>;
   private _stopped = false;
   private _jobStates: Map<string, string> = new Map();
+  private _signalHandler: (() => void) | null = null;
 
   constructor(
     client: BuildkiteRestClient,
@@ -88,84 +89,103 @@ export class BuildPoller {
   async watch(buildRef: BuildRef): Promise<any> {
     this._stopped = false;
     this._jobStates.clear();
+    this.setupSignalHandlers();
     const startTime = Date.now();
 
-    // Initial fetch
-    let build = await this._client.getBuild(
-      buildRef.org,
-      buildRef.pipeline,
-      buildRef.buildNumber
-    );
+    try {
+      // Initial fetch
+      let build = await this._client.getBuild(
+        buildRef.org,
+        buildRef.pipeline,
+        buildRef.buildNumber
+      );
 
-    // Process initial job states
-    this.processJobChanges(build.jobs || []);
+      // Process initial job states
+      this.processJobChanges(build.jobs || []);
 
-    // Check if already complete
-    if (isTerminalState(build.state)) {
-      this._callbacks.onBuildComplete(build);
+      // Check if already complete
+      if (isTerminalState(build.state)) {
+        this._callbacks.onBuildComplete(build);
+        return build;
+      }
+
+      // Polling loop
+      let currentInterval = this._options.initialInterval;
+      let consecutiveErrors = 0;
+
+      while (!this._stopped) {
+        // Check timeout before sleep
+        if (Date.now() - startTime >= this._options.timeout) {
+          this._callbacks.onTimeout();
+          return build;
+        }
+
+        await this.sleep(currentInterval);
+
+        if (this._stopped) break;
+
+        // Check timeout after sleep
+        if (Date.now() - startTime >= this._options.timeout) {
+          this._callbacks.onTimeout();
+          return build;
+        }
+
+        try {
+          build = await this._client.getBuild(
+            buildRef.org,
+            buildRef.pipeline,
+            buildRef.buildNumber
+          );
+
+          // Reset on success
+          consecutiveErrors = 0;
+          currentInterval = this._options.initialInterval;
+
+          // Process job state changes
+          this.processJobChanges(build.jobs || []);
+
+          // Check if complete
+          if (isTerminalState(build.state)) {
+            this._callbacks.onBuildComplete(build);
+            return build;
+          }
+        } catch (error) {
+          consecutiveErrors++;
+          const pollError = categorizeError(error as Error);
+
+          const willRetry = pollError.retryable &&
+                            consecutiveErrors < this._options.maxConsecutiveErrors;
+
+          this._callbacks.onError(pollError, willRetry);
+
+          if (!willRetry) {
+            return build;
+          }
+
+          // Exponential backoff
+          currentInterval = Math.min(currentInterval * 2, this._options.maxInterval);
+        }
+      }
+
+      // Stopped externally
       return build;
+    } finally {
+      this.cleanupSignalHandlers();
     }
+  }
 
-    // Polling loop
-    let currentInterval = this._options.initialInterval;
-    let consecutiveErrors = 0;
+  private setupSignalHandlers(): void {
+    this._signalHandler = () => {
+      this.stop();
+    };
+    process.on('SIGINT', this._signalHandler);
+  }
 
-    while (!this._stopped) {
-      // Check timeout before sleep
-      if (Date.now() - startTime >= this._options.timeout) {
-        this._callbacks.onTimeout();
-        return build;
-      }
-
-      await this.sleep(currentInterval);
-
-      if (this._stopped) break;
-
-      // Check timeout after sleep
-      if (Date.now() - startTime >= this._options.timeout) {
-        this._callbacks.onTimeout();
-        return build;
-      }
-
-      try {
-        build = await this._client.getBuild(
-          buildRef.org,
-          buildRef.pipeline,
-          buildRef.buildNumber
-        );
-
-        // Reset on success
-        consecutiveErrors = 0;
-        currentInterval = this._options.initialInterval;
-
-        // Process job state changes
-        this.processJobChanges(build.jobs || []);
-
-        // Check if complete
-        if (isTerminalState(build.state)) {
-          this._callbacks.onBuildComplete(build);
-          return build;
-        }
-      } catch (error) {
-        consecutiveErrors++;
-        const pollError = categorizeError(error as Error);
-
-        const willRetry = pollError.retryable &&
-                          consecutiveErrors < this._options.maxConsecutiveErrors;
-
-        this._callbacks.onError(pollError, willRetry);
-
-        if (!willRetry) {
-          return build;
-        }
-
-        // Exponential backoff
-        currentInterval = Math.min(currentInterval * 2, this._options.maxInterval);
-      }
+  private cleanupSignalHandlers(): void {
+    if (this._signalHandler) {
+      process.removeListener('SIGINT', this._signalHandler);
+      this._signalHandler = null;
     }
-
-    // Stopped externally
-    return build;
   }
 
   private sleep(ms: number): Promise<void> {

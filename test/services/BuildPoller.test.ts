@@ -359,4 +359,25 @@ describe('watch', () => {
       false  // willRetry
     );
   });
+
+  it('should stop on SIGINT', async () => {
+    vi.useFakeTimers();
+
+    const runningBuild = { number: 42, state: 'running', jobs: [] };
+    vi.spyOn(mockClient, 'getBuild').mockResolvedValue(runningBuild);
+
+    const poller = new BuildPoller(mockClient, callbacks, { initialInterval: 1000 });
+    const watchPromise = poller.watch(buildRef);
+
+    await vi.advanceTimersByTimeAsync(0);  // Initial
+
+    // Simulate stop (SIGINT would call this)
+    poller.stop();
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    const result = await watchPromise;
+    expect(result.state).toBe('running');
+    expect(callbackSpies.onBuildComplete).not.toHaveBeenCalled();
+  });
 });
