@@ -282,4 +282,81 @@ describe('watch', () => {
     expect(callbackSpies.onTimeout).toHaveBeenCalled();
     expect(result.state).toBe('running');
   });
+
+  it('should retry on transient errors', async () => {
+    vi.useFakeTimers();
+
+    const runningBuild = { number: 42, state: 'running', jobs: [] };
+    const completedBuild = { number: 42, state: 'passed', jobs: [] };
+
+    vi.spyOn(mockClient, 'getBuild')
+      .mockResolvedValueOnce(runningBuild)  // Initial
+      .mockRejectedValueOnce(new Error('Network error ECONNREFUSED'))  // Transient
+      .mockResolvedValueOnce(completedBuild);  // Success
+
+    const poller = new BuildPoller(mockClient, callbacks, { initialInterval: 1000 });
+    const watchPromise = poller.watch(buildRef);
+
+    await vi.advanceTimersByTimeAsync(0);  // Initial fetch
+    await vi.advanceTimersByTimeAsync(1000);  // Error
+
+    expect(callbackSpies.onError).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'network_error', retryable: true }),
+      true  // willRetry
+    );
+
+    await vi.advanceTimersByTimeAsync(2000);  // Retry with backoff
+
+    const result = await watchPromise;
+    expect(result.state).toBe('passed');
+  });
+
+  it('should fail after max consecutive errors', async () => {
+    vi.useFakeTimers();
+
+    const runningBuild = { number: 42, state: 'running', jobs: [] };
+
+    vi.spyOn(mockClient, 'getBuild')
+      .mockResolvedValueOnce(runningBuild)
+      .mockRejectedValue(new Error('Network error'));
+
+    const poller = new BuildPoller(mockClient, callbacks, {
+      initialInterval: 1000,
+      maxConsecutiveErrors: 2,
+    });
+    const watchPromise = poller.watch(buildRef);
+
+    await vi.advanceTimersByTimeAsync(0);  // Initial
+    await vi.advanceTimersByTimeAsync(1000);  // Error 1
+    await vi.advanceTimersByTimeAsync(2000);  // Error 2 (backoff)
+
+    const result = await watchPromise;
+
+    // Last onError call should have willRetry: false
+    const lastCall = callbackSpies.onError.mock.calls.at(-1);
+    expect(lastCall?.[1]).toBe(false);  // willRetry = false
+  });
+
+  it('should fail immediately on non-retryable error', async () => {
+    vi.useFakeTimers();
+
+    const runningBuild = { number: 42, state: 'running', jobs: [] };
+
+    vi.spyOn(mockClient, 'getBuild')
+      .mockResolvedValueOnce(runningBuild)
+      .mockRejectedValueOnce(new Error('Build not found (404)'));
+
+    const poller = new BuildPoller(mockClient, callbacks, { initialInterval: 1000 });
+    const watchPromise = poller.watch(buildRef);
+
+    await vi.advanceTimersByTimeAsync(0);  // Initial
+    await vi.advanceTimersByTimeAsync(1000);  // Non-retryable error
+
+    await watchPromise;
+
+    expect(callbackSpies.onError).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'not_found', retryable: false }),
+      false  // willRetry
+    );
+  });
 });

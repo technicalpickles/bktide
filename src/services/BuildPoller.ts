@@ -108,6 +108,7 @@ export class BuildPoller {
 
     // Polling loop
     let currentInterval = this._options.initialInterval;
+    let consecutiveErrors = 0;
 
     while (!this._stopped) {
       // Check timeout before sleep
@@ -126,19 +127,40 @@ export class BuildPoller {
         return build;
       }
 
-      build = await this._client.getBuild(
-        buildRef.org,
-        buildRef.pipeline,
-        buildRef.buildNumber
-      );
+      try {
+        build = await this._client.getBuild(
+          buildRef.org,
+          buildRef.pipeline,
+          buildRef.buildNumber
+        );
 
-      // Process job state changes
-      this.processJobChanges(build.jobs || []);
+        // Reset on success
+        consecutiveErrors = 0;
+        currentInterval = this._options.initialInterval;
 
-      // Check if complete
-      if (isTerminalState(build.state)) {
-        this._callbacks.onBuildComplete(build);
-        return build;
+        // Process job state changes
+        this.processJobChanges(build.jobs || []);
+
+        // Check if complete
+        if (isTerminalState(build.state)) {
+          this._callbacks.onBuildComplete(build);
+          return build;
+        }
+      } catch (error) {
+        consecutiveErrors++;
+        const pollError = categorizeError(error as Error);
+
+        const willRetry = pollError.retryable &&
+                          consecutiveErrors < this._options.maxConsecutiveErrors;
+
+        this._callbacks.onError(pollError, willRetry);
+
+        if (!willRetry) {
+          return build;
+        }
+
+        // Exponential backoff
+        currentInterval = Math.min(currentInterval * 2, this._options.maxInterval);
       }
     }
 
