@@ -13,6 +13,10 @@ export interface ShowBuildOptions extends BaseCommandOptions {
   summary?: boolean;
   allJobs?: boolean;
   buildArg?: string;
+  // New watch options
+  watch?: boolean;
+  timeout?: number;
+  pollInterval?: number;
 }
 
 export class ShowBuild extends BaseCommand {

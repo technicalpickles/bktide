@@ -432,6 +432,9 @@ program
   .option('--annotations-full', 'Show complete annotation content')
   .option('--full', 'Show all available information')
   .option('--summary', 'Single-line summary only (for scripts)')
+  .option('-w, --watch', 'Watch build until completion')
+  .option('--timeout <minutes>', 'Max wait time in minutes (default: 30)', '30')
+  .option('--poll-interval <seconds>', 'Initial poll interval in seconds (default: 5)', '5')
   .action(createCommandHandler(ShowBuild));
 
 // Add snapshot command
