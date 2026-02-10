@@ -255,4 +255,31 @@ describe('watch', () => {
       })
     );
   });
+
+  it('should call onTimeout when timeout exceeded', async () => {
+    vi.useFakeTimers();
+
+    const runningBuild = {
+      number: 42,
+      state: 'running',
+      jobs: [],
+    };
+
+    vi.spyOn(mockClient, 'getBuild').mockResolvedValue(runningBuild);
+
+    const poller = new BuildPoller(mockClient, callbacks, {
+      initialInterval: 1000,
+      timeout: 3000,
+    });
+
+    const watchPromise = poller.watch(buildRef);
+
+    // Advance past timeout
+    await vi.advanceTimersByTimeAsync(4000);
+
+    const result = await watchPromise;
+
+    expect(callbackSpies.onTimeout).toHaveBeenCalled();
+    expect(result.state).toBe('running');
+  });
 });

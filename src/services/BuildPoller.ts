@@ -88,6 +88,7 @@ export class BuildPoller {
   async watch(buildRef: BuildRef): Promise<any> {
     this._stopped = false;
     this._jobStates.clear();
+    const startTime = Date.now();
 
     // Initial fetch
     let build = await this._client.getBuild(
@@ -106,12 +107,24 @@ export class BuildPoller {
     }
 
     // Polling loop
-    const currentInterval = this._options.initialInterval;
+    let currentInterval = this._options.initialInterval;
 
     while (!this._stopped) {
+      // Check timeout before sleep
+      if (Date.now() - startTime >= this._options.timeout) {
+        this._callbacks.onTimeout();
+        return build;
+      }
+
       await this.sleep(currentInterval);
 
       if (this._stopped) break;
+
+      // Check timeout after sleep
+      if (Date.now() - startTime >= this._options.timeout) {
+        this._callbacks.onTimeout();
+        return build;
+      }
 
       build = await this._client.getBuild(
         buildRef.org,
