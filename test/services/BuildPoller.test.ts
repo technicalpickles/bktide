@@ -213,4 +213,46 @@ describe('watch', () => {
     expect(result.state).toBe('passed');
     expect(callbackSpies.onBuildComplete).toHaveBeenCalledWith(completedBuild);
   });
+
+  it('should emit job state changes', async () => {
+    vi.useFakeTimers();
+
+    const runningBuild = {
+      number: 42,
+      state: 'running',
+      jobs: [{ id: 'job-1', name: 'test', state: 'running' }],
+    };
+    const completedBuild = {
+      number: 42,
+      state: 'passed',
+      jobs: [{ id: 'job-1', name: 'test', state: 'passed' }],
+    };
+
+    vi.spyOn(mockClient, 'getBuild')
+      .mockResolvedValueOnce(runningBuild)
+      .mockResolvedValueOnce(completedBuild);
+
+    const poller = new BuildPoller(mockClient, callbacks, { initialInterval: 1000 });
+    const watchPromise = poller.watch(buildRef);
+
+    // Initial fetch emits 'running' state (previousState: null)
+    await vi.advanceTimersByTimeAsync(0);
+    expect(callbackSpies.onJobStateChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        job: expect.objectContaining({ id: 'job-1', state: 'running' }),
+        previousState: null,
+      })
+    );
+
+    // After poll, emits state change to 'passed'
+    await vi.advanceTimersByTimeAsync(1000);
+    await watchPromise;
+
+    expect(callbackSpies.onJobStateChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        job: expect.objectContaining({ id: 'job-1', state: 'passed' }),
+        previousState: 'running',
+      })
+    );
+  });
 });
