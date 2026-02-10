@@ -64,6 +64,10 @@ const DEFAULT_OPTIONS: Required<BuildPollerOptions> = {
 // Terminal states where build is complete
 export const TERMINAL_BUILD_STATES = ['passed', 'failed', 'canceled', 'blocked', 'not_run'];
 
+export function isTerminalState(state: string): boolean {
+  return TERMINAL_BUILD_STATES.includes(state.toLowerCase());
+}
+
 export class BuildPoller {
   private _client: BuildkiteRestClient;
   private _callbacks: BuildPollerCallbacks;

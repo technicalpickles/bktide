@@ -1,6 +1,6 @@
 // test/services/BuildPoller.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { BuildPoller, TERMINAL_BUILD_STATES, BuildPollerCallbacks, BuildRef, categorizeError } from '../../src/services/BuildPoller.js';
+import { BuildPoller, TERMINAL_BUILD_STATES, BuildPollerCallbacks, BuildRef, categorizeError, isTerminalState } from '../../src/services/BuildPoller.js';
 import { BuildkiteRestClient } from '../../src/services/BuildkiteRestClient.js';
 
 describe('BuildPoller', () => {
@@ -97,5 +97,30 @@ describe('categorizeError', () => {
     const result = categorizeError(new Error('Something weird happened'));
     expect(result.category).toBe('unknown');
     expect(result.retryable).toBe(true);
+  });
+});
+
+describe('isTerminalState', () => {
+  it('should return true for passed', () => {
+    expect(isTerminalState('passed')).toBe(true);
+    expect(isTerminalState('PASSED')).toBe(true);
+  });
+
+  it('should return true for failed', () => {
+    expect(isTerminalState('failed')).toBe(true);
+    expect(isTerminalState('FAILED')).toBe(true);
+  });
+
+  it('should return true for canceled', () => {
+    expect(isTerminalState('canceled')).toBe(true);
+  });
+
+  it('should return false for running', () => {
+    expect(isTerminalState('running')).toBe(false);
+    expect(isTerminalState('RUNNING')).toBe(false);
+  });
+
+  it('should return false for scheduled', () => {
+    expect(isTerminalState('scheduled')).toBe(false);
   });
 });
