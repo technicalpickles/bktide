@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
+import { BuildPoller, BuildRef, JobStateChange } from '../services/BuildPoller.js';
 
 export interface SnapshotOptions extends BaseCommandOptions {
   buildRef?: string;
@@ -15,6 +16,10 @@ export interface SnapshotOptions extends BaseCommandOptions {
   failed?: boolean;
   all?: boolean;
   force?: boolean;
+  // New watch options
+  watch?: boolean;
+  timeout?: number;
+  pollInterval?: number;
 }
 
 interface StepResult {
@@ -193,7 +198,26 @@ function pathForDisplay(absolutePath: string): string {
 export class Snapshot extends BaseCommand {
   static requiresToken = true;
 
+  private displayJobEvent(change: JobStateChange): void {
+    const time = change.timestamp.toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    const icon = getStateIcon(change.job.state);
+    const name = change.job.name || change.job.label || 'unknown';
+    const action = change.previousState === null ? 'started' : change.job.state;
+
+    logger.console(`${time}  ${icon} ${name} ${action}`);
+  }
+
   async execute(options: SnapshotOptions): Promise<number> {
+    // Handle watch mode
+    if (options.watch) {
+      return this.executeWatchMode(options);
+    }
+
     if (options.debug) {
       logger.debug('Starting Snapshot command execution', options);
     }
@@ -414,6 +438,60 @@ export class Snapshot extends BaseCommand {
       }
       return 1;
     }
+  }
+
+  private async executeWatchMode(options: SnapshotOptions): Promise<number> {
+    if (!options.buildRef) {
+      logger.error('Build reference is required');
+      return 1;
+    }
+
+    await this.ensureInitialized();
+
+    const buildRef = parseBuildRef(options.buildRef);
+    const ref: BuildRef = {
+      org: buildRef.org,
+      pipeline: buildRef.pipeline,
+      buildNumber: buildRef.number,
+    };
+
+    const timeoutMinutes = parseInt(String(options.timeout || '30'), 10);
+    const pollIntervalSeconds = parseInt(String(options.pollInterval || '5'), 10);
+
+    logger.console(`Watching build #${buildRef.number} (timeout: ${timeoutMinutes}m)`);
+    logger.console(SEMANTIC_COLORS.muted('Will capture snapshot when build completes'));
+    logger.console(SEMANTIC_COLORS.muted('Press Ctrl+C to stop\n'));
+
+    const poller = new BuildPoller(this.restClient, {
+      onJobStateChange: (change) => this.displayJobEvent(change),
+      onBuildComplete: () => {
+        logger.console(SEMANTIC_COLORS.muted('\nBuild complete. Capturing snapshot...\n'));
+      },
+      onError: (err, willRetry) => {
+        if (willRetry) {
+          logger.console(SEMANTIC_COLORS.warning(`⚠ ${err.message}, retrying...`));
+        } else {
+          logger.console(SEMANTIC_COLORS.error(`✗ ${err.message}`));
+        }
+      },
+      onTimeout: () => {
+        logger.console(SEMANTIC_COLORS.warning(`⏱ Timeout reached. Build still running.`));
+      },
+    }, {
+      initialInterval: pollIntervalSeconds * 1000,
+      timeout: timeoutMinutes * 60 * 1000,
+    });
+
+    const build = await poller.watch(ref);
+
+    // Only capture if build completed (not stopped/timed out)
+    if (build.state && ['passed', 'failed', 'canceled'].includes(build.state.toLowerCase())) {
+      // Run normal snapshot (without watch flag)
+      const snapshotOptions = { ...options, watch: false };
+      return this.execute(snapshotOptions);
+    }
+
+    return 1;
   }
 
   private getOutputDir(options: SnapshotOptions, org: string, pipeline: string, buildNumber: number): string {
