@@ -85,9 +85,44 @@ export class BuildPoller {
     this._options = { ...DEFAULT_OPTIONS, ...options };
   }
 
-  async watch(_buildRef: BuildRef): Promise<any> {
-    // TODO: Implement in next task
-    throw new Error('Not implemented');
+  async watch(buildRef: BuildRef): Promise<any> {
+    this._stopped = false;
+    this._jobStates.clear();
+
+    // Initial fetch
+    const build = await this._client.getBuild(
+      buildRef.org,
+      buildRef.pipeline,
+      buildRef.buildNumber
+    );
+
+    // Process initial job states
+    this.processJobChanges(build.jobs || []);
+
+    // Check if already complete
+    if (isTerminalState(build.state)) {
+      this._callbacks.onBuildComplete(build);
+      return build;
+    }
+
+    // TODO: Implement polling loop in next task
+    throw new Error('Polling not yet implemented');
+  }
+
+  private processJobChanges(jobs: any[]): void {
+    for (const job of jobs) {
+      const previousState = this._jobStates.get(job.id);
+      const currentState = job.state;
+
+      if (previousState !== currentState) {
+        this._jobStates.set(job.id, currentState);
+        this._callbacks.onJobStateChange({
+          job,
+          previousState: previousState ?? null,
+          timestamp: new Date(),
+        });
+      }
+    }
   }
 
   stop(): void {

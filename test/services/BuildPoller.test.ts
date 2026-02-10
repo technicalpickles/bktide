@@ -124,3 +124,55 @@ describe('isTerminalState', () => {
     expect(isTerminalState('scheduled')).toBe(false);
   });
 });
+
+describe('watch', () => {
+  let mockClient: BuildkiteRestClient;
+  let callbacks: BuildPollerCallbacks;
+  let callbackSpies: {
+    onJobStateChange: ReturnType<typeof vi.fn>;
+    onBuildComplete: ReturnType<typeof vi.fn>;
+    onError: ReturnType<typeof vi.fn>;
+    onTimeout: ReturnType<typeof vi.fn>;
+  };
+
+  const buildRef: BuildRef = {
+    org: 'test-org',
+    pipeline: 'test-pipeline',
+    buildNumber: 42,
+  };
+
+  beforeEach(() => {
+    mockClient = new BuildkiteRestClient('test-token', { caching: false });
+    callbackSpies = {
+      onJobStateChange: vi.fn(),
+      onBuildComplete: vi.fn(),
+      onError: vi.fn(),
+      onTimeout: vi.fn(),
+    };
+    callbacks = callbackSpies;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('should return immediately if build already complete', async () => {
+    const completedBuild = {
+      number: 42,
+      state: 'passed',
+      jobs: [
+        { id: 'job-1', name: 'test', state: 'passed' },
+      ],
+    };
+
+    vi.spyOn(mockClient, 'getBuild').mockResolvedValue(completedBuild);
+
+    const poller = new BuildPoller(mockClient, callbacks);
+    const result = await poller.watch(buildRef);
+
+    expect(result.state).toBe('passed');
+    expect(callbackSpies.onBuildComplete).toHaveBeenCalledWith(completedBuild);
+    expect(mockClient.getBuild).toHaveBeenCalledTimes(1);
+  });
+});
