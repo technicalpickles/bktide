@@ -24,6 +24,10 @@ bktide snapshot <url-or-slug>
 \`\`\`
 Fetches build data locally. Shows summary with failed steps, then use \`bktide logs <url> <step-id>\` for specific logs.
 
+### Snapshot Flags
+- **Default** (no flags): Captures only failed/broken steps. Use this for investigating failures - you only need logs from steps that failed.
+- **\`--all\`**: Captures all steps including passing ones. Use when verifying output of passing steps, debugging non-failure issues, or auditing what ran.
+
 ## From a GitHub PR
 \`\`\`bash
 # Find failing Buildkite checks
