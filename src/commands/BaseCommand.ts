@@ -3,6 +3,8 @@ import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/Bui
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { logger } from '../services/logger.js';
 import { CredentialManager } from '../services/CredentialManager.js';
+import { TokenSetupGuide } from '../services/TokenSetupGuide.js';
+import { GuidanceError } from '../errors/index.js';
 import { displayCLIError } from '../utils/cli-error-handler.js';
 
 export interface BaseCommandOptions {
@@ -127,11 +129,11 @@ export abstract class BaseCommand {
       logger.debug('Error retrieving token from keychain', error);
     }
     
-    if (options.requiresToken) {
-      throw new Error('API token required. Set via --token, BUILDKITE_API_TOKEN/BK_TOKEN env vars, or store it using --save-token.');
-    } else {
-      return
-    }
+    // No token found anywhere. Throw a GuidanceError with environment-aware
+    // setup instructions. The error formatter shows the guidance directly
+    // without adding its own contextual hints/tips on top.
+    const guide = new TokenSetupGuide();
+    throw new GuidanceError(guide.getSetupGuidance());
   }
 
   /**
