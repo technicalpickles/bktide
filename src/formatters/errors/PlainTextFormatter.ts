@@ -1,7 +1,7 @@
 import { BaseErrorFormatter, ErrorFormatter, ErrorFormatterOptions } from './Formatter.js';
 import { COLORS, SYMBOLS, formatTips, TipStyle } from '../../ui/theme.js';
 import { wrapText, termWidth } from '../../ui/width.js';
-import { AuthenticationError } from '../../errors/index.js';
+import { AuthenticationError, GuidanceError } from '../../errors/index.js';
 
 /**
  * Plain text formatter for errors with structured sections
@@ -21,8 +21,13 @@ export class PlainTextFormatter extends BaseErrorFormatter implements ErrorForma
     const sections: string[] = [];
     const width = termWidth();
     const contentWidth = Math.min(width - 4, 76); // Leave some margin, cap at 76 chars
-    
+
     for (const error of errorArray) {
+      // GuidanceError carries pre-formatted output, just show it directly
+      if (error instanceof GuidanceError) {
+        sections.push(error.guidance);
+        continue;
+      }
       if (sections.length > 0) sections.push(''); // Add spacing between multiple errors
       
       // Title section with icon
