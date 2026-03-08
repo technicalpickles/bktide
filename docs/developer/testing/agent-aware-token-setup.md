@@ -61,12 +61,12 @@ bktide needs a Buildkite API token. Ask the user to set this up in their termina
 Followed by an error: `Buildkite API token not configured.`
 
 **What to verify:**
-- [ ] Output is structured markdown (headers, numbered list)
-- [ ] Mentions "their terminal" (not "your terminal")
-- [ ] Lists all 4 required permissions
-- [ ] Includes the token creation URL
-- [ ] Includes the `bktide token --store` command
-- [ ] Exit code is non-zero
+- [x] Output is structured markdown (headers, numbered list)
+- [x] Mentions "their terminal" (not "your terminal")
+- [x] Lists all 4 required permissions
+- [x] Includes the token creation URL
+- [x] Includes the `bktide token --store` command
+- [x] Exit code is non-zero
 
 ## Test 2: Agent runs `token --store`
 
@@ -102,11 +102,11 @@ This will:
 ```
 
 **What to verify:**
-- [ ] Does NOT prompt for a password (no interactive input)
-- [ ] Explains why it can't complete here (keychain access)
-- [ ] Tells the agent to ask the user to run in their terminal
-- [ ] Lists required permissions and token URL
-- [ ] Exit code is 1
+- [x] Does NOT prompt for a password (no interactive input)
+- [x] Explains why it can't complete here (keychain access)
+- [x] Tells the agent to ask the user to run in their terminal
+- [x] Lists required permissions and token URL
+- [x] Exit code is 1
 
 ## Test 3: Agent with token present
 
@@ -118,9 +118,9 @@ CLAUDECODE=1 BUILDKITE_API_TOKEN=bkua_your_real_token npm run dev -- token --che
 ```
 
 **What to verify:**
-- [ ] Normal output, no setup guidance shown
-- [ ] Token check completes successfully
-- [ ] Exit code is 0
+- [x] Normal output, no setup guidance shown
+- [x] Token check completes successfully
+- [x] Exit code is 0
 
 ## Test 4: Interactive terminal, no token
 
@@ -143,8 +143,9 @@ Or set the BUILDKITE_API_TOKEN environment variable.
 ```
 
 **What to verify:**
-- [ ] Shorter than agent output (no permissions list, no markdown headers)
-- [ ] Mentions both `bktide token --store` and env var option
+- [x] Shorter than agent output (no permissions list, no markdown headers)
+- [x] Mentions both `bktide token --store` and env var option
+   - TODO: recommend store to use keyring
 - [ ] Exit code is non-zero
 
 ## Test 5: Interactive terminal, `token --store`
@@ -164,10 +165,12 @@ npm run dev -- token --store
 
 ## Test 6: Non-interactive (piped), no token
 
-Simulates a script or CI context.
+Simulates a script or CI context. We pipe **stdout** through `cat` to make
+`process.stdout.isTTY` false. (Piping stdin with `echo |` doesn't affect
+stdout's TTY status.)
 
 ```bash
-echo "" | npm run dev -- builds --org gusto 2>&1
+npm run dev -- builds --org gusto 2>&1 | cat
 ```
 
 **What to verify:**
