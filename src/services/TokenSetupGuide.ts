@@ -93,6 +93,6 @@ export class TokenSetupGuide {
   }
 
   private nonInteractiveSetupGuidance(): string {
-    return 'No Buildkite API token. Run: bktide token --store';
+    return 'No Buildkite API token. Run: bktide token --store (or set BUILDKITE_API_TOKEN)';
   }
 }
