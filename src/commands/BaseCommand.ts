@@ -3,6 +3,7 @@ import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/Bui
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { logger } from '../services/logger.js';
 import { CredentialManager } from '../services/CredentialManager.js';
+import { TokenSetupGuide } from '../services/TokenSetupGuide.js';
 import { displayCLIError } from '../utils/cli-error-handler.js';
 
 export interface BaseCommandOptions {
@@ -128,7 +129,11 @@ export abstract class BaseCommand {
     }
     
     if (options.requiresToken) {
-      throw new Error('API token required. Set via --token, BUILDKITE_API_TOKEN/BK_TOKEN env vars, or store it using --save-token.');
+      const guide = new TokenSetupGuide();
+      const guidance = guide.getSetupGuidance();
+      // Print guidance to stderr so it's visible even when stdout is piped
+      process.stderr.write(guidance + '\n');
+      throw new Error('Buildkite API token not configured.');
     } else {
       return
     }
