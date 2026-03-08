@@ -128,14 +128,13 @@ export abstract class BaseCommand {
       logger.debug('Error retrieving token from keychain', error);
     }
     
-    // If we got here, no token was found anywhere.
-    // Callers (createCommandHandler, inline handlers) only call getToken()
-    // when the command requires a token, so always show guidance and error.
+    // No token found anywhere. Show environment-appropriate guidance and exit.
+    // We exit directly instead of throwing because the guidance IS the error
+    // output, and we don't want displayCLIError adding redundant tips on top.
     const guide = new TokenSetupGuide();
     const guidance = guide.getSetupGuidance();
-    // Print guidance to stderr so it's visible even when stdout is piped
     process.stderr.write(guidance + '\n');
-    throw new Error('Buildkite API token not configured.');
+    process.exit(1);
   }
 
   /**
