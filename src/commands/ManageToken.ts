@@ -1,5 +1,6 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
 import { logger } from '../services/logger.js';
+import { TokenSetupGuide } from '../services/TokenSetupGuide.js';
 import prompts from 'prompts';
 import { FormatterFactory, FormatterType } from '../formatters/FormatterFactory.js';
 import { TokenFormatter } from '../formatters/token/Formatter.js';
@@ -83,6 +84,15 @@ export class ManageToken extends BaseCommand {
       if (this.options.token) {
         tokenToStore = this.options.token;
       } else {
+        const guide = new TokenSetupGuide();
+        const env = guide.detectEnvironment();
+
+        if (env === 'agent') {
+          const guidance = guide.getStoreGuidance();
+          logger.console(guidance);
+          return { success: false, errors: [new Error('Token setup must be done interactively by the user.')] };
+        }
+
         if (isRunningInAlfred()) {
           return { success: false, errors: [new Error('In Alfred, set token via Workflow Configuration.')] };
         }
