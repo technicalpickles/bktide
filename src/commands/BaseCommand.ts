@@ -128,15 +128,14 @@ export abstract class BaseCommand {
       logger.debug('Error retrieving token from keychain', error);
     }
     
-    if (options.requiresToken) {
-      const guide = new TokenSetupGuide();
-      const guidance = guide.getSetupGuidance();
-      // Print guidance to stderr so it's visible even when stdout is piped
-      process.stderr.write(guidance + '\n');
-      throw new Error('Buildkite API token not configured.');
-    } else {
-      return
-    }
+    // If we got here, no token was found anywhere.
+    // Callers (createCommandHandler, inline handlers) only call getToken()
+    // when the command requires a token, so always show guidance and error.
+    const guide = new TokenSetupGuide();
+    const guidance = guide.getSetupGuidance();
+    // Print guidance to stderr so it's visible even when stdout is piped
+    process.stderr.write(guidance + '\n');
+    throw new Error('Buildkite API token not configured.');
   }
 
   /**
