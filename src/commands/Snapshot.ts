@@ -8,6 +8,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { BuildPoller, BuildRef, JobStateChange } from '../services/BuildPoller.js';
+import { getGitContext } from '../utils/gitContext.js';
+import { parseGitRemoteUrl, generateRepoCandidates } from '../utils/repoUrl.js';
 
 export interface SnapshotOptions extends BaseCommandOptions {
   buildRef?: string;
@@ -16,7 +18,10 @@ export interface SnapshotOptions extends BaseCommandOptions {
   failed?: boolean;
   all?: boolean;
   force?: boolean;
-  // New watch options
+  // Branch-aware options
+  branch?: string;
+  org?: string;
+  // Watch options
   watch?: boolean;
   timeout?: number;
   pollInterval?: number;
@@ -222,9 +227,9 @@ export class Snapshot extends BaseCommand {
       logger.debug('Starting Snapshot command execution', options);
     }
 
+    // If no build ref provided, try branch-aware inference
     if (!options.buildRef) {
-      logger.error('Build reference is required');
-      return 1;
+      return this.executeBranchAware(options);
     }
 
     const format = options.format || 'plain';
@@ -492,6 +497,151 @@ export class Snapshot extends BaseCommand {
     }
 
     return 1;
+  }
+
+  private async executeBranchAware(options: SnapshotOptions): Promise<number> {
+    const format = options.format || 'plain';
+
+    try {
+      await this.ensureInitialized();
+
+      // 1. Get git context (branch + remote URL)
+      let branch: string;
+      let remoteUrl: string;
+
+      if (options.branch) {
+        // Branch override provided, still need remote URL
+        branch = options.branch;
+        try {
+          const gitCtx = getGitContext();
+          remoteUrl = gitCtx.remoteUrl;
+        } catch (error) {
+          logger.error('Could not determine git remote URL. Provide a build ref instead.');
+          return 1;
+        }
+      } else {
+        try {
+          const gitCtx = getGitContext();
+          branch = gitCtx.branch;
+          remoteUrl = gitCtx.remoteUrl;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          logger.error(message);
+          return 1;
+        }
+      }
+
+      if (options.debug) {
+        logger.debug('Branch-aware snapshot:', { branch, remoteUrl });
+      }
+
+      // 2. Parse remote URL and generate candidates
+      const parsed = parseGitRemoteUrl(remoteUrl);
+      const candidates = generateRepoCandidates(parsed);
+
+      if (options.debug) {
+        logger.debug('Repo URL candidates:', candidates);
+      }
+
+      // 3. Resolve organization
+      let orgSlug: string;
+      if (options.org) {
+        orgSlug = options.org;
+      } else {
+        const orgSlugs = await this.client.getViewerOrganizationSlugs();
+        if (orgSlugs.length === 0) {
+          logger.error('No organizations found. Check your API token permissions.');
+          return 1;
+        }
+        if (orgSlugs.length > 1) {
+          logger.error(`Multiple organizations found: ${orgSlugs.join(', ')}. Use --org to specify which one.`);
+          return 1;
+        }
+        orgSlug = orgSlugs[0];
+      }
+
+      // 4. Query pipelines with builds for this branch
+      const spinner = Progress.spinner(`Searching for ${branch} builds...`, { format });
+      const pipelineBuilds = await this.client.getPipelineBuildsForRepo(orgSlug, candidates, branch);
+      spinner.stop();
+
+      if (pipelineBuilds.length === 0) {
+        logger.error(`No pipelines found matching ${parsed.org}/${parsed.repo}. Check your organization slug.`);
+        return 1;
+      }
+
+      // 5. Filter to pipelines that have builds on this branch
+      const withBuilds = pipelineBuilds.filter(p => p.build !== null);
+
+      if (withBuilds.length === 0) {
+        logger.console(`Found ${pipelineBuilds.length} pipeline(s) for ${parsed.org}/${parsed.repo}, but none have builds on branch ${SEMANTIC_COLORS.identifier(branch)}`);
+        logger.console('');
+        logger.console('Pipelines:');
+        for (const p of pipelineBuilds) {
+          logger.console(`  ${SEMANTIC_COLORS.muted('-')} ${p.name} ${SEMANTIC_COLORS.muted(`(${p.slug})`)}`);
+        }
+        return 0;
+      }
+
+      // 6. Display summary
+      logger.console(`Branch ${SEMANTIC_COLORS.identifier(branch)} in ${parsed.org}/${parsed.repo}`);
+      logger.console('');
+
+      const failedBuilds: typeof withBuilds = [];
+
+      for (const p of withBuilds) {
+        const build = p.build;
+        const state = build.state || 'unknown';
+        const icon = getStateIcon(state);
+        const theme = BUILD_STATUS_THEME[state.toUpperCase() as keyof typeof BUILD_STATUS_THEME];
+        const coloredIcon = theme ? theme.color(icon) : icon;
+        const message = build.message?.split('\n')[0] || '';
+        const number = build.number;
+        const buildRef = `${orgSlug}/${p.slug}/${number}`;
+
+        logger.console(`  ${coloredIcon} ${p.name} #${number} ${SEMANTIC_COLORS.muted(message)}`);
+        logger.console(`    ${SEMANTIC_COLORS.muted(buildRef)}`);
+
+        const isFailed = ['FAILED', 'FAILING', 'TIMED_OUT'].includes(state.toUpperCase());
+        if (isFailed) {
+          failedBuilds.push(p);
+        }
+      }
+
+      logger.console('');
+
+      // 7. Snapshot failed builds (or all with --all)
+      const buildsToSnapshot = options.all ? withBuilds : failedBuilds;
+
+      if (buildsToSnapshot.length === 0) {
+        if (!options.all) {
+          logger.console('No failed builds to snapshot. Use --all to snapshot all builds.');
+        } else {
+          logger.console('No builds to snapshot.');
+        }
+        return 0;
+      }
+
+      logger.console(`Snapshotting ${buildsToSnapshot.length} build(s)...`);
+      logger.console('');
+
+      let hasFailure = false;
+      for (const p of buildsToSnapshot) {
+        const buildRef = `${orgSlug}/${p.slug}/${p.build.number}`;
+        const exitCode = await this.execute({ ...options, buildRef });
+        if (exitCode !== 0) hasFailure = true;
+        logger.console('');
+      }
+
+      return hasFailure ? 1 : 0;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Branch-aware snapshot failed: ${errorMessage}`);
+      if (options.debug && error instanceof Error && error.stack) {
+        logger.debug(error.stack);
+      }
+      return 1;
+    }
   }
 
   private getOutputDir(options: SnapshotOptions, org: string, pipeline: string, buildNumber: number): string {
