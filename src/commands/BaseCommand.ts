@@ -4,6 +4,7 @@ import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { logger } from '../services/logger.js';
 import { CredentialManager } from '../services/CredentialManager.js';
 import { TokenSetupGuide } from '../services/TokenSetupGuide.js';
+import { GuidanceError } from '../errors/index.js';
 import { displayCLIError } from '../utils/cli-error-handler.js';
 
 export interface BaseCommandOptions {
@@ -128,13 +129,11 @@ export abstract class BaseCommand {
       logger.debug('Error retrieving token from keychain', error);
     }
     
-    // No token found anywhere. Show environment-appropriate guidance and exit.
-    // We exit directly instead of throwing because the guidance IS the error
-    // output, and we don't want displayCLIError adding redundant tips on top.
+    // No token found anywhere. Throw a GuidanceError with environment-aware
+    // setup instructions. The error formatter shows the guidance directly
+    // without adding its own contextual hints/tips on top.
     const guide = new TokenSetupGuide();
-    const guidance = guide.getSetupGuidance();
-    process.stderr.write(guidance + '\n');
-    process.exit(1);
+    throw new GuidanceError(guide.getSetupGuidance());
   }
 
   /**
