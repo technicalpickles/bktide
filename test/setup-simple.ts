@@ -363,9 +363,15 @@ export const server = setupServer(
   })
 );
 
+// Clear agent environment variables so tests don't accidentally run in agent
+// mode when the test suite is invoked from Claude Code or similar tools.
+// Tests that need agent mode should set CLAUDECODE explicitly.
+const savedClaudeCode = process.env.CLAUDECODE;
+delete process.env.CLAUDECODE;
+
 // Start server before all tests
 beforeAll(() => {
-  server.listen({ 
+  server.listen({
     onUnhandledRequest: 'bypass'
   });
 });
@@ -379,6 +385,10 @@ afterEach(() => {
 // Clean up after all tests
 afterAll(() => {
   server.close();
+  // Restore CLAUDECODE if it was set before tests
+  if (savedClaudeCode !== undefined) {
+    process.env.CLAUDECODE = savedClaudeCode;
+  }
 });
 
 // Export utilities for tests
