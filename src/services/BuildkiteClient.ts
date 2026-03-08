@@ -904,6 +904,79 @@ export class BuildkiteClient {
   }
 
   /**
+   * Find pipelines matching any of the given repo URL candidates,
+   * with the latest build for the specified branch.
+   * Uses GraphQL aliases to try all URL formats in a single request.
+   */
+  public async getPipelineBuildsForRepo(
+    orgSlug: string,
+    repoCandidates: string[],
+    branch: string
+  ): Promise<Array<{ id: string; name: string; slug: string; repository: { url: string }; build: any | null }>> {
+    const aliases = repoCandidates.map((url, i) => {
+      const alias = `repo${i}`;
+      return `${alias}: pipelines(first: 50, repository: { url: ${JSON.stringify(url)} }, archived: false) {
+        edges {
+          node {
+            id
+            name
+            slug
+            repository { url }
+            builds(first: 1, branch: [${JSON.stringify(branch)}]) {
+              edges {
+                node {
+                  number
+                  state
+                  url
+                  message
+                  branch
+                  commit
+                  createdAt
+                  startedAt
+                  finishedAt
+                }
+              }
+            }
+          }
+        }
+      }`;
+    });
+
+    const query = `query GetPipelineBuildsForRepo($orgSlug: ID!) {
+      organization(slug: $orgSlug) {
+        ${aliases.join('\n        ')}
+      }
+    }`;
+
+    const data = await this.query<any>(query, { orgSlug });
+
+    const seen = new Set<string>();
+    const results: Array<{ id: string; name: string; slug: string; repository: { url: string }; build: any | null }> = [];
+
+    for (let i = 0; i < repoCandidates.length; i++) {
+      const alias = `repo${i}`;
+      const edges = data.organization?.[alias]?.edges || [];
+
+      for (const edge of edges) {
+        const node = edge.node;
+        if (seen.has(node.id)) continue;
+        seen.add(node.id);
+
+        const buildEdge = node.builds?.edges?.[0];
+        results.push({
+          id: node.id,
+          name: node.name,
+          slug: node.slug,
+          repository: node.repository,
+          build: buildEdge?.node || null,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
    * Get annotation timestamps for change detection (lightweight)
    */
   public async getAnnotationTimestamps(buildSlug: string): Promise<Array<{ uuid: string; updatedAt: string | null; createdAt: string }>> {
