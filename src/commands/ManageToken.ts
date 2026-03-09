@@ -166,7 +166,7 @@ export class ManageToken extends BaseCommand {
   }
 
   private async checkOrStoreToken(options?: { format?: string }): Promise<TokenCheckOrStoreResult> {
-    const { status, errors } = await this.checkToken(options);
+    const { status, errors } = await this.checkToken({ ...options, suppressOutput: true });
     if (!status.hasToken || !status.isValid) {
       const { success, errors: storeErrors } = await this.storeToken();
       if (success) {
@@ -178,7 +178,7 @@ export class ManageToken extends BaseCommand {
     return { stored: false, errors };
   }
 
-  private async checkToken(options?: { format?: string }): Promise<TokenCheckResult> {
+  private async checkToken(options?: { format?: string; suppressOutput?: boolean }): Promise<TokenCheckResult> {
     const errors: unknown[] = [];
 
     // Get token using standard resolution: --token flag > env var > keychain
@@ -216,8 +216,10 @@ export class ManageToken extends BaseCommand {
       validation
     };
 
-    const formattedResult = this.formatter.formatTokenStatus(tokenStatus);
-    logger.console(formattedResult);
+    if (!options?.suppressOutput) {
+      const formattedResult = this.formatter.formatTokenStatus(tokenStatus);
+      logger.console(formattedResult);
+    }
 
     return { status: tokenStatus, errors };
   }
