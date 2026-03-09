@@ -440,8 +440,10 @@ program
 // Add snapshot command
 program
   .command('snapshot')
-  .description('Fetch and save build data locally for offline analysis')
-  .argument('<build-ref>', 'Build reference (org/pipeline/number or https://buildkite.com/org/pipeline/builds/number)')
+  .description('Fetch and save build data locally for offline analysis. Omit build-ref to auto-detect from git branch.')
+  .argument('[build-ref]', 'Build reference (org/pipeline/number or URL). Omit to auto-detect from git branch.')
+  .option('-b, --branch <branch>', 'Override branch detection for branch-aware snapshot')
+  .option('-o, --org <org>', 'Organization slug (required if you belong to multiple orgs)')
   .option('--output-dir <path>', 'Output directory for snapshot')
   .option('--json', 'Output manifest JSON to stdout')
   .option('--failed', 'Only fetch failed steps (default behavior)')
