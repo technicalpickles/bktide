@@ -587,8 +587,6 @@ export class Snapshot extends BaseCommand {
       logger.console(`Branch ${SEMANTIC_COLORS.identifier(branch)} in ${parsed.org}/${parsed.repo}`);
       logger.console('');
 
-      const failedBuilds: typeof withBuilds = [];
-
       for (const p of withBuilds) {
         const build = p.build;
         const state = build.state || 'unknown';
@@ -601,32 +599,16 @@ export class Snapshot extends BaseCommand {
 
         logger.console(`  ${coloredIcon} ${p.name} #${number} ${SEMANTIC_COLORS.muted(message)}`);
         logger.console(`    ${SEMANTIC_COLORS.muted(buildRef)}`);
-
-        const isFailed = ['FAILED', 'FAILING', 'TIMED_OUT'].includes(state.toUpperCase());
-        if (isFailed) {
-          failedBuilds.push(p);
-        }
       }
 
       logger.console('');
 
-      // 7. Snapshot failed builds (or all with --all)
-      const buildsToSnapshot = options.all ? withBuilds : failedBuilds;
-
-      if (buildsToSnapshot.length === 0) {
-        if (!options.all) {
-          logger.console('No failed builds to snapshot. Use --all to snapshot all builds.');
-        } else {
-          logger.console('No builds to snapshot.');
-        }
-        return 0;
-      }
-
-      logger.console(`Snapshotting ${buildsToSnapshot.length} build(s)...`);
+      // 7. Snapshot all builds (logs are only fetched for failed steps by default)
+      logger.console(`Snapshotting ${withBuilds.length} build(s)...`);
       logger.console('');
 
       let hasFailure = false;
-      for (const p of buildsToSnapshot) {
+      for (const p of withBuilds) {
         const buildRef = `${orgSlug}/${p.slug}/${p.build.number}`;
         const exitCode = await this.execute({ ...options, buildRef });
         if (exitCode !== 0) hasFailure = true;
