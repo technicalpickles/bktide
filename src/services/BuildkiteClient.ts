@@ -739,6 +739,10 @@ export class BuildkiteClient {
     const startTime = process.hrtime.bigint();
     const result = await this.request<any>(GET_BUILD_SUMMARY.toString(), variables);
 
+    if (!result.build) {
+      throw new Error(`Build not found: ${buildSlug}`);
+    }
+
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
       await this.cacheManager.set('GET_BUILD_SUMMARY', result, variables);
@@ -775,6 +779,10 @@ export class BuildkiteClient {
 
     const startTime = process.hrtime.bigint();
     const result = await this.request<any>(GET_BUILD_FULL.toString(), variables);
+
+    if (!result.build) {
+      throw new Error(`Build not found: ${buildSlug}`);
+    }
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
