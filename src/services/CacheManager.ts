@@ -49,6 +49,7 @@ export class CacheManager {
       parse: JSON.parse,
       encoding: 'utf8',
       logging: false,
+      forgiveParseErrors: true,
       ttl: this.ttls.default // Default TTL
     });
     
