@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { ShowLogs } from '../../src/commands/ShowLogs.js';
 import { clearTestData } from '../setup-simple.js';
 import { logger } from '../../src/services/logger.js';
@@ -109,7 +111,7 @@ describe('ShowLogs Command', () => {
         buildRef: 'org/pipeline/123',
         stepId: 'step-id-1',
         token: 'test-token',
-        save: '/tmp/test-log.txt',
+        save: join(tmpdir(), 'bktide-test-log.txt'),
         format: 'plain', // Also display output
       });
 

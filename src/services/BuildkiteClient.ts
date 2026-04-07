@@ -96,7 +96,10 @@ export class BuildkiteClient {
       }
       this.cacheManager = new CacheManager(options?.cacheTTLs, this.debug);
       // Initialize cache and set token hash (async, but we don't wait)
-      this.initCache();
+      this.initCache().catch((err) => {
+        logger.debug('Cache initialization failed, continuing without cache:', err);
+        this.cacheManager = null;
+      });
     } else {
       if (this.debug) {
         logger.debug('BuildkiteClient constructor - caching disabled');
