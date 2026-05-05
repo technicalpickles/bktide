@@ -19,7 +19,9 @@ import {
   ShowPipeline,
   ShowLogs,
   SmartShow,
-  Prime
+  Prime,
+  ArtifactsList,
+  ArtifactsDownload,
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
@@ -523,6 +525,46 @@ program
       });
 
       process.exitCode = exitCode;
+    } catch (error) {
+      const debug = this.mergedOptions?.debug || this.opts().debug || false;
+      displayCLIError(error, debug);
+      process.exitCode = 1;
+    }
+  });
+
+// Add artifacts command with list and download subcommands
+const artifactsCmd = program
+  .command('artifacts')
+  .description('Manage build artifacts');
+
+artifactsCmd
+  .command('list <build-ref>')
+  .description('List artifacts for a build')
+  .action(async function(this: ExtendedCommand, buildRef: string) {
+    try {
+      const options = this.mergedOptions || this.opts();
+      const token = await BaseCommand.getToken(options);
+      const handler = new ArtifactsList({ token, debug: options.debug, format: options.format, quiet: options.quiet, tips: options.tips });
+      process.exitCode = await handler.execute({ ...options, buildRef });
+    } catch (error) {
+      const debug = this.mergedOptions?.debug || this.opts().debug || false;
+      displayCLIError(error, debug);
+      process.exitCode = 1;
+    }
+  });
+
+artifactsCmd
+  .command('download <build-ref>')
+  .description('Download artifacts for a build')
+  .option('--id <id>', 'Download a specific artifact by ID')
+  .option('--path <glob>', 'Download artifacts matching a path glob (e.g. "*.patch", "**/*.xml")')
+  .option('--out <dir>', 'Output directory (default: ./)', './')
+  .action(async function(this: ExtendedCommand, buildRef: string) {
+    try {
+      const options = this.mergedOptions || this.opts();
+      const token = await BaseCommand.getToken(options);
+      const handler = new ArtifactsDownload({ token, debug: options.debug, format: options.format, quiet: options.quiet, tips: options.tips });
+      process.exitCode = await handler.execute({ ...options, buildRef });
     } catch (error) {
       const debug = this.mergedOptions?.debug || this.opts().debug || false;
       displayCLIError(error, debug);
