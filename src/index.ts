@@ -454,6 +454,8 @@ program
   .option('-w, --watch', 'Watch build until completion, then snapshot')
   .option('--timeout <minutes>', 'Max wait time in minutes (default: 30)', '30')
   .option('--poll-interval <seconds>', 'Initial poll interval in seconds (default: 5)', '5')
+  .option('--artifacts', 'Download build artifacts into snapshot directory')
+  .option('--artifact-glob <pattern>', 'Filter artifacts to download (e.g. "*.patch", "**/*.xml")')
   .action(createCommandHandler(Snapshot));
 
 // Add pipeline command
