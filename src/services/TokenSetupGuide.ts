@@ -1,16 +1,13 @@
+import { scopeDisplayNames } from './RequiredScopes.js';
+
 export type RuntimeEnvironment = 'agent' | 'interactive' | 'non-interactive';
 
 /**
  * Provides environment-aware guidance for token setup.
- * Single source of truth for required permissions and setup instructions.
+ * Permissions list is derived from RequiredScopes — do not hardcode here.
  */
 export class TokenSetupGuide {
-  static readonly REQUIRED_PERMISSIONS = [
-    'Read Builds',
-    'Read Build Logs',
-    'Read Organizations',
-    'GraphQL API Access',
-  ];
+  static readonly REQUIRED_PERMISSIONS: readonly string[] = scopeDisplayNames();
 
   static readonly TOKEN_URL = 'https://buildkite.com/user/api-access-tokens/new';
 
