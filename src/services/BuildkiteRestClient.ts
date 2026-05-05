@@ -433,22 +433,14 @@ export class BuildkiteRestClient {
 
   /**
    * Download an artifact to a local file path using the two-step presigned URL flow.
-   * The Buildkite download endpoint returns a presigned URL (via 302 + JSON body);
-   * we fetch that URL separately and stream the binary content to disk.
+   * Calls artifact.download_url to get a presigned URL (via 302 + JSON body),
+   * then fetches that URL and writes the binary to disk.
    */
   public async downloadArtifact(
-    org: string,
-    pipeline: string,
-    buildNumber: number | string,
-    jobId: string,
-    artifactId: string,
+    artifact: BuildkiteArtifact,
     destPath: string
   ): Promise<{ path: string; size: number }> {
-    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/jobs/${jobId}/artifacts/${artifactId}/download`;
-
-    // Step 1: Call job-scoped download endpoint to get presigned URL.
-    // Buildkite returns 302 with JSON body {"url":"..."} and Location header.
-    const apiRes = await fetch(`${this.baseUrl}${endpoint}`, {
+    const apiRes = await fetch(artifact.download_url, {
       headers: { 'Authorization': `Bearer ${this.token}` },
       redirect: 'manual',
     });
@@ -469,10 +461,9 @@ export class BuildkiteRestClient {
       presignedUrl = apiRes.headers.get('location');
     }
     if (!presignedUrl) {
-      throw new Error(`Could not determine download URL for artifact ${artifactId}`);
+      throw new Error(`Could not determine download URL for artifact ${artifact.id}`);
     }
 
-    // Step 2: Stream the presigned URL to disk
     const fileRes = await fetch(presignedUrl);
     if (!fileRes.ok) {
       throw new Error(`Artifact download failed (${fileRes.status}): presigned URL request failed`);

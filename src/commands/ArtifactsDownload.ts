@@ -5,7 +5,7 @@ import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { formatError, SEMANTIC_COLORS } from '../ui/theme.js';
 import { Progress } from '../ui/progress.js';
 import { minimatch } from 'minimatch';
-import { BuildkiteArtifact } from '../types/buildkite.js';
+import { BuildkiteArtifact, DOWNLOADABLE_ARTIFACT_STATES } from '../types/buildkite.js';
 
 export interface ArtifactsDownloadOptions extends BaseCommandOptions {
   buildRef: string;
@@ -18,7 +18,6 @@ export class ArtifactsDownload extends BaseCommand {
   static requiresToken = true;
 
   async execute(options: ArtifactsDownloadOptions): Promise<number> {
-    const format = options.format || 'plain';
     const outDir = options.out || './';
 
     if (!options.id && !options.path) {
@@ -32,7 +31,7 @@ export class ArtifactsDownload extends BaseCommand {
       return 1;
     }
 
-    const spinner = Progress.spinner('Fetching artifact list...', { format });
+    const spinner = Progress.spinner('Fetching artifact list...', { format: options.format || 'plain' });
 
     try {
       this.token = await BaseCommand.getToken(options);
@@ -41,7 +40,6 @@ export class ArtifactsDownload extends BaseCommand {
       const allArtifacts = await this.restClient.listBuildArtifacts(ref.org, ref.pipeline, ref.number);
       spinner.stop();
 
-      // Filter artifacts
       let targets: BuildkiteArtifact[];
       if (options.id) {
         targets = allArtifacts.filter(a => a.id === options.id);
@@ -52,7 +50,6 @@ export class ArtifactsDownload extends BaseCommand {
           return 1;
         }
       } else {
-        // Glob matching against full artifact path; matchBase allows "*.patch" to match "dir/build.patch"
         targets = allArtifacts.filter(a => minimatch(a.path, options.path!, { matchBase: true }));
         if (targets.length === 0) {
           logger.console(formatError(`No artifacts match glob '${options.path}'`, {
@@ -62,9 +59,8 @@ export class ArtifactsDownload extends BaseCommand {
         }
       }
 
-      // Skip expired/deleted artifacts with a warning
-      const downloadable = targets.filter(a => a.state === 'finished' || a.state === 'new');
-      const skipped = targets.filter(a => a.state !== 'finished' && a.state !== 'new');
+      const downloadable = targets.filter(a => DOWNLOADABLE_ARTIFACT_STATES.has(a.state));
+      const skipped = targets.filter(a => !DOWNLOADABLE_ARTIFACT_STATES.has(a.state));
       for (const a of skipped) {
         logger.console(SEMANTIC_COLORS.warning(`⚠ Skipping ${a.path} (state: ${a.state})`));
       }
@@ -74,17 +70,14 @@ export class ArtifactsDownload extends BaseCommand {
         return 1;
       }
 
-      // Download each artifact
       const results: Array<{ path: string; ok: boolean; error?: string }> = [];
       for (const artifact of downloadable) {
-        const destPath = path.join(outDir, artifact.path);
-        const dlSpinner = Progress.spinner(`Downloading ${artifact.filename}...`, { format });
+        // Sanitize artifact path to prevent traversal outside the output directory
+        const safePath = path.normalize(artifact.path).replace(/^(\.\.(\/|\\|$))+/, '');
+        const destPath = path.join(outDir, safePath);
+        const dlSpinner = Progress.spinner(`Downloading ${artifact.filename}...`, { format: options.format || 'plain' });
         try {
-          await this.restClient.downloadArtifact(
-            ref.org, ref.pipeline, ref.number,
-            artifact.job_id, artifact.id,
-            destPath
-          );
+          await this.restClient.downloadArtifact(artifact, destPath);
           dlSpinner.stop();
           logger.console(SEMANTIC_COLORS.success(`✓ ${artifact.path} → ${destPath}`));
           results.push({ path: destPath, ok: true });

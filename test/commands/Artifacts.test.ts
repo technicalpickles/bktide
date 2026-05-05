@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { mkdtemp, rm, readFile, writeFile } from 'fs/promises';
+import { mkdtemp, rm, readFile } from 'fs/promises';
 import { ArtifactsList } from '../../src/commands/ArtifactsList.js';
 import { ArtifactsDownload } from '../../src/commands/ArtifactsDownload.js';
 import { clearTestData, server } from '../setup-simple.js';
@@ -145,12 +145,7 @@ describe('ArtifactsDownload Command', () => {
 
     // Mock the REST client to avoid MSW binary body issues in node-fetch
     mockListArtifacts = vi.fn().mockResolvedValue(MOCK_ARTIFACTS);
-    mockDownloadArtifact = vi.fn().mockImplementation(async (_org, _pipeline, _build, _jobId, _artifactId, destPath) => {
-      await writeFile(destPath, 'fake-binary-content', { recursive: true } as any).catch(async () => {
-        const { mkdir } = await import('fs/promises');
-        await mkdir(require('path').dirname(destPath), { recursive: true });
-        await writeFile(destPath, 'fake-binary-content');
-      });
+    mockDownloadArtifact = vi.fn().mockImplementation(async (_artifact, destPath) => {
       return { path: destPath, size: 18 };
     });
     vi.spyOn(command, 'restClient', 'get').mockReturnValue({
@@ -176,13 +171,6 @@ describe('ArtifactsDownload Command', () => {
   });
 
   it('should download artifact by ID', async () => {
-    mockDownloadArtifact.mockImplementation(async (_org, _pipeline, _build, _jobId, _artifactId, destPath) => {
-      const { mkdir } = await import('fs/promises');
-      await mkdir(join(outDir, 'dist'), { recursive: true });
-      await writeFile(destPath, 'fake-binary-content');
-      return { path: destPath, size: 18 };
-    });
-
     const exitCode = await command.execute({
       buildRef: 'org/pipeline/123',
       token: 'test-token',
@@ -192,7 +180,7 @@ describe('ArtifactsDownload Command', () => {
 
     expect(exitCode).toBe(0);
     expect(mockDownloadArtifact).toHaveBeenCalledWith(
-      'org', 'pipeline', 123, 'job-id-1', 'artifact-id-1',
+      expect.objectContaining({ id: 'artifact-id-1' }),
       join(outDir, 'dist/build.patch')
     );
   });
@@ -208,7 +196,7 @@ describe('ArtifactsDownload Command', () => {
     expect(exitCode).toBe(0);
     // Only the .patch file should be downloaded (not .xml)
     expect(mockDownloadArtifact).toHaveBeenCalledTimes(1);
-    expect(mockDownloadArtifact.mock.calls[0][4]).toBe('artifact-id-1');
+    expect(mockDownloadArtifact.mock.calls[0][0]).toMatchObject({ id: 'artifact-id-1' });
   });
 
   it('should match glob against full path with matchBase', async () => {
@@ -221,7 +209,7 @@ describe('ArtifactsDownload Command', () => {
 
     expect(exitCode).toBe(0);
     expect(mockDownloadArtifact).toHaveBeenCalledTimes(1);
-    expect(mockDownloadArtifact.mock.calls[0][4]).toBe('artifact-id-2');
+    expect(mockDownloadArtifact.mock.calls[0][0]).toMatchObject({ id: 'artifact-id-2' });
   });
 
   it('should return 1 when glob matches nothing', async () => {

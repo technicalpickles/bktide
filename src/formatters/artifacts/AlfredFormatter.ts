@@ -1,5 +1,6 @@
 import { BaseArtifactFormatter, ArtifactFormatterOptions } from './Formatter.js';
 import { BuildkiteArtifact } from '../../types/buildkite.js';
+import { formatSize } from '../../utils/formatUtils.js';
 
 export class AlfredFormatter extends BaseArtifactFormatter {
   name = 'alfred';
@@ -30,13 +31,13 @@ export class AlfredFormatter extends BaseArtifactFormatter {
     const items = artifacts.map(artifact => ({
       uid: artifact.id,
       title: artifact.path,
-      subtitle: `${this.formatBytes(artifact.file_size)} • ${artifact.state} • ${artifact.mime_type}`,
+      subtitle: `${formatSize(artifact.file_size)} • ${artifact.state} • ${artifact.mime_type}`,
       arg: artifact.download_url,
       autocomplete: artifact.path,
       icon: { path: 'icons/unknown.png' },
       text: {
         copy: artifact.download_url,
-        largetype: `${artifact.path}\n${this.formatBytes(artifact.file_size)} • ${artifact.state}`,
+        largetype: `${artifact.path}\n${formatSize(artifact.file_size)} • ${artifact.state}`,
       },
     }));
 

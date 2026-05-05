@@ -1,6 +1,7 @@
 import { BaseArtifactFormatter, ArtifactFormatterOptions } from './Formatter.js';
 import { BuildkiteArtifact } from '../../types/buildkite.js';
 import { formatEmptyState, formatError, SEMANTIC_COLORS } from '../../ui/theme.js';
+import { formatSize } from '../../utils/formatUtils.js';
 
 export class PlainTextFormatter extends BaseArtifactFormatter {
   name = 'plain';
@@ -36,7 +37,7 @@ export class PlainTextFormatter extends BaseArtifactFormatter {
       const path = artifact.path.length > pathWidth
         ? '…' + artifact.path.slice(-(pathWidth - 1))
         : artifact.path.padEnd(pathWidth);
-      const size = this.formatBytes(artifact.file_size).padEnd(sizeWidth);
+      const size = formatSize(artifact.file_size).padEnd(sizeWidth);
       const state = artifact.state.padEnd(9);
       lines.push(`${path}  ${size}  ${state} ${artifact.mime_type}`);
     }

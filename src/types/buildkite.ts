@@ -39,6 +39,19 @@ export interface PageInfo {
   endCursor: string;
 }
 
+/** Artifact states that can be downloaded */
+export const DOWNLOADABLE_ARTIFACT_STATES = new Set<string>(['finished', 'new']);
+
+/** Slimmed-down artifact record stored in snapshot manifests */
+export interface ArtifactManifestItem {
+  id: string;
+  jobId: string;
+  path: string;
+  file_size: number;
+  sha1sum: string;
+  mime_type: string;
+}
+
 /**
  * Artifact from Buildkite REST API (build-scoped list response)
  */

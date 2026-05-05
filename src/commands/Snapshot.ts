@@ -11,7 +11,7 @@ import { BuildPoller, BuildRef, JobStateChange } from '../services/BuildPoller.j
 import { getGitContext } from '../utils/gitContext.js';
 import { parseGitRemoteUrl, generateRepoCandidates } from '../utils/repoUrl.js';
 import { minimatch } from 'minimatch';
-import { BuildkiteArtifact } from '../types/buildkite.js';
+import { BuildkiteArtifact, DOWNLOADABLE_ARTIFACT_STATES, ArtifactManifestItem } from '../types/buildkite.js';
 
 export interface SnapshotOptions extends BaseCommandOptions {
   buildRef?: string;
@@ -68,14 +68,7 @@ interface Manifest {
     fetchStatus: 'success' | 'none' | 'failed' | 'skipped';
     count: number;
     filter?: string;
-    items?: Array<{
-      id: string;
-      jobId: string;
-      path: string;
-      file_size: number;
-      sha1sum: string;
-      mime_type: string;
-    }>;
+    items?: ArtifactManifestItem[];
   };
   steps: Array<{
     // Our metadata
@@ -114,14 +107,7 @@ interface ArtifactResult {
   fetchStatus: 'success' | 'none' | 'failed' | 'skipped';
   count: number;
   filter?: string;
-  items?: Array<{
-    id: string;
-    jobId: string;
-    path: string;
-    file_size: number;
-    sha1sum: string;
-    mime_type: string;
-  }>;
+  items?: ArtifactManifestItem[];
   error?: string;
 }
 
@@ -420,8 +406,7 @@ export class Snapshot extends BaseCommand {
           buildRef.org,
           buildRef.pipeline,
           buildRef.number,
-          options.artifactGlob,
-          options.debug
+          options.artifactGlob
         );
       }
 
@@ -472,17 +457,13 @@ export class Snapshot extends BaseCommand {
           logger.console(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`);
         }
 
-        if (artifactResult) {
-          if (artifactResult.fetchStatus === 'success' && artifactResult.count > 0) {
-            const filterNote = artifactResult.filter ? ` (filter: ${artifactResult.filter})` : '';
-            logger.console(`  ${artifactResult.count} artifact(s) downloaded${filterNote}`);
-          } else if (artifactResult.fetchStatus === 'none') {
-            if (options.debug) {
-              logger.console(`  No artifacts matched${artifactResult.filter ? ` '${artifactResult.filter}'` : ''}`);
-            }
-          } else if (artifactResult.fetchStatus === 'failed') {
-            logger.console(`  Warning: Failed to fetch artifacts${artifactResult.error ? ': ' + artifactResult.error : ''}`);
-          }
+        if (artifactResult?.fetchStatus === 'success' && artifactResult.count > 0) {
+          const filterNote = artifactResult.filter ? ` (filter: ${artifactResult.filter})` : '';
+          logger.console(`  ${artifactResult.count} artifact(s) downloaded${filterNote}`);
+        } else if (artifactResult?.fetchStatus === 'failed') {
+          logger.console(`  Warning: Failed to fetch artifacts${artifactResult.error ? ': ' + artifactResult.error : ''}`);
+        } else if (artifactResult?.fetchStatus === 'none') {
+          logger.debug(`No artifacts matched${artifactResult.filter ? ` '${artifactResult.filter}'` : ''}`);
         }
 
         // Track skipped count for tips section
@@ -801,16 +782,14 @@ export class Snapshot extends BaseCommand {
     org: string,
     pipeline: string,
     buildNumber: number,
-    glob?: string,
-    debug?: boolean
+    glob?: string
   ): Promise<ArtifactResult> {
     try {
       const allArtifacts = await this.restClient.listBuildArtifacts(org, pipeline, buildNumber);
 
-      // Filter by glob if provided
       const targets = glob
-        ? allArtifacts.filter(a => minimatch(a.path, glob, { matchBase: true }))
-        : allArtifacts.filter(a => a.state === 'finished' || a.state === 'new');
+        ? allArtifacts.filter(a => DOWNLOADABLE_ARTIFACT_STATES.has(a.state) && minimatch(a.path, glob, { matchBase: true }))
+        : allArtifacts.filter(a => DOWNLOADABLE_ARTIFACT_STATES.has(a.state));
 
       if (targets.length === 0) {
         return { fetchStatus: 'none', count: 0, filter: glob };
@@ -823,31 +802,21 @@ export class Snapshot extends BaseCommand {
       const failed: Array<{ path: string; error: string }> = [];
 
       for (const artifact of targets) {
-        // Sanitize path to prevent traversal outside artifactsDir
         const safePath = path.normalize(artifact.path).replace(/^(\.\.(\/|\\|$))+/, '');
         const destPath = path.join(artifactsDir, safePath);
         try {
-          await this.restClient.downloadArtifact(
-            org, pipeline, buildNumber,
-            artifact.job_id, artifact.id,
-            destPath
-          );
+          await this.restClient.downloadArtifact(artifact, destPath);
           downloaded.push(artifact);
-          if (debug) {
-            logger.debug(`Downloaded artifact: ${artifact.path}`);
-          }
+          logger.debug(`Downloaded artifact: ${artifact.path}`);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           failed.push({ path: artifact.path, error: msg });
-          if (debug) {
-            logger.debug(`Failed to download artifact ${artifact.path}: ${msg}`);
-          }
+          logger.debug(`Failed to download artifact ${artifact.path}: ${msg}`);
         }
       }
 
-      const fetchStatus = failed.length === 0 ? 'success' : (downloaded.length === 0 ? 'failed' : 'success');
       return {
-        fetchStatus,
+        fetchStatus: failed.length === 0 ? 'success' : (downloaded.length === 0 ? 'failed' : 'success'),
         count: downloaded.length,
         filter: glob,
         items: downloaded.map(a => ({
@@ -861,9 +830,7 @@ export class Snapshot extends BaseCommand {
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      if (debug) {
-        logger.debug(`Failed to fetch artifacts: ${msg}`);
-      }
+      logger.debug(`Failed to fetch artifacts: ${msg}`);
       return { fetchStatus: 'failed', count: 0, filter: glob, error: msg };
     }
   }
