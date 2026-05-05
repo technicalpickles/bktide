@@ -48,6 +48,7 @@ describe('TokenSetupGuide', () => {
       const guide = new TokenSetupGuide();
       const output = guide.getSetupGuidance();
       expect(output).toContain('Read Builds');
+      expect(output).toContain('Read Artifacts');
       expect(output).toContain('GraphQL API Access');
       expect(output).toContain('bktide token --store');
       expect(output).toContain('their terminal');
@@ -84,6 +85,27 @@ describe('TokenSetupGuide', () => {
   describe('REQUIRED_PERMISSIONS', () => {
     it('should be a non-empty array', () => {
       expect(TokenSetupGuide.REQUIRED_PERMISSIONS.length).toBeGreaterThan(0);
+    });
+
+    it('includes Read Artifacts (regression: was missing for the artifacts commands)', () => {
+      expect(TokenSetupGuide.REQUIRED_PERMISSIONS).toContain('Read Artifacts');
+    });
+
+    it('includes Read Pipelines', () => {
+      expect(TokenSetupGuide.REQUIRED_PERMISSIONS).toContain('Read Pipelines');
+    });
+
+    it('includes all six scopes bktide uses today', () => {
+      expect(TokenSetupGuide.REQUIRED_PERMISSIONS).toEqual(
+        expect.arrayContaining([
+          'Read Builds',
+          'Read Build Logs',
+          'Read Organizations',
+          'Read Pipelines',
+          'Read Artifacts',
+          'GraphQL API Access',
+        ])
+      );
     });
   });
 });
