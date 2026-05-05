@@ -1,9 +1,13 @@
 import fetch from 'node-fetch';
+import { pipeline as streamPipeline } from 'stream/promises';
+import { createWriteStream } from 'fs';
+import { mkdir as mkdirFs } from 'fs/promises';
+import { dirname } from 'path';
 import { CacheManager } from './CacheManager.js';
 import { createHash } from 'crypto';
 import { logger } from './logger.js';
 import { getProgressIcon } from '../ui/theme.js';
-import { JobLog } from '../types/buildkite.js';
+import { JobLog, BuildkiteArtifact } from '../types/buildkite.js';
 
 export interface BuildkiteRestClientOptions {
   baseUrl?: string;
@@ -412,6 +416,78 @@ export class BuildkiteRestClient {
   ): Promise<any> {
     const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}`;
     return this.get<any>(endpoint);
+  }
+
+  /**
+   * List all artifacts for a build (build-scoped, includes artifacts from all jobs)
+   */
+  public async listBuildArtifacts(
+    org: string,
+    pipeline: string,
+    buildNumber: number | string
+  ): Promise<BuildkiteArtifact[]> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/artifacts`;
+    if (this.debug) {
+      logger.debug(`Fetching artifacts for ${org}/${pipeline}/${buildNumber}`);
+    }
+    return this.get<BuildkiteArtifact[]>(endpoint);
+  }
+
+  /**
+   * Download an artifact to a local file path using the two-step presigned URL flow.
+   * The Buildkite download endpoint returns a presigned URL (via 302 + JSON body);
+   * we fetch that URL separately and stream the binary content to disk.
+   */
+  public async downloadArtifact(
+    org: string,
+    pipeline: string,
+    buildNumber: number | string,
+    jobId: string,
+    artifactId: string,
+    destPath: string
+  ): Promise<{ path: string; size: number }> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/jobs/${jobId}/artifacts/${artifactId}/download`;
+
+    // Step 1: Call job-scoped download endpoint to get presigned URL.
+    // Buildkite returns 302 with JSON body {"url":"..."} and Location header.
+    const apiRes = await fetch(`${this.baseUrl}${endpoint}`, {
+      headers: { 'Authorization': `Bearer ${this.token}` },
+      redirect: 'manual',
+    });
+
+    if (!apiRes.ok && apiRes.status !== 302) {
+      const text = await apiRes.text().catch(() => '');
+      throw new Error(`Failed to get artifact download URL (${apiRes.status})${text ? ': ' + text : ''}`);
+    }
+
+    let presignedUrl: string | null = null;
+    try {
+      const json = await apiRes.json() as { url?: string };
+      presignedUrl = json.url ?? null;
+    } catch {
+      // JSON body absent or unparseable — fall through to Location header
+    }
+    if (!presignedUrl) {
+      presignedUrl = apiRes.headers.get('location');
+    }
+    if (!presignedUrl) {
+      throw new Error(`Could not determine download URL for artifact ${artifactId}`);
+    }
+
+    // Step 2: Stream the presigned URL to disk
+    const fileRes = await fetch(presignedUrl);
+    if (!fileRes.ok) {
+      throw new Error(`Artifact download failed (${fileRes.status}): presigned URL request failed`);
+    }
+    if (!fileRes.body) {
+      throw new Error('Artifact download response has no body');
+    }
+
+    await mkdirFs(dirname(destPath), { recursive: true });
+    const writeStream = createWriteStream(destPath);
+    await streamPipeline(fileRes.body as NodeJS.ReadableStream, writeStream);
+
+    return { path: destPath, size: writeStream.bytesWritten };
   }
 
   /**

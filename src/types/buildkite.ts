@@ -40,6 +40,23 @@ export interface PageInfo {
 }
 
 /**
+ * Artifact from Buildkite REST API (build-scoped list response)
+ */
+export interface BuildkiteArtifact {
+  id: string;
+  job_id: string;
+  url: string;
+  download_url: string;
+  state: 'finished' | 'new' | 'error' | 'deleted' | 'expired';
+  path: string;
+  dirname: string;
+  filename: string;
+  mime_type: string;
+  file_size: number;
+  sha1sum: string;
+}
+
+/**
  * Job log response from Buildkite REST API
  */
 export interface JobLog {
