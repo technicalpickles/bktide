@@ -1,6 +1,7 @@
 import { BaseTokenFormatter, TokenFormatter } from './Formatter.js';
 import { TokenStatus, TokenValidationStatus } from '../../types/credentials.js';
 import { SEMANTIC_COLORS, formatError as themeFormatError, formatTips, TipStyle } from '../../ui/theme.js';
+import { REQUIRED_SCOPES, isKnownScope } from '../../services/RequiredScopes.js';
     
 /**
  * Plain text formatter for tokens
@@ -77,7 +78,43 @@ export class PlainTextFormatter extends BaseTokenFormatter implements TokenForma
       ];
       lines.push(formatTips(actionTips, TipStyle.ACTIONS));
     }
-    
+
+    // Scope detail (only present when CredentialManager probed /access-token)
+    if (status.validation.scopes) {
+      const { granted, missing } = status.validation.scopes;
+
+      if (granted.length > 0) {
+        lines.push('');
+        lines.push(SEMANTIC_COLORS.label('Granted scopes:'));
+        granted.forEach(scope => {
+          lines.push(`  ${SEMANTIC_COLORS.success('✓')} ${scope}`);
+        });
+      }
+
+      if (missing.length > 0) {
+        lines.push('');
+        lines.push(SEMANTIC_COLORS.warning('Missing scopes:'));
+        missing.forEach(scope => {
+          if (isKnownScope(scope)) {
+            const meta = REQUIRED_SCOPES[scope];
+            const cmds = meta.commands.join(', ');
+            lines.push(
+              `  ${SEMANTIC_COLORS.error('✗')} ${scope} ` +
+              SEMANTIC_COLORS.dim(`(${meta.displayName}) — needed for: ${cmds}`)
+            );
+          } else {
+            lines.push(`  ${SEMANTIC_COLORS.error('✗')} ${scope}`);
+          }
+        });
+
+        lines.push('');
+        lines.push(SEMANTIC_COLORS.label('To fix:'));
+        lines.push('  1. Open https://buildkite.com/user/api-access-tokens');
+        lines.push('  2. Edit your token to add the missing scopes');
+        lines.push('  3. Run: bktide token --reset && bktide token --store');
+      }
+    }
+
     return lines.join('\n');
   }
 
