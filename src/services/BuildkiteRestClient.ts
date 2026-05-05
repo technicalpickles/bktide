@@ -1,7 +1,5 @@
 import fetch from 'node-fetch';
-import { pipeline as streamPipeline } from 'stream/promises';
-import { createWriteStream } from 'fs';
-import { mkdir as mkdirFs } from 'fs/promises';
+import { mkdir as mkdirFs, writeFile as writeFileFs } from 'fs/promises';
 import { dirname } from 'path';
 import { CacheManager } from './CacheManager.js';
 import { createHash } from 'crypto';
@@ -479,15 +477,12 @@ export class BuildkiteRestClient {
     if (!fileRes.ok) {
       throw new Error(`Artifact download failed (${fileRes.status}): presigned URL request failed`);
     }
-    if (!fileRes.body) {
-      throw new Error('Artifact download response has no body');
-    }
 
+    const buffer = await fileRes.arrayBuffer();
     await mkdirFs(dirname(destPath), { recursive: true });
-    const writeStream = createWriteStream(destPath);
-    await streamPipeline(fileRes.body as NodeJS.ReadableStream, writeStream);
+    await writeFileFs(destPath, Buffer.from(buffer));
 
-    return { path: destPath, size: writeStream.bytesWritten };
+    return { path: destPath, size: buffer.byteLength };
   }
 
   /**

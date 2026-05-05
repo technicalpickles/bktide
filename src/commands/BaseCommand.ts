@@ -62,7 +62,7 @@ export abstract class BaseCommand {
       return this._restClient;
     } else {
       if (this.token) {
-        this._restClient = new BuildkiteRestClient(this.token, this.options);
+        this._restClient = new BuildkiteRestClient(this.token, this.restClientOptions);
         return this._restClient;
       } else {
         throw new Error('No token provided');
