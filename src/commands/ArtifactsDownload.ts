@@ -6,6 +6,7 @@ import { formatError, SEMANTIC_COLORS } from '../ui/theme.js';
 import { Progress } from '../ui/progress.js';
 import { minimatch } from 'minimatch';
 import { BuildkiteArtifact, DOWNLOADABLE_ARTIFACT_STATES } from '../types/buildkite.js';
+import { parseScopeError, formatScopeError } from '../utils/scopeError.js';
 
 export interface ArtifactsDownloadOptions extends BaseCommandOptions {
   buildRef: string;
@@ -100,9 +101,18 @@ export class ArtifactsDownload extends BaseCommand {
     } catch (error) {
       spinner.stop();
       if (error instanceof Error) {
-        logger.console(formatError(error.message, {
-          suggestions: ['Check the build reference format', 'Verify you have read_artifacts scope'],
-        }));
+        const parsed = parseScopeError(error.message);
+        if (parsed.matched) {
+          const formatted = formatScopeError(parsed.scope);
+          logger.console(formatError(formatted.message, { suggestions: formatted.suggestions }));
+        } else {
+          logger.console(formatError(error.message, {
+            suggestions: [
+              'Check the build reference format',
+              'Run `bktide token --check` to verify token scopes',
+            ],
+          }));
+        }
       } else {
         logger.error('Unknown error occurred');
       }
