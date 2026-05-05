@@ -10,6 +10,8 @@ import os from 'os';
 import { BuildPoller, BuildRef, JobStateChange } from '../services/BuildPoller.js';
 import { getGitContext } from '../utils/gitContext.js';
 import { parseGitRemoteUrl, generateRepoCandidates } from '../utils/repoUrl.js';
+import { minimatch } from 'minimatch';
+import { BuildkiteArtifact, DOWNLOADABLE_ARTIFACT_STATES, ArtifactManifestItem } from '../types/buildkite.js';
 
 export interface SnapshotOptions extends BaseCommandOptions {
   buildRef?: string;
@@ -25,6 +27,9 @@ export interface SnapshotOptions extends BaseCommandOptions {
   watch?: boolean;
   timeout?: number;
   pollInterval?: number;
+  // Artifact options
+  artifacts?: boolean;
+  artifactGlob?: string;
 }
 
 interface StepResult {
@@ -59,6 +64,12 @@ interface Manifest {
       updatedAt: string | null;
     }>;
   };
+  artifacts?: {
+    fetchStatus: 'success' | 'none' | 'failed' | 'skipped';
+    count: number;
+    filter?: string;
+    items?: ArtifactManifestItem[];
+  };
   steps: Array<{
     // Our metadata
     id: string;
@@ -90,6 +101,14 @@ interface AnnotationResult {
   items?: Array<{ uuid: string; updatedAt: string | null }>;
   error?: string;
   message?: string;
+}
+
+interface ArtifactResult {
+  fetchStatus: 'success' | 'none' | 'failed' | 'skipped';
+  count: number;
+  filter?: string;
+  items?: ArtifactManifestItem[];
+  error?: string;
 }
 
 interface AnnotationsFile {
@@ -378,14 +397,28 @@ export class Snapshot extends BaseCommand {
         }
       }
 
-      // 9. Write manifest
+      // 9. Fetch and save artifacts if requested
+      let artifactResult: ArtifactResult | undefined;
+      if (options.artifacts) {
+        logger.console(SEMANTIC_COLORS.muted('Fetching artifacts…'));
+        artifactResult = await this.fetchAndSaveArtifacts(
+          outputDir,
+          buildRef.org,
+          buildRef.pipeline,
+          buildRef.number,
+          options.artifactGlob
+        );
+      }
+
+      // 10. Write manifest
       const manifest = this.buildManifest(
         buildRef.org,
         buildRef.pipeline,
         buildRef.number,
         build,
         stepResults,
-        annotationResult  // Add annotation result
+        annotationResult,
+        artifactResult
       );
       await this.saveManifest(outputDir, manifest);
 
@@ -422,6 +455,15 @@ export class Snapshot extends BaseCommand {
 
         if (fetchErrorCount > 0) {
           logger.console(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`);
+        }
+
+        if (artifactResult?.fetchStatus === 'success' && artifactResult.count > 0) {
+          const filterNote = artifactResult.filter ? ` (filter: ${artifactResult.filter})` : '';
+          logger.console(`  ${artifactResult.count} artifact(s) downloaded${filterNote}`);
+        } else if (artifactResult?.fetchStatus === 'failed') {
+          logger.console(`  Warning: Failed to fetch artifacts${artifactResult.error ? ': ' + artifactResult.error : ''}`);
+        } else if (artifactResult?.fetchStatus === 'none') {
+          logger.debug(`No artifacts matched${artifactResult.filter ? ` '${artifactResult.filter}'` : ''}`);
         }
 
         // Track skipped count for tips section
@@ -735,19 +777,78 @@ export class Snapshot extends BaseCommand {
     }
   }
 
+  private async fetchAndSaveArtifacts(
+    outputDir: string,
+    org: string,
+    pipeline: string,
+    buildNumber: number,
+    glob?: string
+  ): Promise<ArtifactResult> {
+    try {
+      const allArtifacts = await this.restClient.listBuildArtifacts(org, pipeline, buildNumber);
+
+      const targets = glob
+        ? allArtifacts.filter(a => DOWNLOADABLE_ARTIFACT_STATES.has(a.state) && minimatch(a.path, glob, { matchBase: true }))
+        : allArtifacts.filter(a => DOWNLOADABLE_ARTIFACT_STATES.has(a.state));
+
+      if (targets.length === 0) {
+        return { fetchStatus: 'none', count: 0, filter: glob };
+      }
+
+      const artifactsDir = path.join(outputDir, 'artifacts');
+      await fs.mkdir(artifactsDir, { recursive: true });
+
+      const downloaded: BuildkiteArtifact[] = [];
+      const failed: Array<{ path: string; error: string }> = [];
+
+      for (const artifact of targets) {
+        const safePath = path.normalize(artifact.path).replace(/^(\.\.(\/|\\|$))+/, '');
+        const destPath = path.join(artifactsDir, safePath);
+        try {
+          await this.restClient.downloadArtifact(artifact, destPath);
+          downloaded.push(artifact);
+          logger.debug(`Downloaded artifact: ${artifact.path}`);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          failed.push({ path: artifact.path, error: msg });
+          logger.debug(`Failed to download artifact ${artifact.path}: ${msg}`);
+        }
+      }
+
+      return {
+        fetchStatus: failed.length === 0 ? 'success' : (downloaded.length === 0 ? 'failed' : 'success'),
+        count: downloaded.length,
+        filter: glob,
+        items: downloaded.map(a => ({
+          id: a.id,
+          jobId: a.job_id,
+          path: a.path,
+          file_size: a.file_size,
+          sha1sum: a.sha1sum,
+          mime_type: a.mime_type,
+        })),
+      };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.debug(`Failed to fetch artifacts: ${msg}`);
+      return { fetchStatus: 'failed', count: 0, filter: glob, error: msg };
+    }
+  }
+
   private buildManifest(
     org: string,
     pipeline: string,
     buildNumber: number,
     build: any,
     stepResults: StepResult[],
-    annotationResult: AnnotationResult
+    annotationResult: AnnotationResult,
+    artifactResult?: ArtifactResult
   ): Manifest {
     const allFetchesSucceeded = stepResults.every(s => s.status === 'success');
     const fetchErrors = stepResults.filter(s => s.status === 'failed');
 
     const manifest: Manifest = {
-      version: 2,
+      version: 3,
       buildRef: `${org}/${pipeline}/${buildNumber}`,
       url: `https://buildkite.com/${org}/${pipeline}/builds/${buildNumber}`,
       fetchedAt: new Date().toISOString(),
@@ -765,6 +866,14 @@ export class Snapshot extends BaseCommand {
         count: annotationResult.count,
         items: annotationResult.items,
       },
+      ...(artifactResult && artifactResult.fetchStatus !== 'skipped' && {
+        artifacts: {
+          fetchStatus: artifactResult.fetchStatus,
+          count: artifactResult.count,
+          filter: artifactResult.filter,
+          items: artifactResult.items,
+        },
+      }),
       steps: stepResults.map(result => ({
         // Our metadata
         id: result.id,
@@ -811,8 +920,8 @@ export class Snapshot extends BaseCommand {
     try {
       const content = await fs.readFile(manifestPath, 'utf-8');
       const manifest = JSON.parse(content) as Manifest;
-      // Validate it's a v2 manifest
-      if (manifest.version !== 2) {
+      // Accept v2 and v3 manifests (v3 adds optional artifacts section)
+      if (manifest.version !== 2 && manifest.version !== 3) {
         return null;
       }
       return manifest;

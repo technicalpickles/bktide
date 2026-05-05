@@ -260,10 +260,10 @@ describe('Snapshot Command', () => {
       const stats = await fs.stat(buildDir);
       expect(stats.isDirectory()).toBe(true);
 
-      // Verify manifest.json exists with v2 structure
+      // Verify manifest.json exists with v3 structure
       const manifestPath = path.join(buildDir, 'manifest.json');
       const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
-      expect(manifest.version).toBe(2);
+      expect(manifest.version).toBe(3);
       expect(manifest.buildRef).toBe('myorg/mypipeline/42');
       expect(manifest.fetchComplete).toBe(true);
       expect(manifest.steps).toHaveLength(2); // Only script jobs
@@ -410,7 +410,7 @@ describe('Snapshot Command', () => {
       expect(consoleSpy).toHaveBeenCalled();
       const output = consoleSpy.mock.calls[0][0];
       const parsed = JSON.parse(output);
-      expect(parsed.version).toBe(2);
+      expect(parsed.version).toBe(3);
       expect(parsed.buildRef).toBe('myorg/mypipeline/42');
     });
 

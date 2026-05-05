@@ -12,3 +12,5 @@ export * from './ShowPipeline.js';
 export * from './ShowLogs.js';
 export * from './SmartShow.js';
 export * from './Prime.js';
+export * from './ArtifactsList.js';
+export * from './ArtifactsDownload.js';

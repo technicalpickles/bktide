@@ -357,6 +357,63 @@ export const server = setupServer(
     });
   }),
 
+  // REST handler for artifact list (build-scoped)
+  http.get('https://api.buildkite.com/v2/organizations/:org/pipelines/:pipeline/builds/:buildNumber/artifacts', () => {
+    const testOverride = (globalThis as any).__testOverride_rest_artifacts;
+    if (testOverride !== undefined) {
+      return HttpResponse.json(testOverride);
+    }
+    return HttpResponse.json([
+      {
+        id: 'artifact-id-1',
+        job_id: 'job-id-1',
+        url: 'https://api.buildkite.com/v2/organizations/org/pipelines/pipeline/builds/123/jobs/job-id-1/artifacts/artifact-id-1',
+        download_url: 'https://api.buildkite.com/v2/organizations/org/pipelines/pipeline/builds/123/jobs/job-id-1/artifacts/artifact-id-1/download',
+        state: 'finished',
+        path: 'dist/build.patch',
+        dirname: 'dist',
+        filename: 'build.patch',
+        mime_type: 'text/x-diff',
+        file_size: 4096,
+        sha1sum: 'abc123def456',
+      },
+      {
+        id: 'artifact-id-2',
+        job_id: 'job-id-2',
+        url: 'https://api.buildkite.com/v2/organizations/org/pipelines/pipeline/builds/123/jobs/job-id-2/artifacts/artifact-id-2',
+        download_url: 'https://api.buildkite.com/v2/organizations/org/pipelines/pipeline/builds/123/jobs/job-id-2/artifacts/artifact-id-2/download',
+        state: 'finished',
+        path: 'reports/coverage.xml',
+        dirname: 'reports',
+        filename: 'coverage.xml',
+        mime_type: 'application/xml',
+        file_size: 131072,
+        sha1sum: 'def789abc012',
+      },
+    ]);
+  }),
+
+  // REST handler for artifact download (job-scoped, returns presigned URL)
+  // The presigned URL points to the mock content endpoint below
+  http.get('https://api.buildkite.com/v2/organizations/:org/pipelines/:pipeline/builds/:buildNumber/jobs/:jobId/artifacts/:artifactId/download', () => {
+    const testOverride = (globalThis as any).__testOverride_rest_artifact_download;
+    if (testOverride !== undefined) {
+      return HttpResponse.json(testOverride);
+    }
+    return HttpResponse.json({ url: 'https://api.buildkite.com/v2/_test/artifact-content' });
+  }),
+
+  // Mock presigned artifact content endpoint (not a real Buildkite endpoint)
+  http.get('https://api.buildkite.com/v2/_test/artifact-content', () => {
+    const testOverride = (globalThis as any).__testOverride_presigned_artifact;
+    if (testOverride !== undefined) {
+      return testOverride;
+    }
+    return new HttpResponse(Buffer.from('fake-artifact-binary-content'), {
+      headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': '30' },
+    });
+  }),
+
   // Catch-all REST handler
   http.get('https://api.buildkite.com/*', () => {
     return HttpResponse.json([]);

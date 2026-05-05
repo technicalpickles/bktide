@@ -1,9 +1,11 @@
 import fetch from 'node-fetch';
+import { mkdir as mkdirFs, writeFile as writeFileFs } from 'fs/promises';
+import { dirname } from 'path';
 import { CacheManager } from './CacheManager.js';
 import { createHash } from 'crypto';
 import { logger } from './logger.js';
 import { getProgressIcon } from '../ui/theme.js';
-import { JobLog } from '../types/buildkite.js';
+import { JobLog, BuildkiteArtifact } from '../types/buildkite.js';
 
 export interface BuildkiteRestClientOptions {
   baseUrl?: string;
@@ -412,6 +414,66 @@ export class BuildkiteRestClient {
   ): Promise<any> {
     const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}`;
     return this.get<any>(endpoint);
+  }
+
+  /**
+   * List all artifacts for a build (build-scoped, includes artifacts from all jobs)
+   */
+  public async listBuildArtifacts(
+    org: string,
+    pipeline: string,
+    buildNumber: number | string
+  ): Promise<BuildkiteArtifact[]> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/artifacts`;
+    if (this.debug) {
+      logger.debug(`Fetching artifacts for ${org}/${pipeline}/${buildNumber}`);
+    }
+    return this.get<BuildkiteArtifact[]>(endpoint);
+  }
+
+  /**
+   * Download an artifact to a local file path using the two-step presigned URL flow.
+   * Calls artifact.download_url to get a presigned URL (via 302 + JSON body),
+   * then fetches that URL and writes the binary to disk.
+   */
+  public async downloadArtifact(
+    artifact: BuildkiteArtifact,
+    destPath: string
+  ): Promise<{ path: string; size: number }> {
+    const apiRes = await fetch(artifact.download_url, {
+      headers: { 'Authorization': `Bearer ${this.token}` },
+      redirect: 'manual',
+    });
+
+    if (!apiRes.ok && apiRes.status !== 302) {
+      const text = await apiRes.text().catch(() => '');
+      throw new Error(`Failed to get artifact download URL (${apiRes.status})${text ? ': ' + text : ''}`);
+    }
+
+    let presignedUrl: string | null = null;
+    try {
+      const json = await apiRes.json() as { url?: string };
+      presignedUrl = json.url ?? null;
+    } catch {
+      // JSON body absent or unparseable — fall through to Location header
+    }
+    if (!presignedUrl) {
+      presignedUrl = apiRes.headers.get('location');
+    }
+    if (!presignedUrl) {
+      throw new Error(`Could not determine download URL for artifact ${artifact.id}`);
+    }
+
+    const fileRes = await fetch(presignedUrl);
+    if (!fileRes.ok) {
+      throw new Error(`Artifact download failed (${fileRes.status}): presigned URL request failed`);
+    }
+
+    const buffer = await fileRes.arrayBuffer();
+    await mkdirFs(dirname(destPath), { recursive: true });
+    await writeFileFs(destPath, Buffer.from(buffer));
+
+    return { path: destPath, size: buffer.byteLength };
   }
 
   /**
