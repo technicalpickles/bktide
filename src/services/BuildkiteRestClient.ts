@@ -5,7 +5,7 @@ import { CacheManager } from './CacheManager.js';
 import { createHash } from 'crypto';
 import { logger } from './logger.js';
 import { getProgressIcon } from '../ui/theme.js';
-import { JobLog, BuildkiteArtifact } from '../types/buildkite.js';
+import { JobLog, BuildkiteArtifact, AccessTokenInfo } from '../types/buildkite.js';
 
 export interface BuildkiteRestClientOptions {
   baseUrl?: string;
@@ -224,6 +224,14 @@ export class BuildkiteRestClient {
    */
   public getRateLimitInfo(): RateLimitInfo | null {
     return this.rateLimitInfo;
+  }
+
+  /**
+   * Fetch the current token's UUID and scope list.
+   * Uses /v2/access-token, which any valid Buildkite API token can call.
+   */
+  public async getAccessToken(): Promise<AccessTokenInfo> {
+    return this.get<AccessTokenInfo>('/access-token');
   }
 
   /**

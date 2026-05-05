@@ -268,3 +268,71 @@ describe('ArtifactsDownload Command', () => {
     expect(mockDownloadArtifact).not.toHaveBeenCalled();
   });
 });
+
+describe('Artifacts commands — scope-error path', () => {
+  let consoleCalls: string[];
+
+  beforeEach(() => {
+    consoleCalls = [];
+    vi.spyOn(logger, 'console').mockImplementation((msg: any) => {
+      consoleCalls.push(String(msg));
+    });
+    vi.spyOn(logger, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('ArtifactsList shows scope-specific suggestions on read_artifacts error', async () => {
+    server.use(
+      http.get(
+        'https://api.buildkite.com/v2/organizations/:org/pipelines/:pipeline/builds/:buildNumber/artifacts',
+        () => HttpResponse.json(
+          { message: "Your access token doesn't have the read_artifacts scope" },
+          { status: 403 }
+        )
+      )
+    );
+
+    const cmd = new ArtifactsList({ noCache: true });
+    const exitCode = await cmd.execute({
+      buildRef: 'org/pipeline/123',
+      token: 'test-token',
+    });
+
+    expect(exitCode).toBe(1);
+    const out = consoleCalls.join('\n');
+    expect(out).toContain('read_artifacts');
+    expect(out).toContain('Read Artifacts');
+    expect(out).toContain('bktide token --reset');
+    expect(out).toContain('https://buildkite.com/user/api-access-tokens');
+    // Misleading legacy hint must be gone on the scope path
+    expect(out).not.toContain('Check the build reference format');
+  });
+
+  it('ArtifactsDownload shows scope-specific suggestions on read_artifacts error', async () => {
+    server.use(
+      http.get(
+        'https://api.buildkite.com/v2/organizations/:org/pipelines/:pipeline/builds/:buildNumber/artifacts',
+        () => HttpResponse.json(
+          { message: "Your access token doesn't have the read_artifacts scope" },
+          { status: 403 }
+        )
+      )
+    );
+
+    const cmd = new ArtifactsDownload({ noCache: true });
+    const exitCode = await cmd.execute({
+      buildRef: 'org/pipeline/123',
+      token: 'test-token',
+      path: '*.patch',
+    });
+
+    expect(exitCode).toBe(1);
+    const out = consoleCalls.join('\n');
+    expect(out).toContain('read_artifacts');
+    expect(out).toContain('bktide token --reset');
+    expect(out).not.toContain('Check the build reference format');
+  });
+});

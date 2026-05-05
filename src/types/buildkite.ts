@@ -70,6 +70,15 @@ export interface BuildkiteArtifact {
 }
 
 /**
+ * Buildkite access-token introspection response
+ * (GET /v2/access-token returns the token's uuid and granted scopes)
+ */
+export interface AccessTokenInfo {
+  uuid: string;
+  scopes: string[];
+}
+
+/**
  * Job log response from Buildkite REST API
  */
 export interface JobLog {

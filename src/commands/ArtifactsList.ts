@@ -4,6 +4,7 @@ import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { getArtifactFormatter } from '../formatters/artifacts/index.js';
 import { formatError } from '../ui/theme.js';
 import { Progress } from '../ui/progress.js';
+import { parseScopeError, formatScopeError } from '../utils/scopeError.js';
 
 export interface ArtifactsListOptions extends BaseCommandOptions {
   buildRef: string;
@@ -31,13 +32,18 @@ export class ArtifactsList extends BaseCommand {
     } catch (error) {
       spinner.stop();
       if (error instanceof Error) {
-        const errorOutput = formatError(error.message, {
-          suggestions: [
-            'Check the build reference format (org/pipeline/number or URL)',
-            'Verify you have read_artifacts scope on your API token',
-          ],
-        });
-        logger.console(errorOutput);
+        const parsed = parseScopeError(error.message);
+        if (parsed.matched) {
+          const formatted = formatScopeError(parsed.scope);
+          logger.console(formatError(formatted.message, { suggestions: formatted.suggestions }));
+        } else {
+          logger.console(formatError(error.message, {
+            suggestions: [
+              'Check the build reference format (org/pipeline/number or URL)',
+              'Run `bktide token --check` to verify token scopes',
+            ],
+          }));
+        }
       } else {
         logger.error('Unknown error occurred');
       }
