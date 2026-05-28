@@ -422,11 +422,14 @@ program
   .option('--context <context>', 'Filter annotations by context (e.g., rspec, build-resources)')
   .action(createCommandHandler(ListAnnotations));
 
-// Add build command
-program
+// Add build command group
+const buildCmd = program
   .command('build')
+  .description('Build operations: show, create, rebuild');
+
+buildCmd
+  .command('show <build>', { isDefault: true })
   .description('Show details for a specific build')
-  .argument('<build>', 'Build reference (org/pipeline/number or @https://buildkite.com/org/pipeline/builds/number)')
   .option('--jobs', 'Show job summary and details')
   .option('--failed', 'Show only failed job details (implies --jobs)')
   .option('--all-jobs', 'Show all jobs without grouping limit')
@@ -437,7 +440,27 @@ program
   .option('-w, --watch', 'Watch build until completion')
   .option('--timeout <minutes>', 'Max wait time in minutes (default: 30)', '30')
   .option('--poll-interval <seconds>', 'Initial poll interval in seconds (default: 5)', '5')
-  .action(createCommandHandler(ShowBuild));
+  .action(async function(this: ExtendedCommand, buildArg: string) {
+    try {
+      const options = this.mergedOptions || this.opts();
+      options.buildArg = buildArg;
+      const cacheOptions = { enabled: options.cache !== false, ttl: options.cacheTtl, clear: options.clearCache };
+      const token = await BaseCommand.getToken(options);
+      const handler = new ShowBuild({
+        ...cacheOptions,
+        token,
+        debug: options.debug,
+        format: options.format,
+        quiet: options.quiet,
+        tips: options.tips,
+      });
+      process.exitCode = await handler.execute(options);
+    } catch (error) {
+      const debug = this.mergedOptions?.debug || this.opts().debug || false;
+      displayCLIError(error, debug);
+      process.exitCode = 1;
+    }
+  });
 
 // Add snapshot command
 program
