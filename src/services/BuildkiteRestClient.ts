@@ -202,6 +202,95 @@ export class BuildkiteRestClient {
   }
 
   /**
+   * Send a request to the Buildkite REST API. Used by write methods.
+   * Skips cache entirely. Updates rate-limit info on success and surfaces
+   * Buildkite's error payload verbatim on failure.
+   */
+  private async _request<T = any>(
+    method: 'POST' | 'PUT' | 'DELETE',
+    endpoint: string,
+    body?: unknown,
+  ): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const startTime = process.hrtime.bigint();
+
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('STARTING')} Starting REST API request: ${method} ${endpoint}`);
+      logger.debug(`${getProgressIcon('STARTING')} Request URL: ${url}`);
+      if (body !== undefined) {
+        logger.debug(`${getProgressIcon('STARTING')} Request body: ${JSON.stringify(body)}`);
+      }
+    }
+
+    const init: any = {
+      method,
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Content-Type': 'application/json',
+      },
+    };
+    if (body !== undefined) {
+      init.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(url, init);
+
+    // Rate limit headers are present on writes too
+    this.rateLimitInfo = {
+      remaining: parseInt(response.headers.get('RateLimit-Remaining') || '0'),
+      limit: parseInt(response.headers.get('RateLimit-Limit') || '0'),
+      reset: parseInt(response.headers.get('RateLimit-Reset') || '0'),
+    };
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `API request failed with status ${response.status}: ${errorText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.message) {
+          errorMessage = `API request failed: ${errorJson.message}`;
+        }
+        if (errorJson.errors && Array.isArray(errorJson.errors)) {
+          errorMessage += `\nErrors: ${errorJson.errors.map((e: any) => e.message).join(', ')}`;
+        }
+      } catch {
+        // body is not JSON, leave errorMessage as-is
+      }
+
+      const isAuthError = this.isAuthenticationError(response.status, errorMessage);
+      if (isAuthError && this.debug) {
+        logger.debug('Authentication error detected on write request');
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json() as T;
+
+    if (this.debug) {
+      const endTime = process.hrtime.bigint();
+      const duration = Number(endTime - startTime) / 1_000_000;
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} REST API request completed: ${method} ${endpoint} (${duration.toFixed(2)}ms)`);
+    }
+
+    return data;
+  }
+
+  /**
+   * POST to the Buildkite REST API. Caching is bypassed; writes always hit the network.
+   */
+  public async post<T = any>(endpoint: string, body: unknown): Promise<T> {
+    return this._request<T>('POST', endpoint, body);
+  }
+
+  /**
+   * PUT to the Buildkite REST API. Body is optional (e.g. rebuild has no body).
+   */
+  public async put<T = any>(endpoint: string, body?: unknown): Promise<T> {
+    return this._request<T>('PUT', endpoint, body);
+  }
+
+  /**
    * Check if an error is an authentication error
    */
   private isAuthenticationError(status: number, message: string): boolean {
