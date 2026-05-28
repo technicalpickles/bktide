@@ -7,6 +7,8 @@ import { getGitContext, getHeadCommit, getHeadCommitMessage } from '../utils/git
 import { parseGitRemoteUrl, generateRepoCandidates } from '../utils/repoUrl.js';
 import { SEMANTIC_COLORS } from '../ui/theme.js';
 import { BuildPoller } from '../services/BuildPoller.js';
+import { parseScopeError, formatScopeError } from '../utils/scopeError.js';
+import { formatError } from '../ui/theme.js';
 
 export interface CreateBuildOptions extends BaseCommandOptions {
   pipelineRef?: string;
@@ -103,8 +105,17 @@ export class CreateBuild extends BaseCommand {
 
       return 0;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(message);
+      if (error instanceof Error) {
+        const parsed = parseScopeError(error.message);
+        if (parsed.matched) {
+          const formatted = formatScopeError(parsed.scope);
+          logger.console(formatError(formatted.message, { suggestions: formatted.suggestions }));
+        } else {
+          logger.error(error.message);
+        }
+      } else {
+        logger.error(String(error));
+      }
       return 1;
     }
   }

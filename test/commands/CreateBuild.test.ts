@@ -250,3 +250,35 @@ describe('CreateBuild — --watch', () => {
     expect(exit).toBe(1);
   });
 });
+
+describe('CreateBuild — scope errors', () => {
+  let command: CreateBuild;
+  beforeEach(() => {
+    command = new CreateBuild({ token: 'test-token' });
+    vi.spyOn(logger, 'console').mockImplementation(() => {});
+    vi.spyOn(logger, 'error').mockImplementation(() => {});
+  });
+
+  it('surfaces the write_builds scope when the API rejects with that scope error', async () => {
+    const consoleSpy = vi.spyOn(logger, 'console');
+    const mockRest = {
+      createBuild: vi.fn().mockRejectedValue(
+        new Error("API request failed: Your access token doesn't have the write_builds scope")
+      ),
+    };
+    (command as any)._restClient = mockRest;
+    (command as any).initialized = true;
+
+    const exit = await command.execute({
+      pipelineRef: 'gusto/zp',
+      commit: 'abc',
+      branch: 'main',
+      token: 'test-token',
+    });
+
+    expect(exit).toBe(1);
+    const output = consoleSpy.mock.calls.map(c => String(c[0])).join('\n');
+    expect(output).toContain('write_builds');
+    expect(output).toContain('Write Builds');
+  });
+});

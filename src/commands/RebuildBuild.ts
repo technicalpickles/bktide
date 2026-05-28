@@ -3,6 +3,8 @@ import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { logger } from '../services/logger.js';
 import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { BuildPoller } from '../services/BuildPoller.js';
+import { parseScopeError, formatScopeError } from '../utils/scopeError.js';
+import { formatError } from '../ui/theme.js';
 
 export interface RebuildBuildOptions extends BaseCommandOptions {
   buildArg?: string;
@@ -53,7 +55,17 @@ export class RebuildBuild extends BaseCommand {
 
       return 0;
     } catch (error) {
-      logger.error(error instanceof Error ? error.message : String(error));
+      if (error instanceof Error) {
+        const parsed = parseScopeError(error.message);
+        if (parsed.matched) {
+          const formatted = formatScopeError(parsed.scope);
+          logger.console(formatError(formatted.message, { suggestions: formatted.suggestions }));
+        } else {
+          logger.error(error.message);
+        }
+      } else {
+        logger.error(String(error));
+      }
       return 1;
     }
   }
