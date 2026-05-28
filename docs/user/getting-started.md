@@ -103,6 +103,18 @@ bktide build your-org/your-pipeline/123 --jobs --failed
 bktide annotations your-org/your-pipeline/123
 ```
 
+### Create or Rebuild Builds
+```bash
+# Trigger a new build (auto-detects pipeline/commit/branch/message from git when omitted)
+bktide build create your-org/your-pipeline --commit HEAD --branch main
+
+# Rebuild an existing build with its original parameters
+bktide build rebuild your-org/your-pipeline/123
+
+# Watch the new build until it finishes
+bktide build create your-org/your-pipeline --watch
+```
+
 ## Output Formats
 
 bktide supports multiple output formats:
