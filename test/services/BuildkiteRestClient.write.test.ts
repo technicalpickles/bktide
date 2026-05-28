@@ -134,3 +134,41 @@ describe('createBuild', () => {
     expect(JSON.parse(init.body)).toEqual({ commit: 'abc', branch: 'main' });
   });
 });
+
+describe('rebuildBuild', () => {
+  let client: BuildkiteRestClient;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    client = new BuildkiteRestClient('test-token', { caching: false });
+  });
+
+  it('PUTs the rebuild endpoint with no body', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({
+      number: 4568,
+      state: 'scheduled',
+      web_url: 'https://buildkite.com/gusto/zp/builds/4568',
+      pipeline: { slug: 'zp' },
+    }));
+
+    const result = await client.rebuildBuild('gusto', 'zp', 4567);
+
+    expect(result.number).toBe(4568);
+    const [url, init] = mockFetch.mock.calls[0] as [string, any];
+    expect(String(url)).toContain('/organizations/gusto/pipelines/zp/builds/4567/rebuild');
+    expect(init.method).toBe('PUT');
+    expect(init.body).toBeUndefined();
+  });
+
+  it('throws on 404 with the API message', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      headers: { get: () => null },
+      text: async () => '{"message":"Not Found"}',
+      json: async () => ({ message: 'Not Found' }),
+    } as any);
+
+    await expect(client.rebuildBuild('o', 'p', 999)).rejects.toThrow(/Not Found/);
+  });
+});

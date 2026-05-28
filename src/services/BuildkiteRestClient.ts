@@ -386,6 +386,21 @@ export class BuildkiteRestClient {
   }
 
   /**
+   * Rebuild an existing build with the same parameters. Returns the new build.
+   */
+  public async rebuildBuild(
+    org: string,
+    pipeline: string,
+    buildNumber: number,
+  ): Promise<BuildkiteBuildResponse> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/rebuild`;
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('STARTING')} Rebuilding ${org}/${pipeline}/${buildNumber}`);
+    }
+    return this.put<BuildkiteBuildResponse>(endpoint);
+  }
+
+  /**
    * Get builds for a specific pipeline
    * @param org Organization slug
    * @param pipeline Pipeline slug
