@@ -6,21 +6,35 @@
 
 ## Overview
 
-Add two new top-level commands to bktide that write to the Buildkite API:
+Add two new subcommands under `bktide build` that write to the Buildkite API:
 
-- `bktide create [<org>/<pipeline>]` — start a new build. Auto-detects pipeline, commit, branch, and message from the local git checkout when omitted; flags override.
-- `bktide rebuild <build-ref>` — re-run an existing build with its original parameters. Hits `POST /builds/{n}/rebuild` straight.
+- `bktide build create [<org>/<pipeline>]` — start a new build. Auto-detects pipeline, commit, branch, and message from the local git checkout when omitted; flags override.
+- `bktide build rebuild <build-ref>` — re-run an existing build with its original parameters. Hits `PUT /builds/{n}/rebuild` straight.
 
-Both commands accept `--watch` to hand the newly-created build to the existing `BuildPoller` and stream job state changes until the build hits a terminal state.
+Both subcommands accept `--watch` to hand the newly-created build to the existing `BuildPoller` and stream job state changes until the build hits a terminal state.
+
+The existing `bktide build <ref>` show form continues to work unchanged via commander's default-subcommand support. An explicit `bktide build show <ref>` is also added for symmetry.
 
 ## Motivation
 
-bktide has no write capability today. The bean came up when retriggering a cancelled `hawaiian-ice` build required falling back to raw API calls. The original CLI is now strong at reading builds (`bktide build`, `bktide snapshot`, etc.); these two commands close the create-and-monitor loop without leaving the terminal.
+bktide has no write capability today. The bean came up when retriggering a cancelled `hawaiian-ice` build required falling back to raw API calls. The original CLI is now strong at reading builds (`bktide build`, `bktide snapshot`, etc.); these two subcommands close the create-and-monitor loop without leaving the terminal.
+
+## Command Surface Rationale
+
+The new verbs are nested under `bktide build` rather than added as top-level commands. Reasoning:
+
+- A top-level `bktide create` is semantically ambiguous (create what — a pipeline? an agent? a token?). Nested, the noun is in the path.
+- Both new verbs operate on builds, so they belong together. `bktide build --help` becomes the canonical place to discover build operations.
+- This matches the existing `bktide artifacts list / download` pattern.
+- Commander's `isDefault: true` subcommand support preserves the existing `bktide build <ref>` show shorthand without changes.
 
 ## CLI Surface
 
 ```
-bktide create [<org>/<pipeline>] [options]
+bktide build <ref>                          # existing show (default action), unchanged
+bktide build show <ref>                     # new: explicit form of show
+
+bktide build create [<org>/<pipeline>] [options]
   -c, --commit <sha>            Commit SHA (default: git HEAD)
   -b, --branch <branch>         Branch (default: current git branch)
   -m, --message <msg>           Build message (default: HEAD commit subject)
@@ -30,7 +44,7 @@ bktide create [<org>/<pipeline>] [options]
       --poll-interval <secs>    Watch poll interval (default: 5)
       --format <fmt>            plain | json | alfred (default: plain)
 
-bktide rebuild <build-ref> [options]
+bktide build rebuild <build-ref> [options]
   <build-ref>                   org/pipeline/number OR full Buildkite URL
   -w, --watch                   Watch new build until completion
       --timeout <minutes>       Watch timeout (default: 30)
@@ -40,7 +54,7 @@ bktide rebuild <build-ref> [options]
 
 ### Behavior
 
-- `<org>/<pipeline>` on `create` is optional. When omitted, auto-detect using the same path as `snapshot`:
+- `<org>/<pipeline>` on `build create` is optional. When omitted, auto-detect using the same path as `snapshot`:
   - `getGitContext()` for current branch + `origin` remote URL
   - `parseGitRemoteUrl()` + `generateRepoCandidates()` for URL variants
   - Query Buildkite for pipelines whose `repository` field matches a candidate
@@ -95,6 +109,34 @@ interface BuildkiteBuildResponse {
 
 The Buildkite REST shape allows more fields on the request (`meta_data`, `clean_checkout`, `pull_request_*`, `author`). We model only what v1 uses. Adding more later is additive. Existing client methods like `getBuild()` return `any`; we don't retro-type them here, but new write methods use the narrow `BuildkiteBuildResponse` type.
 
+### Restructure existing `bktide build` registration
+
+`src/index.ts` currently registers `bktide build <ref>` directly. Refactor to a command group:
+
+```js
+const buildCmd = program.command('build').description('Build operations');
+
+buildCmd
+  .command('show <ref>', { isDefault: true })
+  .description('Show details for a specific build')
+  // ...existing flags from current `bktide build`
+  .action(createCommandHandler(ShowBuild));
+
+buildCmd
+  .command('create [pipeline-ref]')
+  .description('Create a new build')
+  // ...flags
+  .action(createCommandHandler(CreateBuild));
+
+buildCmd
+  .command('rebuild <build-ref>')
+  .description('Rebuild an existing build with the same parameters')
+  // ...flags
+  .action(createCommandHandler(RebuildBuild));
+```
+
+`isDefault: true` on `show` makes `bktide build org/pipeline/123` route to `show` automatically when no subcommand is named. Existing user invocations and scripts continue to work without changes.
+
 ### New command: `CreateBuild`
 
 `src/commands/CreateBuild.ts`. Extends `BaseCommand`, `static requiresToken = true`.
@@ -143,11 +185,13 @@ Each throws with an actionable message on failure ("not a git repository", "no c
 
 ### Wiring in `src/index.ts`
 
-Two new `.command()` blocks following the existing patterns from `build` and `snapshot`. `create` accepts `[ref]` (optional), `rebuild` accepts `<build-ref>` (required).
+See "Restructure existing `bktide build` registration" above. The `build` top-level command becomes a group containing `show` (default), `create`, and `rebuild` subcommands.
+
+The completion-generation script (`bktide completions`) and any docs that enumerate commands need a pass to pick up the new subcommands. Shell completions are generated at runtime from commander metadata, so this should require no manual list edits.
 
 ## Data Flow
 
-### `bktide create`
+### `bktide build create`
 
 ```
 parse args
@@ -179,7 +223,7 @@ else
   → exit 0
 ```
 
-### `bktide rebuild`
+### `bktide build rebuild`
 
 ```
 parse <build-ref> via parseBuildRef
@@ -193,7 +237,7 @@ if --watch → same poller handoff
 
 ## Error Handling
 
-- **Not in a git repo, pipeline auto-detect requested** — `Not a git repository. Provide <org>/<pipeline> as an argument.`
+- **Not in a git repo, pipeline auto-detect requested** — `Not a git repository. Provide <org>/<pipeline> as an argument to 'bktide build create'.`
 - **Detached HEAD, branch auto-detect requested** — `Detached HEAD. Pass --branch or provide a ref explicitly.`
 - **Git context found but no Buildkite pipeline matches the remote** — print the parsed remote and candidates, exit 1.
 - **Multiple Buildkite pipelines match the remote** — print `org/slug` for each match and exit 1. User can re-run with explicit `<org>/<pipeline>`.
@@ -230,9 +274,9 @@ No new MSW recordings. Synthesize create/rebuild responses from the existing bui
 
 - `--meta-data` flag (Buildkite supports it; we don't expose it yet).
 - `--clean-checkout` flag.
-- Author / pull-request fields on `create`.
+- Author / pull-request fields on `build create`.
 - Confirmation prompts before creating builds. bktide is a power-user CLI; no other command prompts.
-- `--rebuild-with-overrides` semantics. If you need to change commit/branch/message, use `create`.
+- `--rebuild-with-overrides` semantics. If you need to change commit/branch/message, use `bktide build create`.
 
 ## Exit Codes
 
