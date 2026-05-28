@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CreateBuild } from '../../src/commands/CreateBuild.js';
 import { logger } from '../../src/services/logger.js';
 import * as gitContext from '../../src/utils/gitContext.js';
+import * as buildPollerModule from '../../src/services/BuildPoller.js';
 
 describe('CreateBuild — explicit pipeline', () => {
   let command: CreateBuild;
@@ -184,6 +185,68 @@ describe('CreateBuild — git auto-detect', () => {
     (command as any).initialized = true;
 
     const exit = await command.execute({ token: 'test-token' });
+    expect(exit).toBe(1);
+  });
+});
+
+describe('CreateBuild — --watch', () => {
+  let command: CreateBuild;
+  beforeEach(() => {
+    command = new CreateBuild({ token: 'test-token' });
+    vi.spyOn(logger, 'console').mockImplementation(() => {});
+    vi.spyOn(logger, 'error').mockImplementation(() => {});
+  });
+
+  it('hands the new build off to BuildPoller when --watch is set', async () => {
+    const mockRest = {
+      createBuild: vi.fn().mockResolvedValue({
+        number: 4567,
+        state: 'scheduled',
+        web_url: 'https://buildkite.com/gusto/zp/builds/4567',
+        pipeline: { slug: 'zp' },
+      }),
+    };
+    (command as any)._restClient = mockRest;
+    (command as any).initialized = true;
+
+    const watchMock = vi.fn().mockResolvedValue({ state: 'passed' });
+    vi.spyOn(buildPollerModule, 'BuildPoller').mockImplementation(() => ({
+      watch: watchMock,
+    } as any));
+
+    const exit = await command.execute({
+      pipelineRef: 'gusto/zp',
+      commit: 'abc', branch: 'main',
+      watch: true,
+      token: 'test-token',
+    });
+
+    expect(watchMock).toHaveBeenCalledWith({ org: 'gusto', pipeline: 'zp', buildNumber: 4567 });
+    expect(exit).toBe(0);
+  });
+
+  it('returns 1 when the watched build does not pass', async () => {
+    const mockRest = {
+      createBuild: vi.fn().mockResolvedValue({
+        number: 1, state: 'scheduled',
+        web_url: 'https://buildkite.com/o/p/builds/1',
+        pipeline: { slug: 'p' },
+      }),
+    };
+    (command as any)._restClient = mockRest;
+    (command as any).initialized = true;
+
+    vi.spyOn(buildPollerModule, 'BuildPoller').mockImplementation(() => ({
+      watch: vi.fn().mockResolvedValue({ state: 'failed' }),
+    } as any));
+
+    const exit = await command.execute({
+      pipelineRef: 'o/p',
+      commit: 'abc', branch: 'main',
+      watch: true,
+      token: 'test-token',
+    });
+
     expect(exit).toBe(1);
   });
 });

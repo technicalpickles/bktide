@@ -6,6 +6,7 @@ import { CreateBuildPayload } from '../services/BuildkiteRestClient.js';
 import { getGitContext, getHeadCommit, getHeadCommitMessage } from '../utils/gitContext.js';
 import { parseGitRemoteUrl, generateRepoCandidates } from '../utils/repoUrl.js';
 import { SEMANTIC_COLORS } from '../ui/theme.js';
+import { BuildPoller } from '../services/BuildPoller.js';
 
 export interface CreateBuildOptions extends BaseCommandOptions {
   pipelineRef?: string;
@@ -75,6 +76,30 @@ export class CreateBuild extends BaseCommand {
 
       const formatter = FormatterFactory.getFormatter(FormatterType.BUILD_CREATE, options.format || 'plain') as any;
       logger.console(formatter.formatBuild(build, { verb: 'created' }));
+
+      if (options.watch) {
+        const pollerOpts = {
+          ...(options.timeout ? { timeout: options.timeout * 60 * 1000 } : {}),
+          ...(options.pollInterval ? { initialInterval: options.pollInterval * 1000 } : {}),
+        };
+        const poller = new BuildPoller(this.restClient, {
+          onJobStateChange: (_change) => { /* TODO: stream display in follow-up */ },
+          onBuildComplete: (_build) => { /* final summary printed by formatter run elsewhere */ },
+          onError: (err, willRetry) => {
+            if (!willRetry) logger.error(err.message);
+          },
+          onTimeout: () => logger.error('Timed out waiting for build to complete.'),
+        }, pollerOpts);
+
+        try {
+          const watched = await poller.watch({ org, pipeline, buildNumber: build.number });
+          return watched.state?.toLowerCase() === 'passed' ? 0 : 1;
+        } catch (err) {
+          logger.error(`Watch failed: ${err instanceof Error ? err.message : err}`);
+          logger.error(`The build was created and is still running: ${build.web_url}`);
+          return 1;
+        }
+      }
 
       return 0;
     } catch (error) {
