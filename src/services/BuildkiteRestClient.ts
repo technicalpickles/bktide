@@ -7,6 +7,20 @@ import { logger } from './logger.js';
 import { getProgressIcon } from '../ui/theme.js';
 import { JobLog, BuildkiteArtifact, AccessTokenInfo } from '../types/buildkite.js';
 
+export interface CreateBuildPayload {
+  commit: string;
+  branch: string;
+  message?: string;
+  env?: Record<string, string>;
+}
+
+export interface BuildkiteBuildResponse {
+  number: number;
+  state: string;
+  web_url: string;
+  pipeline: { slug: string };
+}
+
 export interface BuildkiteRestClientOptions {
   baseUrl?: string;
   caching?: boolean;
@@ -353,6 +367,22 @@ export class BuildkiteRestClient {
     }
     
     return builds;
+  }
+
+  /**
+   * Create a new build in the given pipeline.
+   * Hits POST /v2/organizations/{org}/pipelines/{pipeline}/builds.
+   */
+  public async createBuild(
+    org: string,
+    pipeline: string,
+    payload: CreateBuildPayload,
+  ): Promise<BuildkiteBuildResponse> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds`;
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('STARTING')} Creating build in ${org}/${pipeline}`);
+    }
+    return this.post<BuildkiteBuildResponse>(endpoint, payload);
   }
 
   /**

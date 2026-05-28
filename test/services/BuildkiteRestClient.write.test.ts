@@ -89,3 +89,48 @@ describe('BuildkiteRestClient writes', () => {
     });
   });
 });
+
+describe('createBuild', () => {
+  let client: BuildkiteRestClient;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    client = new BuildkiteRestClient('test-token', { caching: false });
+  });
+
+  it('POSTs to the correct endpoint with the payload', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({
+      number: 4567,
+      state: 'scheduled',
+      web_url: 'https://buildkite.com/gusto/zp/builds/4567',
+      pipeline: { slug: 'zp' },
+    }));
+
+    const result = await client.createBuild('gusto', 'zp', {
+      commit: 'abc123',
+      branch: 'main',
+      message: 'hotfix',
+      env: { DEBUG: '1' },
+    });
+
+    expect(result.number).toBe(4567);
+    expect(result.web_url).toBe('https://buildkite.com/gusto/zp/builds/4567');
+
+    const [url, init] = mockFetch.mock.calls[0] as [string, any];
+    expect(String(url)).toContain('/organizations/gusto/pipelines/zp/builds');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({
+      commit: 'abc123',
+      branch: 'main',
+      message: 'hotfix',
+      env: { DEBUG: '1' },
+    });
+  });
+
+  it('omits message and env when not provided', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ number: 1, state: 'scheduled', web_url: '', pipeline: { slug: 'p' } }));
+    await client.createBuild('o', 'p', { commit: 'abc', branch: 'main' });
+    const [, init] = mockFetch.mock.calls[0] as [string, any];
+    expect(JSON.parse(init.body)).toEqual({ commit: 'abc', branch: 'main' });
+  });
+});
