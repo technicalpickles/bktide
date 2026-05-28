@@ -988,6 +988,58 @@ export class BuildkiteClient {
   }
 
   /**
+   * Find pipelines matching any of the given repo URL candidates.
+   * Like getPipelineBuildsForRepo but doesn't require an existing build —
+   * used by `bktide build create` to resolve which pipeline to trigger.
+   */
+  public async getPipelinesForRepo(
+    orgSlug: string,
+    repoCandidates: string[],
+  ): Promise<Array<{ id: string; name: string; slug: string; repository: { url: string } }>> {
+    const aliases = repoCandidates.map((url, i) => {
+      const alias = `repo${i}`;
+      return `${alias}: pipelines(first: 50, repository: { url: ${JSON.stringify(url)} }, archived: false) {
+        edges {
+          node {
+            id
+            name
+            slug
+            repository { url }
+          }
+        }
+      }`;
+    });
+
+    const query = `query GetPipelinesForRepo($orgSlug: ID!) {
+      organization(slug: $orgSlug) {
+        ${aliases.join('\n        ')}
+      }
+    }`;
+
+    const data = await this.query<any>(query, { orgSlug });
+
+    const seen = new Set<string>();
+    const results: Array<{ id: string; name: string; slug: string; repository: { url: string } }> = [];
+
+    for (let i = 0; i < repoCandidates.length; i++) {
+      const edges = data.organization?.[`repo${i}`]?.edges || [];
+      for (const edge of edges) {
+        const node = edge.node;
+        if (seen.has(node.id)) continue;
+        seen.add(node.id);
+        results.push({
+          id: node.id,
+          name: node.name,
+          slug: node.slug,
+          repository: node.repository,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
    * Get annotation timestamps for change detection (lightweight)
    */
   public async getAnnotationTimestamps(buildSlug: string): Promise<Array<{ uuid: string; updatedAt: string | null; createdAt: string }>> {
