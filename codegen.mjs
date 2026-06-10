@@ -1,6 +1,6 @@
 // ESM-compatible GraphQL codegen configuration
 import dotenv from 'dotenv';
-import { CredentialManager } from './src/services/CredentialManager.js';
+import { CredentialManager } from './dist/services/CredentialManager.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -22,7 +22,7 @@ async function getConfig() {
         },
       },
     },
-    documents: ['src/graphql/queries.ts'],
+    documents: ['src/graphql/queries.ts', 'src/graphql/fragments/**/*.ts'],
     generates: {
       './src/graphql/generated/sdk.ts': {
         plugins: [
@@ -45,7 +45,8 @@ async function getConfig() {
           scalars: {
             DateTime: 'string',
             ID: 'string'
-          }
+          },
+          skipDocumentsValidation: true,
         }
       }
     },
