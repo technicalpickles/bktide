@@ -15,6 +15,9 @@ export interface ViewerBuildsOptions extends BaseCommandOptions {
   pipeline?: string;
   branch?: string;
   state?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  mine?: boolean;
   tips?: boolean;
 }
 
@@ -28,6 +31,53 @@ export class ListBuilds extends BaseCommand {
     super(options);
   }
 
+  /**
+   * Map a GraphQL GetBuilds response (for a single pipeline) into the Build
+   * shape the formatters consume. Injects the known pipeline slug because the
+   * build node does not carry it. Returns { builds, hasNextPage }.
+   */
+  private mapPipelineBuilds(
+    result: any,
+    pipelineSlug: string
+  ): { builds: any[]; hasNextPage: boolean } {
+    const pipelineNode = result?.organization?.pipelines?.edges?.[0]?.node;
+    const slug = pipelineNode?.slug || pipelineSlug;
+    const edges = pipelineNode?.builds?.edges || [];
+    const hasNextPage = !!pipelineNode?.builds?.pageInfo?.hasNextPage;
+
+    const builds = edges
+      .map((e: any) => e?.node)
+      .filter(Boolean)
+      .map((n: any) => ({
+        number: n.number,
+        state: n.state,
+        branch: n.branch,
+        message: n.message,
+        commit: n.commit,
+        url: n.url,
+        source: n.source,
+        createdAt: n.createdAt,
+        startedAt: n.startedAt,
+        finishedAt: n.finishedAt,
+        createdBy: n.createdBy || null,
+        pipeline: { slug, name: pipelineNode?.name || slug },
+      }));
+
+    return { builds, hasNextPage };
+  }
+
+  /**
+   * Normalize a user-supplied date (YYYY-MM-DD or ISO 8601) to an RFC3339
+   * timestamp for the GraphQL DateTime scalar. Returns null if unparseable.
+   */
+  private normalizeDate(input: string): string | null {
+    const date = new Date(input);
+    if (isNaN(date.getTime())) {
+      return null;
+    }
+    return date.toISOString();
+  }
+
   async execute(options: ViewerBuildsOptions): Promise<number> {
     // Validate state option if provided
     if (options.state && !VALID_STATES.includes(options.state.toLowerCase())) {
@@ -37,6 +87,33 @@ export class ListBuilds extends BaseCommand {
         `Valid states: ${validList}\n`
       );
       return 1;
+    }
+
+    // A date range only applies to the pipeline-scoped path (not --mine).
+    if ((options.createdFrom || options.createdTo) && (!options.pipeline || options.mine)) {
+      process.stderr.write(
+        'Date filters (--created-from/--created-to) require a pipeline and ' +
+        'are not compatible with --mine.\n' +
+        'Specify a pipeline with --pipeline <slug> or as org/pipeline, without --mine.\n'
+      );
+      return 1;
+    }
+
+    // Validate and normalize date-range options, storing the result back.
+    for (const key of ['createdFrom', 'createdTo'] as const) {
+      const raw = options[key];
+      if (raw) {
+        const normalized = this.normalizeDate(raw);
+        if (!normalized) {
+          const flag = key === 'createdFrom' ? '--created-from' : '--created-to';
+          process.stderr.write(
+            `Invalid date '${raw}' for ${flag}\n` +
+            `Use YYYY-MM-DD or an ISO 8601 timestamp.\n`
+          );
+          return 1;
+        }
+        options[key] = normalized;
+      }
     }
 
     await this.ensureInitialized();
@@ -84,6 +161,7 @@ export class ListBuilds extends BaseCommand {
       // Initialize results array
       let allBuilds: Build[] = [];
       let accessErrors: string[] = [];
+      let pipelineHasMore = false;
       
       // Use progress bar for multiple orgs, spinner for single org
       const useProgressBar = orgs.length > 1 && format === 'plain';
@@ -119,14 +197,32 @@ export class ListBuilds extends BaseCommand {
             continue;
           }
           
-          const builds = await this.restClient.getBuilds(org, {
-            creator: userId,
-            pipeline: options.pipeline,
-            branch: options.branch,
-            state: options.state,
-            per_page: perPage,
-            page: page
-          });
+          const usePipelineScope = !!options.pipeline && !options.mine;
+
+          let builds: any[];
+          if (usePipelineScope) {
+            const result = await this.client.getBuilds(options.pipeline!, org, {
+              first: parseInt(perPage, 10),
+              createdAtFrom: options.createdFrom,
+              createdAtTo: options.createdTo,
+              state: options.state ? [options.state.toUpperCase()] : undefined,
+              branch: options.branch ? [options.branch] : undefined,
+            });
+            const mapped = this.mapPipelineBuilds(result, options.pipeline!);
+            builds = mapped.builds;
+            if (mapped.hasNextPage) {
+              pipelineHasMore = true;
+            }
+          } else {
+            builds = await this.restClient.getBuilds(org, {
+              creator: userId,
+              pipeline: options.pipeline,
+              branch: options.branch,
+              state: options.state,
+              per_page: perPage,
+              page: page
+            });
+          }
           
           if (options.debug) {
             logger.debug(`Received ${builds.length} builds from org ${org}`);
@@ -160,7 +256,9 @@ export class ListBuilds extends BaseCommand {
         orgSpecified: !!options.org,
         userName,
         userEmail,
-        userId
+        userId,
+        pipelineScoped: !!options.pipeline && !options.mine,
+        pipelineName: options.pipeline,
       };
       
       // Handle the case where we have no builds due to access issues
@@ -184,7 +282,18 @@ export class ListBuilds extends BaseCommand {
       
       // Limit to the requested number of builds
       allBuilds = allBuilds.slice(0, parseInt(perPage, 10));
-      
+
+      // A pipeline+date-range query returned more than one page. We fetch a
+      // single page (consistent with the rest of the CLI); nudge the user.
+      const dateRangeActive = !!options.createdFrom || !!options.createdTo;
+      if (dateRangeActive && pipelineHasMore && format === 'plain') {
+        const perPageNum = parseInt(perPage, 10);
+        process.stderr.write(
+          `Showing ${perPageNum} builds; more builds exist in this date range. ` +
+          `Use --count ${perPageNum * 2} to see more.\n`
+        );
+      }
+
       // Apply fuzzy filter if specified
       if (options.filter) {
         if (options.debug) {

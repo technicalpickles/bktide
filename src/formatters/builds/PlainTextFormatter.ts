@@ -32,9 +32,11 @@ export class PlainTextFormatter extends BaseFormatter {
     if (builds.length === 0) {
       let message = 'No builds found';
       const suggestions: string[] = [];
-      
-      // Add user info if provided
-      if (options?.userName) {
+
+      // Add pipeline or user info if provided
+      if (options?.pipelineScoped && options?.pipelineName) {
+        message = `No builds found for pipeline ${SEMANTIC_COLORS.identifier(options.pipelineName)}`;
+      } else if (options?.userName) {
         message = `No builds found for ${SEMANTIC_COLORS.label(options.userName)}`;
         if (options?.userEmail || options?.userId) {
           message += ` ${SEMANTIC_COLORS.dim(`(${options.userEmail || options.userId})`)}`;
@@ -131,8 +133,10 @@ export class PlainTextFormatter extends BaseFormatter {
   
   private formatNotFoundError(options?: BuildFormatterOptions): string {
     let message = 'No builds found';
-    
-    if (options?.userName) {
+
+    if (options?.pipelineScoped && options?.pipelineName) {
+      message = `No builds found for pipeline ${options.pipelineName}`;
+    } else if (options?.userName) {
       message = `No builds found for ${options.userName}`;
       if (options?.userEmail || options?.userId) {
         message += ` (${options.userEmail || options.userId})`;
