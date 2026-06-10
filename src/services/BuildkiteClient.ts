@@ -587,12 +587,22 @@ export class BuildkiteClient {
   public async getBuilds(
     pipelineSlug: string,
     organizationSlug: string,
-    first?: number
+    options: {
+      first?: number;
+      createdAtFrom?: string;
+      createdAtTo?: string;
+      state?: string[];
+      branch?: string[];
+    } = {}
   ): Promise<GetBuildsQuery> {
     const variables: GetBuildsQueryVariables = {
       pipelineSlug,
       organizationSlug,
-      first,
+      first: options.first,
+      createdAtFrom: options.createdAtFrom,
+      createdAtTo: options.createdAtTo,
+      state: options.state as any,
+      branch: options.branch,
     };
 
     if (this.debug) {
