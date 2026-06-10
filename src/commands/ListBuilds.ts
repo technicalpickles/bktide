@@ -15,6 +15,9 @@ export interface ViewerBuildsOptions extends BaseCommandOptions {
   pipeline?: string;
   branch?: string;
   state?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  mine?: boolean;
   tips?: boolean;
 }
 
@@ -28,6 +31,18 @@ export class ListBuilds extends BaseCommand {
     super(options);
   }
 
+  /**
+   * Normalize a user-supplied date (YYYY-MM-DD or ISO 8601) to an RFC3339
+   * timestamp for the GraphQL DateTime scalar. Returns null if unparseable.
+   */
+  private normalizeDate(input: string): string | null {
+    const date = new Date(input);
+    if (isNaN(date.getTime())) {
+      return null;
+    }
+    return date.toISOString();
+  }
+
   async execute(options: ViewerBuildsOptions): Promise<number> {
     // Validate state option if provided
     if (options.state && !VALID_STATES.includes(options.state.toLowerCase())) {
@@ -37,6 +52,32 @@ export class ListBuilds extends BaseCommand {
         `Valid states: ${validList}\n`
       );
       return 1;
+    }
+
+    // A date range only applies to the pipeline-scoped path.
+    if ((options.createdFrom || options.createdTo) && !options.pipeline) {
+      process.stderr.write(
+        'Date filters (--created-from/--created-to) require a pipeline.\n' +
+        'Specify one with --pipeline <slug> or as org/pipeline.\n'
+      );
+      return 1;
+    }
+
+    // Validate and normalize date-range options, storing the result back.
+    for (const key of ['createdFrom', 'createdTo'] as const) {
+      const raw = options[key];
+      if (raw) {
+        const normalized = this.normalizeDate(raw);
+        if (!normalized) {
+          const flag = key === 'createdFrom' ? '--created-from' : '--created-to';
+          process.stderr.write(
+            `Invalid date '${raw}' for ${flag}\n` +
+            `Use YYYY-MM-DD or an ISO 8601 timestamp.\n`
+          );
+          return 1;
+        }
+        options[key] = normalized;
+      }
     }
 
     await this.ensureInitialized();
