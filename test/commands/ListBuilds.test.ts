@@ -97,6 +97,20 @@ describe('ListBuilds Command', () => {
       const output = stderrOutput.join('');
       expect(output).toContain('--pipeline');
     });
+
+    it('rejects a date range combined with --mine with exit 1', async () => {
+      command['token'] = 'test-token';
+      const result = await command.execute({
+        org: 'gusto',
+        pipeline: 'audit-runner',
+        mine: true,
+        createdFrom: '2025-10-20',
+        token: 'test-token',
+      } as any);
+      expect(result).toBe(1);
+      const output = stderrOutput.join('');
+      expect(output).toContain('--mine');
+    });
   });
 
   describe('scoping', () => {

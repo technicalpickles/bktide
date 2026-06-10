@@ -89,11 +89,12 @@ export class ListBuilds extends BaseCommand {
       return 1;
     }
 
-    // A date range only applies to the pipeline-scoped path.
-    if ((options.createdFrom || options.createdTo) && !options.pipeline) {
+    // A date range only applies to the pipeline-scoped path (not --mine).
+    if ((options.createdFrom || options.createdTo) && (!options.pipeline || options.mine)) {
       process.stderr.write(
-        'Date filters (--created-from/--created-to) require a pipeline.\n' +
-        'Specify one with --pipeline <slug> or as org/pipeline.\n'
+        'Date filters (--created-from/--created-to) require a pipeline and ' +
+        'are not compatible with --mine.\n' +
+        'Specify a pipeline with --pipeline <slug> or as org/pipeline, without --mine.\n'
       );
       return 1;
     }
@@ -283,7 +284,7 @@ export class ListBuilds extends BaseCommand {
       // A pipeline+date-range query returned more than one page. We fetch a
       // single page (consistent with the rest of the CLI); nudge the user.
       const dateRangeActive = !!options.createdFrom || !!options.createdTo;
-      if (dateRangeActive && pipelineHasMore) {
+      if (dateRangeActive && pipelineHasMore && format === 'plain') {
         const perPageNum = parseInt(perPage, 10);
         process.stderr.write(
           `Showing ${perPageNum} builds; more builds exist in this date range. ` +
