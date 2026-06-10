@@ -256,7 +256,9 @@ export class ListBuilds extends BaseCommand {
         orgSpecified: !!options.org,
         userName,
         userEmail,
-        userId
+        userId,
+        pipelineScoped: !!options.pipeline && !options.mine,
+        pipelineName: options.pipeline,
       };
       
       // Handle the case where we have no builds due to access issues

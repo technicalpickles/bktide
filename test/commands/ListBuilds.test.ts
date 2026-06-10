@@ -197,5 +197,30 @@ describe('ListBuilds Command', () => {
       expect(out).toContain('audit-runner');
       expect(out).toContain('#1');
     });
+
+    it('empty pipeline result names the pipeline, not the user', async () => {
+      vi.spyOn(BuildkiteClient.prototype, 'getBuilds').mockResolvedValue(fakeBuildsResponse(0) as any);
+      const consoleSpy = vi.spyOn(logger, 'console').mockImplementation(() => {});
+      const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+      command['token'] = 'test-token';
+
+      await command.execute({ org: 'gusto', pipeline: 'audit-runner', token: 'test-token' } as any);
+
+      const out = consoleSpy.mock.calls.flat().join('') + stdoutSpy.mock.calls.flat().join('');
+      expect(out).not.toContain('No builds found for Me');
+      expect(out).toContain('audit-runner');
+    });
+
+    it('JSON output includes source and created_by', async () => {
+      vi.spyOn(BuildkiteClient.prototype, 'getBuilds').mockResolvedValue(fakeBuildsResponse(1) as any);
+      const consoleSpy = vi.spyOn(logger, 'console').mockImplementation(() => {});
+      command['token'] = 'test-token';
+
+      await command.execute({ org: 'gusto', pipeline: 'audit-runner', format: 'json', token: 'test-token' } as any);
+
+      const out = consoleSpy.mock.calls.flat().join('');
+      expect(out).toContain('"source"');
+      expect(out).toContain('"created_by"');
+    });
   });
 });
