@@ -7,7 +7,7 @@
 
 `bktide builds` is hardwired to list *the current user's* builds.
 `ListBuilds.execute()` always injects `creator: userId` into the request and
-calls the org-wide `getBuilds()` endpoint. The `--pipeline` flag only filters
+calls the org-wide REST `getBuilds()` endpoint. The `--pipeline` flag only filters
 within the current user's builds.
 
 This makes a common, legitimate read-only investigation impossible: "list the
@@ -19,9 +19,32 @@ by the current user. There is no way to discover a build by pipeline plus date.
 scheduled `audit-runner-restore-from-snapshot` pipeline created an orphaned RDS
 cluster around 2025-10-22. No bktide path could list that pipeline's builds.)
 
-The REST client already has `getPipelineBuilds()`, which hits the correct
-`/organizations/{org}/pipelines/{pipeline}/builds` endpoint with no `creator`
-param. But `ListBuilds` never calls it.
+## Approach: GraphQL
+
+Use Buildkite's GraphQL API for the pipeline-scoped path, not REST. Reasons:
+
+1. **Repo convention.** `CLAUDE.md` says to prefer GraphQL.
+2. **It is not user-scoped.** The `Pipeline.builds` connection lists all builds for
+   a pipeline regardless of creator.
+3. **Native date and state filtering.** `PipelineBuildsArgs` accepts `createdAtFrom`,
+   `createdAtTo`, `state: [BuildStates!]`, `branch: [String!]` (confirmed in the
+   generated schema). No client-side filtering needed.
+4. **Accurate truncation signal.** The connection returns `pageInfo.hasNextPage`,
+   so we know precisely whether more builds exist, instead of guessing from a full
+   page.
+5. **Richer provenance.** `Build.createdBy` exposes the trigger source (a user, a
+   bot, or a scheduled trigger), which is exactly what the AIDEV-583
+   investigation needed and what the `creator` REST filter was hiding.
+
+The codebase already has most of this: a GraphQL `GET_BUILDS` query
+(`src/graphql/queries.ts`) and a `BuildkiteClient.getBuilds(pipelineSlug,
+organizationSlug, first)` method. Neither is wired into the `builds` command
+(which reaches for the REST client instead), and the query is missing the date,
+state, branch, and `createdBy` selections. The GraphQL `getBuilds` has no command
+callers today, so its signature can change freely.
+
+The creator-scoped default path (no pipeline given) stays on the existing REST
+`getBuilds` with `creator: userId`. We are not rewriting that.
 
 ## Goal
 
@@ -33,84 +56,102 @@ default for callers who don't specify a pipeline.
 
 | Invocation | Result |
 |---|---|
-| `bktide builds` (no pipeline) | **Unchanged.** Current user's builds across their orgs |
-| `bktide builds gusto/audit-runner-restore-from-snapshot` | **New.** ALL builds for that pipeline, any creator |
+| `bktide builds` (no pipeline) | **Unchanged.** Current user's builds across their orgs (REST, creator-scoped) |
+| `bktide builds gusto/audit-runner-restore-from-snapshot` | **New.** ALL builds for that pipeline, any creator (GraphQL) |
 | `... --created-from 2025-10-20 --created-to 2025-10-23` | **New.** Same, filtered to the date window |
-| `bktide builds gusto/foo --mine` | Pipeline builds scoped back to the current user (escape hatch) |
+| `bktide builds gusto/foo --mine` | Pipeline builds scoped back to the current user (REST creator path, escape hatch) |
 
 ### Routing rule
 
 In `ListBuilds.execute()`:
 
 - A pipeline is **resolved** (via the `[reference]` argument or `--pipeline`) AND
-  `--mine` is NOT set: route to `getPipelineBuilds(org, pipeline, {...})` with no
-  `creator` param.
-- Otherwise: today's `getBuilds(org, { creator: userId, ... })`.
+  `--mine` is NOT set: route to the GraphQL `BuildkiteClient.getBuilds()` with no
+  creator concept; map the returned nodes to the formatter's Build shape.
+- Otherwise: today's REST `getBuilds(org, { creator: userId, ... })`.
 
 When a pipeline is given without an org, the existing org-discovery loop still
-runs; each org's pipeline endpoint is queried (slugs not present in an org return
-empty or 404 and are skipped, same as today's per-org error tolerance).
+runs; each org's GraphQL query is attempted (orgs without that pipeline yield no
+edges and are skipped, same as today's per-org error tolerance).
 
 ### Date input
 
 New options `--created-from <date>` and `--created-to <date>`.
 
 - Accept `YYYY-MM-DD` or full ISO 8601.
-- Normalize to RFC3339 before sending (Buildkite's API expects RFC3339), passed
-  through as `created_from` and `created_to` query params.
+- Normalize to RFC3339 before sending (GraphQL `DateTime` expects RFC3339), passed
+  as the `createdAtFrom` and `createdAtTo` query variables.
 - Unparseable input: exit 1 with an actionable message, consistent with the
   existing `--state` validation in `ListBuilds`.
 
-Date filtering applies in both scoping modes (the REST `builds` and
-`pipelines/{slug}/builds` endpoints both accept `created_from` and `created_to`).
+Date filtering applies only in the pipeline-scoped (GraphQL) path. In the
+creator-scoped REST path it is out of scope for this change (the default "my
+builds" view is small and date-filtering it adds no value for the investigation
+use case). If `--created-from`/`--created-to` are passed without a pipeline, exit
+1 with a message directing the user to specify a pipeline.
+
+### State filtering
+
+The CLI `--state` value is lowercase (`passed`, `failing`, `not_run`, etc.). The
+GraphQL `BuildStates` enum is the uppercase form (`PASSED`, `FAILING`,
+`NOT_RUN`). The pipeline-scoped path maps the validated lowercase value to its
+uppercase enum (`value.toUpperCase()`) and passes it as a single-element
+`[BuildStates!]` array.
 
 ### Pagination
 
-Follows the established codebase convention: single page per `--count`, manual
-`--page`. No auto-pagination (the unused `parseLinkHeader` in
-`src/utils/pagination.ts` stays as-is).
+Single page per `--count` (mapped to GraphQL `first`), consistent with the rest
+of the CLI. No auto-pagination.
 
-To close the silent-truncation trap for the date-window use case: after fetch, if
-a date range is active AND the returned page is full (`length === per_page`),
-emit a `reporter.warning(...)` that more builds may exist in the window and
-suggest a higher `--count`.
+Truncation signal uses the GraphQL connection's `pageInfo.hasNextPage`: when a
+date range is active and `hasNextPage` is true, emit a `reporter.warn(...)` that
+more builds exist in the window and suggest a higher `--count`.
 
 ## Changes
 
 All in `repos/bktide`.
 
-1. **`src/index.ts`**: add `--created-from <date>`, `--created-to <date>`,
-   `--mine` to the `builds` command. Update its description (drop "for the current
-   user" to reflect the dual behavior).
-2. **`src/services/BuildkiteRestClient.ts`**: add `created_from?` and
-   `created_to?` to the param type of both `getBuilds` and `getPipelineBuilds`.
-   The private `get()` already forwards arbitrary params, so this is type surface
-   only.
-3. **`src/commands/ListBuilds.ts`**: date validation and normalization; branch
-   between pipeline-scoped and creator-scoped fetch; thread date params; the
-   full-page-plus-date-range truncation warning.
-4. **`src/formatters/builds/`**: adjust only the empty-state message so it does
-   not say "No builds found for `<userName>`" when in pipeline-scoped mode.
+1. **`src/graphql/queries.ts`**: extend `GET_BUILDS` with `$createdAtFrom`,
+   `$createdAtTo`, `$state`, `$branch` variables passed to `builds(...)`, add a
+   `createdBy` selection (trigger source), and select `pageInfo.hasNextPage`.
+   Regenerate types with `npm run codegen` (introspects the live Buildkite schema;
+   needs a token and network, run unsandboxed).
+2. **`src/services/BuildkiteClient.ts`**: change `getBuilds(pipelineSlug,
+   organizationSlug, first?)` to accept an options object
+   (`{ first?, createdAtFrom?, createdAtTo?, state?, branch? }`).
+3. **`src/commands/ListBuilds.ts`**: add the three CLI options to the options
+   interface; date validation and normalization; the "date range without
+   pipeline" guard; branch between the GraphQL pipeline-scoped path and the REST
+   creator-scoped path; map GraphQL nodes to the Build shape (inject the known
+   pipeline slug); the `hasNextPage` truncation warning.
+4. **`src/index.ts`**: register `--created-from`, `--created-to`, `--mine`; update
+   the command description.
+5. **`src/formatters/builds/`**: pipeline-aware empty-state message; surface
+   `created_by` in the JSON formatter so programmatic consumers get the trigger
+   source.
 
 ## Testing
 
-bktide uses Vitest plus MSW pattern-based mocking. Add cases:
+bktide uses Vitest plus MSW pattern-based mocking; command tests spy on
+`BuildkiteClient.prototype` / `BuildkiteRestClient.prototype`. Add cases:
 
-- pipeline reference: request hits the `pipelines/{slug}/builds` endpoint with no
-  `creator` param
-- `--created-from` and `--created-to`: `created_from` and `created_to` present in
-  the request
-- full page returned plus date range active: truncation warning emitted
-- `--mine` with a pipeline: falls back to creator-scoped (`getBuilds` with
-  `creator`)
+- pipeline reference: routes to the GraphQL `BuildkiteClient.getBuilds`, REST
+  `getBuilds` not called
+- `--created-from` / `--created-to`: normalized RFC3339 values reach
+  `createdAtFrom` / `createdAtTo`
+- date range with `hasNextPage: true`: truncation warning emitted
+- `--mine` with a pipeline: falls back to REST creator-scoped path
+- `--created-from` without a pipeline: exit 1 with guidance
 - unparseable date: exit 1
-- no pipeline (existing behavior): unchanged, still creator-scoped
+- no pipeline (existing behavior): unchanged, still REST creator-scoped
+- GraphQL node mapping: nodes render in the table (pipeline slug injected, state,
+  branch, number)
 
 ## Out of scope (YAGNI)
 
-- Auto-pagination across pages (parser stays dead for now; can be a clean
-  follow-up since the infra exists).
-- `finished_from` and `finished_to` filters.
+- Auto-pagination across pages (single page only; `hasNextPage` just warns).
+- Date filtering on the creator-scoped (no-pipeline) REST path.
+- `finished` (finishedAtFrom/To) and `metaData` filters.
 - The buildkite-plugin hook allowlist and the Buildkite MCP server registration
   (the other two options in bean gt-lhji). This design covers the "improve
   bktide" path only.
