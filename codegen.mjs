@@ -46,6 +46,13 @@ async function getConfig() {
             DateTime: 'string',
             ID: 'string'
           },
+          // Several queries select `createdBy` across the BuildCreator union
+          // (User | UnregisteredUser), whose `name`/`email` differ in nullability
+          // (String! vs String). graphql's OverlappingFieldsCanBeMerged rejects
+          // that even though the selections are inside distinct inline fragments.
+          // Validation is disabled so codegen can run; the tradeoff is that a
+          // genuinely malformed query now fails against the API at runtime
+          // rather than here at generation time.
           skipDocumentsValidation: true,
         }
       }
