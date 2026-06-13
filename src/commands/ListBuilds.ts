@@ -40,7 +40,7 @@ export class ListBuilds extends BaseCommand {
     result: any,
     pipelineSlug: string
   ): { builds: any[]; hasNextPage: boolean } {
-    const pipelineNode = result?.organization?.pipelines?.edges?.[0]?.node;
+    const pipelineNode = result?.pipeline;
     const slug = pipelineNode?.slug || pipelineSlug;
     const edges = pipelineNode?.builds?.edges || [];
     const hasNextPage = !!pipelineNode?.builds?.pageInfo?.hasNextPage;

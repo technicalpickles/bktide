@@ -578,7 +578,9 @@ export class BuildkiteClient {
   }
 
   /**
-   * Get builds for a pipeline with type safety
+   * Get builds for a pipeline with type safety. Resolves the pipeline by its
+   * exact "org/slug" via the top-level pipeline(slug:) field, so a fuzzy
+   * substring can no longer match a sibling pipeline.
    * @param pipelineSlug The pipeline slug
    * @param organizationSlug The organization slug
    * @param first Number of builds to retrieve
@@ -595,9 +597,10 @@ export class BuildkiteClient {
       branch?: string[];
     } = {}
   ): Promise<GetBuildsQuery> {
+    // The top-level pipeline(slug:) field takes a single combined "org/slug".
+    const combinedSlug = `${organizationSlug}/${pipelineSlug}`;
     const variables: GetBuildsQueryVariables = {
-      pipelineSlug,
-      organizationSlug,
+      pipelineSlug: combinedSlug,
       first: options.first,
       createdAtFrom: options.createdAtFrom,
       createdAtTo: options.createdAtTo,
