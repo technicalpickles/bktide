@@ -22,18 +22,10 @@ function fakeBuildsResponse(count: number, hasNextPage = false) {
     },
   }));
   return {
-    organization: {
-      pipelines: {
-        edges: [
-          {
-            node: {
-              slug: 'audit-runner',
-              name: 'audit-runner',
-              builds: { edges: nodes, pageInfo: { hasNextPage, endCursor: null } },
-            },
-          },
-        ],
-      },
+    pipeline: {
+      slug: 'audit-runner',
+      name: 'audit-runner',
+      builds: { edges: nodes, pageInfo: { hasNextPage, endCursor: null } },
     },
   };
 }
