@@ -85,55 +85,48 @@ export const GET_PIPELINE = gql`
 
 export const GET_BUILDS = gql`
   query GetBuilds(
-    $pipelineSlug: String!
-    $organizationSlug: ID!
+    $pipelineSlug: ID!
     $first: Int
     $createdAtFrom: DateTime
     $createdAtTo: DateTime
     $state: [BuildStates!]
     $branch: [String!]
   ) {
-    organization(slug: $organizationSlug) {
-      pipelines(first: 1, search: $pipelineSlug) {
+    pipeline(slug: $pipelineSlug) {
+      slug
+      name
+      builds(
+        first: $first
+        createdAtFrom: $createdAtFrom
+        createdAtTo: $createdAtTo
+        state: $state
+        branch: $branch
+      ) {
         edges {
           node {
-            slug
-            name
-            builds(
-              first: $first
-              createdAtFrom: $createdAtFrom
-              createdAtTo: $createdAtTo
-              state: $state
-              branch: $branch
-            ) {
-              edges {
-                node {
-                  id
-                  number
-                  url
-                  state
-                  message
-                  commit
-                  branch
-                  source {
-                    name
-                  }
-                  createdAt
-                  startedAt
-                  finishedAt
-                  createdBy {
-                    __typename
-                    ... on User { name email }
-                    ... on UnregisteredUser { name email }
-                  }
-                }
-              }
-              pageInfo {
-                hasNextPage
-                endCursor
-              }
+            id
+            number
+            url
+            state
+            message
+            commit
+            branch
+            source {
+              name
+            }
+            createdAt
+            startedAt
+            finishedAt
+            createdBy {
+              __typename
+              ... on User { name email }
+              ... on UnregisteredUser { name email }
             }
           }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
         }
       }
     }

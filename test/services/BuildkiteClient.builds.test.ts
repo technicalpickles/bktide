@@ -10,7 +10,7 @@ describe('BuildkiteClient.getBuilds (GraphQL)', () => {
     const client = new BuildkiteClient('test-token', { caching: false });
     const requestSpy = vi
       .spyOn(client as any, 'request')
-      .mockResolvedValue({ organization: { pipelines: { edges: [] } } });
+      .mockResolvedValue({ pipeline: { builds: { edges: [] } } });
 
     await client.getBuilds('audit-runner', 'gusto', {
       first: 50,
@@ -23,8 +23,7 @@ describe('BuildkiteClient.getBuilds (GraphQL)', () => {
     expect(requestSpy).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
-        pipelineSlug: 'audit-runner',
-        organizationSlug: 'gusto',
+        pipelineSlug: 'gusto/audit-runner',
         first: 50,
         createdAtFrom: '2025-10-20T00:00:00.000Z',
         createdAtTo: '2025-10-23T00:00:00.000Z',
