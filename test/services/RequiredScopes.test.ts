@@ -15,7 +15,13 @@ describe('RequiredScopes', () => {
       'read_builds',
       'read_organizations',
       'read_pipelines',
+      'write_builds',
     ]);
+  });
+
+  it('marks write scopes as optional so read-only tokens still validate', () => {
+    expect(REQUIRED_SCOPES.write_builds.optional).toBe(true);
+    expect(REQUIRED_SCOPES.read_builds).not.toHaveProperty('optional');
   });
 
   it('maps each scope to a human-readable Buildkite UI label', () => {
