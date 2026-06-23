@@ -7,6 +7,11 @@ function isMachine(format?: string): boolean {
 }
 
 function isInteractive(): boolean {
+  // Check for forced interactive mode first (for testing)
+  if (process.env.BKTIDE_FORCE_INTERACTIVE === '1') {
+    return true;
+  }
+
   // Only show decorative messages when stdout is a TTY (not piped/redirected)
   return Boolean(process.stdout.isTTY);
 }

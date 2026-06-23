@@ -6,6 +6,7 @@ import { BuildkiteRestClient } from './BuildkiteRestClient.js';
 import { TokenValidationStatus, OrganizationValidationStatus } from '../types/credentials.js';
 import { isRunningInAlfred } from '../utils/alfred.js';
 import { Progress } from '../ui/progress.js';
+import { REQUIRED_SCOPES } from './RequiredScopes.js';
 
 const SERVICE_NAME = 'bktide';
 const ACCOUNT_KEY = 'default';
@@ -150,11 +151,27 @@ export class CredentialManager {
         };
       }
 
+      // Fetch token scopes once. /access-token works for any valid Buildkite
+      // token, so a failure here means the token was revoked between the
+      // GraphQL call above and now. Treat as unknown rather than fatal.
+      let scopes: { granted: string[]; missing: string[] } | undefined;
+      try {
+        const tokenInfo = await restClient.getAccessToken();
+        const required = (Object.keys(REQUIRED_SCOPES) as Array<keyof typeof REQUIRED_SCOPES>)
+          .filter(s => !(REQUIRED_SCOPES[s] as { optional?: boolean }).optional);
+        scopes = {
+          granted: tokenInfo.scopes,
+          missing: required.filter(s => !tokenInfo.scopes.includes(s)),
+        };
+      } catch (error) {
+        logger.debug('Failed to fetch token scopes via /access-token', error);
+      }
+
       const organizations: Record<string, OrganizationValidationStatus> = {};
-      let allValid = true;
+      let allValid = !scopes || scopes.missing.length === 0;
 
       // Determine if we should show progress
-      const showProgress = options?.showProgress !== false && 
+      const showProgress = options?.showProgress !== false &&
                           !isRunningInAlfred() && 
                           orgSlugs.length > 0;
       
@@ -224,7 +241,8 @@ export class CredentialManager {
       return {
         valid: allValid,
         canListOrganizations: true,
-        organizations
+        organizations,
+        ...(scopes ? { scopes } : {}),
       };
     } catch (error) {
       logger.debug('Token validation failed', error);

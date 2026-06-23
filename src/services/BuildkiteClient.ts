@@ -1,18 +1,21 @@
 import { GraphQLClient } from 'graphql-request';
 import { CacheManager } from './CacheManager.js';
 import { getProgressIcon } from '../ui/theme.js';
+import { AuthenticationError } from '../errors/index.js';
 // Import the queries - we'll use them for both string queries and typed SDK
-import { 
-  GET_VIEWER, 
-  GET_ORGANIZATIONS, 
+import {
+  GET_VIEWER,
+  GET_ORGANIZATIONS,
   GET_PIPELINES,
   GET_PIPELINE,
-  GET_BUILDS, 
+  GET_BUILDS,
   GET_VIEWER_BUILDS,
   GET_BUILD_ANNOTATIONS,
   GET_BUILD_SUMMARY,
   GET_BUILD_FULL,
-  GET_BUILD_JOBS_PAGE
+  GET_BUILD_JOBS_PAGE,
+  GET_BUILD_ANNOTATION_TIMESTAMPS,
+  GET_BUILD_ANNOTATIONS_FULL
 } from '../graphql/queries.js';
 // Import generated types
 import { 
@@ -93,7 +96,10 @@ export class BuildkiteClient {
       }
       this.cacheManager = new CacheManager(options?.cacheTTLs, this.debug);
       // Initialize cache and set token hash (async, but we don't wait)
-      this.initCache();
+      this.initCache().catch((err) => {
+        logger.debug('Cache initialization failed, continuing without cache:', err);
+        this.cacheManager = null;
+      });
     } else {
       if (this.debug) {
         logger.debug('BuildkiteClient constructor - caching disabled');
@@ -162,13 +168,13 @@ export class BuildkiteClient {
       if (isAuthError && this.debug) {
         logger.debug('Authentication error detected, not caching result');
       }
-      
+
       if (this.debug) {
         logger.error(error as any, 'Error in GraphQL query');
         // Log raw error information
-        logger.debug('Raw error object:', { 
-          error, 
-          type: typeof error, 
+        logger.debug('Raw error object:', {
+          error,
+          type: typeof error,
           constructor: (error as any)?.constructor?.name,
           keys: error && typeof error === 'object' ? Object.keys(error as any) : undefined
         });
@@ -184,6 +190,12 @@ export class BuildkiteClient {
           });
         }
       }
+
+      // Convert authentication errors to user-friendly AuthenticationError
+      if (isAuthError) {
+        throw AuthenticationError.fromGraphQLError(error as Error);
+      }
+
       throw error;
     }
   }
@@ -195,29 +207,44 @@ export class BuildkiteClient {
     // Check for common authentication error patterns
     if (error.response?.errors) {
       const errors = error.response.errors;
-      return errors.some((err: any) => 
-        err.message?.includes('unauthorized') || 
-        err.message?.includes('authentication') || 
+      return errors.some((err: any) =>
+        err.message?.includes('unauthorized') ||
+        err.message?.includes('authentication') ||
         err.message?.includes('permission') ||
         err.message?.includes('invalid token')
       );
     }
-    
+
     // Check for HTTP status codes that indicate auth issues
     if (error.response?.status) {
       const status = error.response.status;
       return status === 401 || status === 403;
     }
-    
+
     // Check error message directly
     if (error.message) {
-      return error.message.includes('unauthorized') || 
-             error.message.includes('authentication') || 
+      return error.message.includes('unauthorized') ||
+             error.message.includes('authentication') ||
              error.message.includes('permission') ||
              error.message.includes('invalid token');
     }
-    
+
     return false;
+  }
+
+  /**
+   * Execute a GraphQL request with authentication error handling.
+   * Wraps this.client.request() to convert auth errors to AuthenticationError.
+   */
+  private async request<T>(query: string, variables?: Record<string, any>): Promise<T> {
+    try {
+      return await this.client.request<T>(query, variables);
+    } catch (error) {
+      if (this.isAuthenticationError(error)) {
+        throw AuthenticationError.fromGraphQLError(error as Error);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -236,8 +263,8 @@ export class BuildkiteClient {
       if (this.debug) {
         logger.debug(`${getProgressIcon('STARTING')} Starting GraphQL mutation: ${operationName}`);
       }
-      
-      const result = await this.client.request<T>(mutation, variables);
+
+      const result = await this.request<T>(mutation, variables);
       
       // Invalidate relevant caches after mutations
       if (this.cacheManager) {
@@ -386,7 +413,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<GetViewerQuery>(GET_VIEWER.toString());
+    const result = await this.request<GetViewerQuery>(GET_VIEWER.toString());
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -423,7 +450,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<GetOrganizationsQuery>(GET_ORGANIZATIONS.toString());
+    const result = await this.request<GetOrganizationsQuery>(GET_ORGANIZATIONS.toString());
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -495,7 +522,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<GetPipelinesQuery>(GET_PIPELINES.toString(), variables);
+    const result = await this.request<GetPipelinesQuery>(GET_PIPELINES.toString(), variables);
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -513,6 +540,7 @@ export class BuildkiteClient {
 
   /**
    * Get a single pipeline by organization and pipeline slug
+   * Prefers exact slug match over partial/fuzzy matches
    */
   public async getPipeline(
     orgSlug: string,
@@ -528,16 +556,31 @@ export class BuildkiteClient {
     }
 
     const data = await this.query<any>(GET_PIPELINE.toString(), variables);
-    
+
+    const pipelines = data.organization?.pipelines?.edges || [];
+
     if (this.debug) {
-      logger.debug('Pipeline data:', data);
+      logger.debug('Pipeline search results:', {
+        count: pipelines.length,
+        slugs: pipelines.map((e: any) => e.node?.slug),
+      });
     }
 
-    return data.organization?.pipelines?.edges?.[0]?.node;
+    // Prefer exact slug match over partial match
+    const exactMatch = pipelines.find((edge: any) => edge.node?.slug === pipelineSlug);
+    const result = exactMatch?.node || pipelines[0]?.node;
+
+    if (this.debug && exactMatch) {
+      logger.debug('Found exact slug match:', exactMatch.node?.slug);
+    }
+
+    return result;
   }
 
   /**
-   * Get builds for a pipeline with type safety
+   * Get builds for a pipeline with type safety. Resolves the pipeline by its
+   * exact "org/slug" via the top-level pipeline(slug:) field, so a fuzzy
+   * substring can no longer match a sibling pipeline.
    * @param pipelineSlug The pipeline slug
    * @param organizationSlug The organization slug
    * @param first Number of builds to retrieve
@@ -546,12 +589,23 @@ export class BuildkiteClient {
   public async getBuilds(
     pipelineSlug: string,
     organizationSlug: string,
-    first?: number
+    options: {
+      first?: number;
+      createdAtFrom?: string;
+      createdAtTo?: string;
+      state?: string[];
+      branch?: string[];
+    } = {}
   ): Promise<GetBuildsQuery> {
+    // The top-level pipeline(slug:) field takes a single combined "org/slug".
+    const combinedSlug = `${organizationSlug}/${pipelineSlug}`;
     const variables: GetBuildsQueryVariables = {
-      pipelineSlug,
-      organizationSlug,
-      first,
+      pipelineSlug: combinedSlug,
+      first: options.first,
+      createdAtFrom: options.createdAtFrom,
+      createdAtTo: options.createdAtTo,
+      state: options.state as any,
+      branch: options.branch,
     };
 
     if (this.debug) {
@@ -570,7 +624,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<GetBuildsQuery>(GET_BUILDS.toString(), variables);
+    const result = await this.request<GetBuildsQuery>(GET_BUILDS.toString(), variables);
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -612,7 +666,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<GetViewerBuildsQuery>(GET_VIEWER_BUILDS.toString(), variables);
+    const result = await this.request<GetViewerBuildsQuery>(GET_VIEWER_BUILDS.toString(), variables);
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -662,7 +716,7 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<any>(GET_BUILD_ANNOTATIONS.toString(), variables);
+    const result = await this.request<any>(GET_BUILD_ANNOTATIONS.toString(), variables);
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -699,7 +753,11 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<any>(GET_BUILD_SUMMARY.toString(), variables);
+    const result = await this.request<any>(GET_BUILD_SUMMARY.toString(), variables);
+
+    if (!result.build) {
+      throw new Error(`Build not found: ${buildSlug}`);
+    }
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -736,7 +794,11 @@ export class BuildkiteClient {
     }
 
     const startTime = process.hrtime.bigint();
-    const result = await this.client.request<any>(GET_BUILD_FULL.toString(), variables);
+    const result = await this.request<any>(GET_BUILD_FULL.toString(), variables);
+
+    if (!result.build) {
+      throw new Error(`Build not found: ${buildSlug}`);
+    }
 
     // Store result in cache if caching is enabled
     if (this.cacheManager) {
@@ -863,5 +925,148 @@ export class BuildkiteClient {
         }
       }
     };
+  }
+
+  /**
+   * Find pipelines matching any of the given repo URL candidates,
+   * with the latest build for the specified branch.
+   * Uses GraphQL aliases to try all URL formats in a single request.
+   */
+  public async getPipelineBuildsForRepo(
+    orgSlug: string,
+    repoCandidates: string[],
+    branch: string
+  ): Promise<Array<{ id: string; name: string; slug: string; repository: { url: string }; build: any | null }>> {
+    const aliases = repoCandidates.map((url, i) => {
+      const alias = `repo${i}`;
+      return `${alias}: pipelines(first: 50, repository: { url: ${JSON.stringify(url)} }, archived: false) {
+        edges {
+          node {
+            id
+            name
+            slug
+            repository { url }
+            builds(first: 1, branch: [${JSON.stringify(branch)}]) {
+              edges {
+                node {
+                  number
+                  state
+                  url
+                  message
+                  branch
+                  commit
+                  createdAt
+                  startedAt
+                  finishedAt
+                }
+              }
+            }
+          }
+        }
+      }`;
+    });
+
+    const query = `query GetPipelineBuildsForRepo($orgSlug: ID!) {
+      organization(slug: $orgSlug) {
+        ${aliases.join('\n        ')}
+      }
+    }`;
+
+    const data = await this.query<any>(query, { orgSlug });
+
+    const seen = new Set<string>();
+    const results: Array<{ id: string; name: string; slug: string; repository: { url: string }; build: any | null }> = [];
+
+    for (let i = 0; i < repoCandidates.length; i++) {
+      const alias = `repo${i}`;
+      const edges = data.organization?.[alias]?.edges || [];
+
+      for (const edge of edges) {
+        const node = edge.node;
+        if (seen.has(node.id)) continue;
+        seen.add(node.id);
+
+        const buildEdge = node.builds?.edges?.[0];
+        results.push({
+          id: node.id,
+          name: node.name,
+          slug: node.slug,
+          repository: node.repository,
+          build: buildEdge?.node || null,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Find pipelines matching any of the given repo URL candidates.
+   * Like getPipelineBuildsForRepo but doesn't require an existing build —
+   * used by `bktide build create` to resolve which pipeline to trigger.
+   */
+  public async getPipelinesForRepo(
+    orgSlug: string,
+    repoCandidates: string[],
+  ): Promise<Array<{ id: string; name: string; slug: string; repository: { url: string } }>> {
+    const aliases = repoCandidates.map((url, i) => {
+      const alias = `repo${i}`;
+      return `${alias}: pipelines(first: 50, repository: { url: ${JSON.stringify(url)} }, archived: false) {
+        edges {
+          node {
+            id
+            name
+            slug
+            repository { url }
+          }
+        }
+      }`;
+    });
+
+    const query = `query GetPipelinesForRepo($orgSlug: ID!) {
+      organization(slug: $orgSlug) {
+        ${aliases.join('\n        ')}
+      }
+    }`;
+
+    const data = await this.query<any>(query, { orgSlug });
+
+    const seen = new Set<string>();
+    const results: Array<{ id: string; name: string; slug: string; repository: { url: string } }> = [];
+
+    for (let i = 0; i < repoCandidates.length; i++) {
+      const edges = data.organization?.[`repo${i}`]?.edges || [];
+      for (const edge of edges) {
+        const node = edge.node;
+        if (seen.has(node.id)) continue;
+        seen.add(node.id);
+        results.push({
+          id: node.id,
+          name: node.name,
+          slug: node.slug,
+          repository: node.repository,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Get annotation timestamps for change detection (lightweight)
+   */
+  public async getAnnotationTimestamps(buildSlug: string): Promise<Array<{ uuid: string; updatedAt: string | null; createdAt: string }>> {
+    const variables = { slug: buildSlug };
+    const data = await this.query<any>(GET_BUILD_ANNOTATION_TIMESTAMPS.toString(), variables);
+    return (data.build?.annotations?.edges || []).map((edge: any) => edge.node);
+  }
+
+  /**
+   * Get full annotation data
+   */
+  public async getAnnotationsFull(buildSlug: string): Promise<any[]> {
+    const variables = { slug: buildSlug };
+    const data = await this.query<any>(GET_BUILD_ANNOTATIONS_FULL.toString(), variables);
+    return (data.build?.annotations?.edges || []).map((edge: any) => edge.node);
   }
 }

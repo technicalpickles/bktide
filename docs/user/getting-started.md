@@ -73,18 +73,36 @@ bktide pipelines --org your-org-name
 
 ### View Recent Builds
 ```bash
-# Recent builds across all organizations
+# Your recent builds across all organizations
 bktide builds
 
-# Builds for a specific organization
+# Your recent builds in a specific organization
 bktide builds --org your-org-name
-
-# Builds for a specific pipeline
-bktide builds --org your-org-name --pipeline your-pipeline-name
 
 # Failed builds only
 bktide builds --state FAILED
 ```
+
+Without a pipeline, `builds` lists your own builds. Name a pipeline and it lists
+that pipeline's builds from anyone (scheduled runs, bots, other people):
+
+```bash
+# All builds for a pipeline, any creator
+bktide builds your-org/your-pipeline
+
+# Narrow to a date window (YYYY-MM-DD or ISO 8601)
+bktide builds your-org/your-pipeline --created-from 2025-10-20 --created-to 2025-10-23 --count 50
+
+# Scope a pipeline back to just your own builds
+bktide builds your-org/your-pipeline --mine
+```
+
+JSON output (`--format json`) includes `source` (how the build was triggered, e.g.
+`Schedule` or `Website`) and `created_by` (the user who triggered it, or `null` for
+scheduled builds), which is useful for tracing who or what started a build.
+
+Bare `YYYY-MM-DD` dates resolve to UTC midnight; to include a whole end day, pass
+the next day as `--created-to`.
 
 ### View Build Details
 ```bash
@@ -101,6 +119,18 @@ bktide build your-org/your-pipeline/123 --jobs --failed
 ### View Build Annotations
 ```bash
 bktide annotations your-org/your-pipeline/123
+```
+
+### Create or Rebuild Builds
+```bash
+# Trigger a new build (auto-detects pipeline/commit/branch/message from git when omitted)
+bktide build create your-org/your-pipeline --commit HEAD --branch main
+
+# Rebuild an existing build with its original parameters
+bktide build rebuild your-org/your-pipeline/123
+
+# Watch the new build until it finishes
+bktide build create your-org/your-pipeline --watch
 ```
 
 ## Output Formats

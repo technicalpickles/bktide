@@ -1,4 +1,5 @@
 import { BaseCommand, BaseCommandOptions } from './BaseCommand.js';
+import { BuildkiteRestClient } from '../services/BuildkiteRestClient.js';
 import { logger } from '../services/logger.js';
 import { parseBuildkiteReference } from '../utils/parseBuildkiteReference.js';
 import { PlainStepLogsFormatter, JsonStepLogsFormatter, AlfredStepLogsFormatter } from '../formatters/step-logs/index.js';
@@ -7,12 +8,44 @@ import { SEMANTIC_COLORS, formatError } from '../ui/theme.js';
 import { Progress } from '../ui/progress.js';
 import * as fs from 'fs/promises';
 
+// Terminal states where job is complete
+export const TERMINAL_JOB_STATES = ['passed', 'failed', 'canceled', 'timed_out', 'skipped', 'broken'];
+
+// Error categorization for retry logic
+export type ErrorCategory = 'rate_limited' | 'not_found' | 'permission_denied' | 'network_error' | 'unknown';
+
+export interface PollError {
+  category: ErrorCategory;
+  message: string;
+  retryable: boolean;
+}
+
+export function categorizePollError(error: Error): PollError {
+  const message = error.message.toLowerCase();
+
+  if (message.includes('rate limit') || message.includes('429')) {
+    return { category: 'rate_limited', message: error.message, retryable: true };
+  }
+  if (message.includes('not found') || message.includes('404')) {
+    return { category: 'not_found', message: error.message, retryable: false };
+  }
+  if (message.includes('permission') || message.includes('403') || message.includes('401')) {
+    return { category: 'permission_denied', message: error.message, retryable: false };
+  }
+  if (message.includes('network') || message.includes('econnrefused') || message.includes('enotfound')) {
+    return { category: 'network_error', message: error.message, retryable: true };
+  }
+  return { category: 'unknown', message: error.message, retryable: true };
+}
+
 export interface ShowLogsOptions extends BaseCommandOptions {
   buildRef: string;
   stepId?: string;
   full?: boolean;
   lines?: number;
   save?: string;
+  follow?: boolean;
+  pollInterval?: number;
 }
 
 export class ShowLogs extends BaseCommand {
@@ -82,6 +115,12 @@ export class ShowLogs extends BaseCommand {
         spinner.stop();
         logger.error(`Step not found in build #${ref.buildNumber}: ${stepId}`);
         return 1;
+      }
+
+      // If follow mode and job not complete, enter polling loop
+      if (options.follow && !this.isJobComplete(job)) {
+        spinner.stop();
+        return await this.followLogs(ref, job, options);
       }
 
       // Use job.id (job UUID) for log fetching, not stepId
@@ -169,6 +208,118 @@ export class ShowLogs extends BaseCommand {
         logger.error('Unknown error occurred');
       }
       return 1;
+    }
+  }
+
+  private isJobComplete(job: any): boolean {
+    const state = (job.state || '').toLowerCase();
+    return TERMINAL_JOB_STATES.includes(state) || job.finished_at !== null;
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    // Add ±10% jitter to prevent thundering herd
+    const jitter = ms * 0.1 * (Math.random() * 2 - 1);
+    return new Promise(resolve => setTimeout(resolve, ms + jitter));
+  }
+
+  private async followLogs(
+    ref: { org: string; pipeline: string; buildNumber: number },
+    initialJob: any,
+    options: ShowLogsOptions
+  ): Promise<number> {
+    const pollInterval = (options.pollInterval || 3) * 1000;
+    let previousSize = 0;
+    let currentInterval = pollInterval;
+    let consecutiveErrors = 0;
+    const maxErrors = 3;
+
+    // Create a non-caching REST client for polling (we need fresh data each time)
+    const pollClient = new BuildkiteRestClient(this.token!, { caching: false, debug: options.debug });
+
+    // Set up signal handler for Ctrl+C
+    let interrupted = false;
+    const signalHandler = () => {
+      interrupted = true;
+      process.stderr.write('\n');
+      logger.console(SEMANTIC_COLORS.muted('Interrupted. Showing final state...'));
+    };
+    process.on('SIGINT', signalHandler);
+
+    try {
+      // Show initial logs
+      const initialLogs = await pollClient.getJobLog(
+        ref.org, ref.pipeline, ref.buildNumber, initialJob.id
+      );
+
+      // Display header
+      logger.console(SEMANTIC_COLORS.muted(`Following logs for: ${initialJob.name || initialJob.id}`));
+      logger.console(SEMANTIC_COLORS.muted('Press Ctrl+C to stop\n'));
+
+      // Show initial content
+      if (initialLogs.content) {
+        const lines = initialLogs.content.split('\n');
+        const linesToShow = options.lines || 50;
+        const startLine = Math.max(0, lines.length - linesToShow);
+        logger.console(lines.slice(startLine).join('\n'));
+      }
+      previousSize = initialLogs.size;
+
+      // Polling loop
+      while (!interrupted) {
+        await this.sleep(currentInterval);
+
+        try {
+          // Re-fetch build to check job state
+          const build = await pollClient.getBuild(ref.org, ref.pipeline, ref.buildNumber);
+          const job = build.jobs?.find((j: any) => j.id === initialJob.id);
+
+          if (!job) {
+            logger.error('Job no longer exists in build');
+            return 1;
+          }
+
+          // Fetch logs
+          const logData = await pollClient.getJobLog(
+            ref.org, ref.pipeline, ref.buildNumber, job.id
+          );
+
+          // Reset error counter on success
+          consecutiveErrors = 0;
+          currentInterval = pollInterval;
+
+          // Display new content if any
+          if (logData.size > previousSize) {
+            const newContent = logData.content.slice(previousSize);
+            if (newContent.trim()) {
+              process.stdout.write(newContent);
+            }
+            previousSize = logData.size;
+          }
+
+          // Check if job is complete
+          if (this.isJobComplete(job)) {
+            logger.console(SEMANTIC_COLORS.muted(`\n\nJob ${job.state}: exit code ${job.exit_status ?? 'unknown'}`));
+            return job.exit_status === 0 ? 0 : 1;
+          }
+        } catch (error) {
+          consecutiveErrors++;
+          const pollError = categorizePollError(error as Error);
+
+          if (!pollError.retryable || consecutiveErrors >= maxErrors) {
+            logger.error(`Failed to fetch logs: ${pollError.message}`);
+            return 1;
+          }
+
+          // Exponential backoff
+          currentInterval = Math.min(currentInterval * 2, 30000);
+          logger.console(SEMANTIC_COLORS.warning(`Retrying in ${currentInterval / 1000}s...`));
+        }
+      }
+
+      // Interrupted - show final state
+      return 0;
+    } finally {
+      process.removeListener('SIGINT', signalHandler);
     }
   }
 

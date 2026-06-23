@@ -136,6 +136,37 @@ Commands automatically capture and format errors with:
 - **Production logging**: Structured logs help diagnose issues in production
 - **User experience**: Friendly error messages for end users, detailed info for developers
 
+## Testing Tips Output
+
+Tips are shown when stdout is a TTY (interactive terminal). When running through npm scripts or build tools, stdout may not be detected as a TTY, causing tips to be suppressed.
+
+### Force Interactive Mode
+
+Use the `BKTIDE_FORCE_INTERACTIVE` environment variable to force interactive mode for testing:
+
+```bash
+# Test snapshot tips
+BKTIDE_FORCE_INTERACTIVE=1 npm run dev -- snapshot org/pipeline/123
+
+# Test other commands with tips
+BKTIDE_FORCE_INTERACTIVE=1 npm run dev -- builds --tips
+```
+
+### Testing in CI
+
+In CI environments, tips are automatically suppressed because stdout is not a TTY. To test tip logic in CI:
+
+1. Set `BKTIDE_FORCE_INTERACTIVE=1` in your CI environment
+2. Capture stdout and assert expected tip content
+3. Verify tips respect `--no-tips` flag even when forced interactive
+
+### Implementation Details
+
+The `isInteractive()` function in `src/ui/reporter.ts` checks:
+1. `BKTIDE_FORCE_INTERACTIVE` environment variable (highest priority)
+2. `process.stdout.isTTY` (standard TTY detection)
+3. Returns false if neither condition is met
+
 ## Common Commands
 
 ```bash

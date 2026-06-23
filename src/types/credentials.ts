@@ -17,6 +17,15 @@ export interface TokenValidationStatus {
   canListOrganizations: boolean;
   /** Validation status for each organization */
   organizations: Record<string, OrganizationValidationStatus>;
+  /**
+   * Granted vs. missing scopes from the Buildkite token, when known.
+   * Optional so legacy callers continue to typecheck while scope detection
+   * rolls out, and to allow a graceful fallback if /access-token errors.
+   */
+  scopes?: {
+    granted: string[];
+    missing: string[];
+  };
 }
 
 /**

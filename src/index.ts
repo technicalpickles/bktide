@@ -18,12 +18,19 @@ import {
   Snapshot,
   ShowPipeline,
   ShowLogs,
-  SmartShow
+  SmartShow,
+  Prime,
+  ArtifactsList,
+  ArtifactsDownload,
+  CreateBuild,
+  RebuildBuild,
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
 import { logger, setLogLevel } from './services/logger.js';
 import { WidthAwareHelp } from './ui/help.js';
+import { enhanceCommanderError } from './utils/commander-error-handler.js';
+import { parseBuildkiteReference } from './utils/parseBuildkiteReference.js';
 
 // Set a global error handler for uncaught exceptions
 const uncaughtExceptionHandler = (err: Error) => {
@@ -64,6 +71,35 @@ initializeErrorHandling();
 
 const program = new Command();
 program.allowUnknownOption();
+
+// Configure custom error output to enhance Commander.js errors
+program.configureOutput({
+  writeErr: (str: string) => {
+    // Try to extract command name from different error formats
+    // "too many arguments for 'builds'" or "missing required argument 'build'"
+    let commandName = '';
+
+    const tooManyMatch = str.match(/for '(\w+)'/);
+    if (tooManyMatch) {
+      commandName = tooManyMatch[1];
+    } else {
+      // For missing argument, get the command from process.argv
+      // The command is typically the first non-option argument after 'bktide'
+      const args = process.argv.slice(2);
+      const cmdArg = args.find(a => !a.startsWith('-'));
+      if (cmdArg) {
+        commandName = cmdArg;
+      }
+    }
+
+    // Get the extra args from process.argv
+    const commandIndex = process.argv.findIndex(arg => arg === commandName);
+    const extraArgs = commandIndex >= 0 ? process.argv.slice(commandIndex + 1).filter(a => !a.startsWith('-')) : [];
+
+    const enhanced = enhanceCommanderError(str, commandName, extraArgs);
+    process.stderr.write(enhanced + '\n');
+  }
+});
 
 // Define a generic interface for the command classes that includes the execute method
 interface CommandWithExecute {
@@ -248,19 +284,38 @@ program
     const commandName = cmd.name();
 
     if (commandName === 'pipelines') {
-      // Create pipeline-specific options structure
+      // Parse positional arg if provided and --org not specified
+      const positionalOrg = cmd.args?.[0];
+      if (positionalOrg && !mergedOptions.org) {
+        mergedOptions.org = positionalOrg;
+      }
+
       cmd.pipelineOptions = {
         organization: mergedOptions.org,
         count: mergedOptions.count ? parseInt(mergedOptions.count) : undefined,
         filter: mergedOptions.filter
       };
-      
+
       if (mergedOptions.debug) {
         logger.debug('Pipeline options:', cmd.pipelineOptions);
       }
     }
     else if (commandName === 'builds') {
-      // Create builds-specific options structure
+      // Parse positional reference if provided
+      const positionalRef = cmd.args?.[0];
+      if (positionalRef && !mergedOptions.org && !mergedOptions.pipeline) {
+        try {
+          const ref = parseBuildkiteReference(positionalRef);
+          mergedOptions.org = ref.org;
+          mergedOptions.pipeline = ref.pipeline;
+        } catch {
+          // Invalid format - will be handled by existing validation or API
+          if (mergedOptions.debug) {
+            logger.debug(`Could not parse reference: ${positionalRef}`);
+          }
+        }
+      }
+
       cmd.buildOptions = {
         organization: mergedOptions.org,
         pipeline: mergedOptions.pipeline,
@@ -270,7 +325,7 @@ program
         page: mergedOptions.page ? parseInt(mergedOptions.page) : 1,
         filter: mergedOptions.filter
       };
-      
+
       if (mergedOptions.debug) {
         logger.debug('Build options:', cmd.buildOptions);
       }
@@ -332,19 +387,23 @@ program
 program
   .command('pipelines')
   .description('List pipelines for an organization')
+  .argument('[org]', 'Organization slug (shorthand for --org)')
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-n, --count <count>', 'Limit to specified number of pipelines per organization')
   .option('--filter <name>', 'Filter pipelines by name (case insensitive)')
   .action(createCommandHandler(ListPipelines));
 
-// Update the builds command to include REST API filtering options
 program
   .command('builds')
-  .description('List builds for the current user')
+  .description('List builds for the current user, or for a pipeline when one is given')
+  .argument('[reference]', 'Pipeline reference (org/pipeline) - shorthand for --org and --pipeline')
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-p, --pipeline <pipeline>', 'Filter by pipeline slug')
   .option('-b, --branch <branch>', 'Filter by branch name')
   .option('-s, --state <state>', 'Filter by build state (running, scheduled, passed, failing, failed, canceled, etc.)')
+  .option('--created-from <date>', 'Only builds created at/after this date (YYYY-MM-DD is UTC midnight, or ISO 8601); requires a pipeline')
+  .option('--created-to <date>', 'Only builds created before this date (YYYY-MM-DD is UTC midnight, or ISO 8601); requires a pipeline')
+  .option('--mine', 'Scope to your own builds even when a pipeline is given')
   .option('-n, --count <count>', 'Number of builds per page', '10')
   .option('--page <page>', 'Page number', '1')
   .option('--filter <filter>', 'Fuzzy filter builds by name or other properties')
@@ -367,11 +426,14 @@ program
   .option('--context <context>', 'Filter annotations by context (e.g., rspec, build-resources)')
   .action(createCommandHandler(ListAnnotations));
 
-// Add build command
-program
+// Add build command group
+const buildCmd = program
   .command('build')
+  .description('Build operations: show, create, rebuild');
+
+buildCmd
+  .command('show <build>', { isDefault: true })
   .description('Show details for a specific build')
-  .argument('<build>', 'Build reference (org/pipeline/number or @https://buildkite.com/org/pipeline/builds/number)')
   .option('--jobs', 'Show job summary and details')
   .option('--failed', 'Show only failed job details (implies --jobs)')
   .option('--all-jobs', 'Show all jobs without grouping limit')
@@ -379,17 +441,111 @@ program
   .option('--annotations-full', 'Show complete annotation content')
   .option('--full', 'Show all available information')
   .option('--summary', 'Single-line summary only (for scripts)')
-  .action(createCommandHandler(ShowBuild));
+  .option('-w, --watch', 'Watch build until completion')
+  .option('--timeout <minutes>', 'Max wait time in minutes (default: 30)', '30')
+  .option('--poll-interval <seconds>', 'Initial poll interval in seconds (default: 5)', '5')
+  .action(async function(this: ExtendedCommand, buildArg: string) {
+    try {
+      const options = this.mergedOptions || this.opts();
+      options.buildArg = buildArg;
+      const cacheOptions = { enabled: options.cache !== false, ttl: options.cacheTtl, clear: options.clearCache };
+      const token = await BaseCommand.getToken(options);
+      const handler = new ShowBuild({
+        ...cacheOptions,
+        token,
+        debug: options.debug,
+        format: options.format,
+        quiet: options.quiet,
+        tips: options.tips,
+      });
+      process.exitCode = await handler.execute(options);
+    } catch (error) {
+      const debug = this.mergedOptions?.debug || this.opts().debug || false;
+      displayCLIError(error, debug);
+      process.exitCode = 1;
+    }
+  });
+
+buildCmd
+  .command('create [pipeline-ref]')
+  .description('Create a new build (auto-detects pipeline from git when omitted)')
+  .option('-c, --commit <sha>', 'Commit SHA (default: git HEAD)')
+  .option('-b, --branch <branch>', 'Branch (default: current git branch)')
+  .option('-m, --message <msg>', 'Build message (default: HEAD commit subject)')
+  .option('-e, --env <KEY=VAL>', 'Environment variable (repeatable)', (val: string, acc: string[]) => { acc.push(val); return acc; }, [])
+  .option('-o, --org <org>', 'Organization slug (when multiple orgs available)')
+  .option('-w, --watch', 'Watch the new build until completion')
+  .option('--timeout <minutes>', 'Max watch time in minutes (default: 30)', '30')
+  .option('--poll-interval <seconds>', 'Initial poll interval in seconds (default: 5)', '5')
+  .action(async function(this: ExtendedCommand, pipelineRef: string | undefined) {
+    const options = this.mergedOptions || this.opts();
+    options.pipelineRef = pipelineRef;
+    options.timeout = options.timeout ? parseInt(options.timeout) : undefined;
+    options.pollInterval = options.pollInterval ? parseInt(options.pollInterval) : undefined;
+    try {
+      const cacheOptions = { enabled: options.cache !== false, ttl: options.cacheTtl, clear: options.clearCache };
+      const token = await BaseCommand.getToken(options);
+      const handler = new CreateBuild({
+        ...cacheOptions,
+        token,
+        debug: options.debug,
+        format: options.format,
+        quiet: options.quiet,
+        tips: options.tips,
+      });
+      process.exitCode = await handler.execute(options);
+    } catch (error) {
+      displayCLIError(error, !!options.debug);
+      process.exitCode = 1;
+    }
+  });
+
+buildCmd
+  .command('rebuild <build-ref>')
+  .description('Rebuild an existing build with the same parameters')
+  .option('-w, --watch', 'Watch the new build until completion')
+  .option('--timeout <minutes>', 'Max watch time in minutes (default: 30)', '30')
+  .option('--poll-interval <seconds>', 'Initial poll interval in seconds (default: 5)', '5')
+  .action(async function(this: ExtendedCommand, buildArg: string) {
+    const options = this.mergedOptions || this.opts();
+    options.buildArg = buildArg;
+    options.timeout = options.timeout ? parseInt(options.timeout) : undefined;
+    options.pollInterval = options.pollInterval ? parseInt(options.pollInterval) : undefined;
+    try {
+      const cacheOptions = { enabled: options.cache !== false, ttl: options.cacheTtl, clear: options.clearCache };
+      const token = await BaseCommand.getToken(options);
+      const handler = new RebuildBuild({
+        ...cacheOptions,
+        token,
+        debug: options.debug,
+        format: options.format,
+        quiet: options.quiet,
+        tips: options.tips,
+      });
+      process.exitCode = await handler.execute(options);
+    } catch (error) {
+      displayCLIError(error, !!options.debug);
+      process.exitCode = 1;
+    }
+  });
 
 // Add snapshot command
 program
   .command('snapshot')
-  .description('Fetch and save build data locally for offline analysis')
-  .argument('<build-ref>', 'Build reference (org/pipeline/number or https://buildkite.com/org/pipeline/builds/number)')
+  .description('Fetch and save build data locally for offline analysis. Omit build-ref to auto-detect from git branch.')
+  .argument('[build-ref]', 'Build reference (org/pipeline/number or URL). Omit to auto-detect from git branch.')
+  .option('-b, --branch <branch>', 'Override branch detection for branch-aware snapshot')
+  .option('-o, --org <org>', 'Organization slug (required if you belong to multiple orgs)')
   .option('--output-dir <path>', 'Output directory for snapshot')
   .option('--json', 'Output manifest JSON to stdout')
   .option('--failed', 'Only fetch failed steps (default behavior)')
   .option('--all', 'Fetch all steps, not just failed ones')
+  .option('--force', 'Force full re-fetch, bypassing change detection')
+  .option('-w, --watch', 'Watch build until completion, then snapshot')
+  .option('--timeout <minutes>', 'Max wait time in minutes (default: 30)', '30')
+  .option('--poll-interval <seconds>', 'Initial poll interval in seconds (default: 5)', '5')
+  .option('--artifacts', 'Download build artifacts into snapshot directory')
+  .option('--artifact-glob <pattern>', 'Filter artifacts to download (e.g. "*.patch", "**/*.xml")')
   .action(createCommandHandler(Snapshot));
 
 // Add pipeline command
@@ -434,6 +590,8 @@ program
   .option('--full', 'Show all log lines')
   .option('--lines <n>', 'Show last N lines', '50')
   .option('--save <path>', 'Save logs to file')
+  .option('-f, --follow', 'Follow logs as they stream (until job completes)')
+  .option('--poll-interval <seconds>', 'Polling interval in seconds (default: 3)', '3')
   .action(async function(this: ExtendedCommand, buildRef: string, stepId?: string) {
     try {
       const options = this.mergedOptions || this.opts();
@@ -454,9 +612,51 @@ program
         full: options.full,
         lines: options.lines ? parseInt(options.lines) : 50,
         save: options.save,
+        follow: options.follow,
+        pollInterval: options.pollInterval ? parseInt(options.pollInterval) : 3,
       });
 
       process.exitCode = exitCode;
+    } catch (error) {
+      const debug = this.mergedOptions?.debug || this.opts().debug || false;
+      displayCLIError(error, debug);
+      process.exitCode = 1;
+    }
+  });
+
+// Add artifacts command with list and download subcommands
+const artifactsCmd = program
+  .command('artifacts')
+  .description('Manage build artifacts');
+
+artifactsCmd
+  .command('list <build-ref>')
+  .description('List artifacts for a build')
+  .action(async function(this: ExtendedCommand, buildRef: string) {
+    try {
+      const options = this.mergedOptions || this.opts();
+      const token = await BaseCommand.getToken(options);
+      const handler = new ArtifactsList({ token, debug: options.debug, format: options.format, quiet: options.quiet, tips: options.tips });
+      process.exitCode = await handler.execute({ ...options, buildRef });
+    } catch (error) {
+      const debug = this.mergedOptions?.debug || this.opts().debug || false;
+      displayCLIError(error, debug);
+      process.exitCode = 1;
+    }
+  });
+
+artifactsCmd
+  .command('download <build-ref>')
+  .description('Download artifacts for a build')
+  .option('--id <id>', 'Download a specific artifact by ID')
+  .option('--path <glob>', 'Download artifacts matching a path glob (e.g. "*.patch", "**/*.xml")')
+  .option('--out <dir>', 'Output directory (default: ./)', './')
+  .action(async function(this: ExtendedCommand, buildRef: string) {
+    try {
+      const options = this.mergedOptions || this.opts();
+      const token = await BaseCommand.getToken(options);
+      const handler = new ArtifactsDownload({ token, debug: options.debug, format: options.format, quiet: options.quiet, tips: options.tips });
+      process.exitCode = await handler.execute({ ...options, buildRef });
     } catch (error) {
       const debug = this.mergedOptions?.debug || this.opts().debug || false;
       displayCLIError(error, debug);
@@ -473,6 +673,17 @@ program
     const exitCode = await handler.execute({ shell, quiet: program.opts().quiet, debug: program.opts().debug });
     process.exitCode = exitCode;
   });
+
+// Add prime command
+program
+  .command('prime')
+  .description('Output LLM/AI agent rules for Buildkite CI integration')
+  .addHelpText('after', `
+Examples:
+  $ bktide prime                        # View rules
+  $ bktide prime >> ~/.claude/CLAUDE.md # Append to Claude Code memory
+`)
+  .action(createCommandHandler(Prime));
 
 program
   .command('boom')

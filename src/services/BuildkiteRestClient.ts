@@ -1,9 +1,25 @@
 import fetch from 'node-fetch';
+import { mkdir as mkdirFs, writeFile as writeFileFs } from 'fs/promises';
+import { dirname } from 'path';
 import { CacheManager } from './CacheManager.js';
 import { createHash } from 'crypto';
 import { logger } from './logger.js';
 import { getProgressIcon } from '../ui/theme.js';
-import { JobLog } from '../types/buildkite.js';
+import { JobLog, BuildkiteArtifact, AccessTokenInfo } from '../types/buildkite.js';
+
+export interface CreateBuildPayload {
+  commit: string;
+  branch: string;
+  message?: string;
+  env?: Record<string, string>;
+}
+
+export interface BuildkiteBuildResponse {
+  number: number;
+  state: string;
+  web_url: string;
+  pipeline: { slug: string };
+}
 
 export interface BuildkiteRestClientOptions {
   baseUrl?: string;
@@ -48,7 +64,10 @@ export class BuildkiteRestClient {
     if (options?.caching !== false) {
       this.cacheManager = new CacheManager(options?.cacheTTLs, this.debug);
       // Initialize cache and set token hash (async, but we don't wait)
-      this.initCache();
+      this.initCache().catch((err) => {
+        logger.debug('Cache initialization failed, continuing without cache:', err);
+        this.cacheManager = null;
+      });
     }
   }
   
@@ -197,6 +216,95 @@ export class BuildkiteRestClient {
   }
 
   /**
+   * Send a request to the Buildkite REST API. Used by write methods.
+   * Skips cache entirely. Updates rate-limit info on success and surfaces
+   * Buildkite's error payload verbatim on failure.
+   */
+  private async _request<T = any>(
+    method: 'POST' | 'PUT' | 'DELETE',
+    endpoint: string,
+    body?: unknown,
+  ): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+    const startTime = process.hrtime.bigint();
+
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('STARTING')} Starting REST API request: ${method} ${endpoint}`);
+      logger.debug(`${getProgressIcon('STARTING')} Request URL: ${url}`);
+      if (body !== undefined) {
+        logger.debug(`${getProgressIcon('STARTING')} Request body: ${JSON.stringify(body)}`);
+      }
+    }
+
+    const init: any = {
+      method,
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Content-Type': 'application/json',
+      },
+    };
+    if (body !== undefined) {
+      init.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(url, init);
+
+    // Rate limit headers are present on writes too
+    this.rateLimitInfo = {
+      remaining: parseInt(response.headers.get('RateLimit-Remaining') || '0'),
+      limit: parseInt(response.headers.get('RateLimit-Limit') || '0'),
+      reset: parseInt(response.headers.get('RateLimit-Reset') || '0'),
+    };
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `API request failed with status ${response.status}: ${errorText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.message) {
+          errorMessage = `API request failed: ${errorJson.message}`;
+        }
+        if (errorJson.errors && Array.isArray(errorJson.errors)) {
+          errorMessage += `\nErrors: ${errorJson.errors.map((e: any) => e.message).join(', ')}`;
+        }
+      } catch {
+        // body is not JSON, leave errorMessage as-is
+      }
+
+      const isAuthError = this.isAuthenticationError(response.status, errorMessage);
+      if (isAuthError && this.debug) {
+        logger.debug('Authentication error detected on write request');
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json() as T;
+
+    if (this.debug) {
+      const endTime = process.hrtime.bigint();
+      const duration = Number(endTime - startTime) / 1_000_000;
+      logger.debug(`${getProgressIcon('SUCCESS_LOG')} REST API request completed: ${method} ${endpoint} (${duration.toFixed(2)}ms)`);
+    }
+
+    return data;
+  }
+
+  /**
+   * POST to the Buildkite REST API. Caching is bypassed; writes always hit the network.
+   */
+  public async post<T = any>(endpoint: string, body: unknown): Promise<T> {
+    return this._request<T>('POST', endpoint, body);
+  }
+
+  /**
+   * PUT to the Buildkite REST API. Body is optional (e.g. rebuild has no body).
+   */
+  public async put<T = any>(endpoint: string, body?: unknown): Promise<T> {
+    return this._request<T>('PUT', endpoint, body);
+  }
+
+  /**
    * Check if an error is an authentication error
    */
   private isAuthenticationError(status: number, message: string): boolean {
@@ -219,6 +327,14 @@ export class BuildkiteRestClient {
    */
   public getRateLimitInfo(): RateLimitInfo | null {
     return this.rateLimitInfo;
+  }
+
+  /**
+   * Fetch the current token's UUID and scope list.
+   * Uses /v2/access-token, which any valid Buildkite API token can call.
+   */
+  public async getAccessToken(): Promise<AccessTokenInfo> {
+    return this.get<AccessTokenInfo>('/access-token');
   }
 
   /**
@@ -251,6 +367,37 @@ export class BuildkiteRestClient {
     }
     
     return builds;
+  }
+
+  /**
+   * Create a new build in the given pipeline.
+   * Hits POST /v2/organizations/{org}/pipelines/{pipeline}/builds.
+   */
+  public async createBuild(
+    org: string,
+    pipeline: string,
+    payload: CreateBuildPayload,
+  ): Promise<BuildkiteBuildResponse> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds`;
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('STARTING')} Creating build in ${org}/${pipeline}`);
+    }
+    return this.post<BuildkiteBuildResponse>(endpoint, payload);
+  }
+
+  /**
+   * Rebuild an existing build with the same parameters. Returns the new build.
+   */
+  public async rebuildBuild(
+    org: string,
+    pipeline: string,
+    buildNumber: number,
+  ): Promise<BuildkiteBuildResponse> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/rebuild`;
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('STARTING')} Rebuilding ${org}/${pipeline}/${buildNumber}`);
+    }
+    return this.put<BuildkiteBuildResponse>(endpoint);
   }
 
   /**
@@ -363,6 +510,27 @@ export class BuildkiteRestClient {
   }
 
   /**
+   * Get annotations for a build
+   * @param org Organization slug
+   * @param pipeline Pipeline slug
+   * @param buildNumber Build number
+   * @returns Array of annotations
+   */
+  public async getBuildAnnotations(
+    org: string,
+    pipeline: string,
+    buildNumber: number
+  ): Promise<any[]> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/annotations`;
+
+    if (this.debug) {
+      logger.debug(`Fetching annotations for ${org}/${pipeline}/${buildNumber}`);
+    }
+
+    return this.get<any[]>(endpoint);
+  }
+
+  /**
    * Get jobs for a specific build
    */
   public async getBuildJobs(
@@ -388,6 +556,66 @@ export class BuildkiteRestClient {
   ): Promise<any> {
     const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}`;
     return this.get<any>(endpoint);
+  }
+
+  /**
+   * List all artifacts for a build (build-scoped, includes artifacts from all jobs)
+   */
+  public async listBuildArtifacts(
+    org: string,
+    pipeline: string,
+    buildNumber: number | string
+  ): Promise<BuildkiteArtifact[]> {
+    const endpoint = `/organizations/${org}/pipelines/${pipeline}/builds/${buildNumber}/artifacts`;
+    if (this.debug) {
+      logger.debug(`Fetching artifacts for ${org}/${pipeline}/${buildNumber}`);
+    }
+    return this.get<BuildkiteArtifact[]>(endpoint);
+  }
+
+  /**
+   * Download an artifact to a local file path using the two-step presigned URL flow.
+   * Calls artifact.download_url to get a presigned URL (via 302 + JSON body),
+   * then fetches that URL and writes the binary to disk.
+   */
+  public async downloadArtifact(
+    artifact: BuildkiteArtifact,
+    destPath: string
+  ): Promise<{ path: string; size: number }> {
+    const apiRes = await fetch(artifact.download_url, {
+      headers: { 'Authorization': `Bearer ${this.token}` },
+      redirect: 'manual',
+    });
+
+    if (!apiRes.ok && apiRes.status !== 302) {
+      const text = await apiRes.text().catch(() => '');
+      throw new Error(`Failed to get artifact download URL (${apiRes.status})${text ? ': ' + text : ''}`);
+    }
+
+    let presignedUrl: string | null = null;
+    try {
+      const json = await apiRes.json() as { url?: string };
+      presignedUrl = json.url ?? null;
+    } catch {
+      // JSON body absent or unparseable — fall through to Location header
+    }
+    if (!presignedUrl) {
+      presignedUrl = apiRes.headers.get('location');
+    }
+    if (!presignedUrl) {
+      throw new Error(`Could not determine download URL for artifact ${artifact.id}`);
+    }
+
+    const fileRes = await fetch(presignedUrl);
+    if (!fileRes.ok) {
+      throw new Error(`Artifact download failed (${fileRes.status}): presigned URL request failed`);
+    }
+
+    const buffer = await fileRes.arrayBuffer();
+    await mkdirFs(dirname(destPath), { recursive: true });
+    await writeFileFs(destPath, Buffer.from(buffer));
+
+    return { path: destPath, size: buffer.byteLength };
   }
 
   /**

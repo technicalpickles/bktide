@@ -61,3 +61,4 @@ log/
 
 # Claude Code local settings (contains personal paths/permissions)
 .claude/settings.local.json
+.claude/actually-lsp.json

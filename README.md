@@ -10,6 +10,7 @@ Command-line interface for Buildkite CI/CD workflows with rich shell completions
 - **📊 Multiple Output Formats**: Plain text, JSON, or Alfred-compatible output
 - **🔐 Secure Token Storage**: System keychain integration for API credentials
 - **⚡ Performance**: Built-in caching for faster repeated operations
+- **🤖 AI/LLM Integration**: Export agent rules for Claude Code, Cursor, and other AI tools
 
 ## Installation
 
@@ -193,6 +194,36 @@ bktide build org/pipeline/123 --annotations
 bktide build org/pipeline/123 --jobs --failed --annotations
 ```
 
+### Create a New Build
+
+Trigger a new build. Pipeline, commit, branch, and message auto-detect from the local git checkout when omitted.
+
+```bash
+# Inside a git checkout — everything auto-detected
+bktide build create
+
+# Explicit pipeline with overrides
+bktide build create org/pipeline --commit abc123 --branch main --message "hotfix"
+
+# Pass environment variables (repeatable)
+bktide build create org/pipeline --env DEBUG=1 --env NODE_ENV=production
+
+# Watch the new build until it finishes
+bktide build create org/pipeline --watch
+```
+
+### Rebuild an Existing Build
+
+Re-run a build with its original parameters. Accepts a slug or full URL.
+
+```bash
+bktide build rebuild org/pipeline/123
+bktide build rebuild https://buildkite.com/org/pipeline/builds/123
+
+# Watch the new build
+bktide build rebuild org/pipeline/123 --watch
+```
+
 ### Show Pipeline Details
 
 View pipeline metadata and recent builds.
@@ -230,6 +261,23 @@ bktide logs org/pipeline/123 <step-id> --save logs.txt
 ```
 
 **Note:** Viewing step logs requires `read_build_logs` scope on your API token.
+
+### Follow Logs in Real-Time
+
+Stream logs as they're written (useful for watching running jobs):
+
+```bash
+# Follow logs until job completes
+bktide logs org/pipeline/123 <step-id> --follow
+
+# Follow with custom poll interval (default: 3 seconds)
+bktide logs org/pipeline/123 <step-id> --follow --poll-interval 5
+
+# Combine with other options
+bktide logs org/pipeline/123 <step-id> --follow --lines 100
+```
+
+**Note:** Following logs uses polling (2 API calls per interval). For long-running jobs, consider using `--poll-interval 5` or higher to reduce API usage.
 
 ### Smart Reference Command
 
@@ -281,10 +329,39 @@ bktide completions zsh
 bktide completions
 ```
 
+### AI/LLM Integration
+
+Export agent rules to teach AI assistants how to use bktide for CI debugging.
+
+```bash
+# View the rules
+bktide prime
+
+# Append to Claude Code memory
+bktide prime >> ~/.claude/CLAUDE.md
+
+# Append to Cursor rules
+bktide prime >> .cursor/rules.md
+```
+
+The rules include common workflows for investigating failing builds and integrating with GitHub PRs.
+
 ## API Token
 
-You'll need a Buildkite API token with GraphQL scopes. Create one at:
+You'll need a Buildkite API token. Create one at:
 https://buildkite.com/user/api-access-tokens
+
+### Required Scopes
+
+Enable these scopes when creating your token:
+
+- **GraphQL API Access** - Required for all API queries
+- **Read Builds** - View builds, jobs, and logs
+- **Read Organizations** - List and access organizations
+- **Read Pipelines** - View pipeline configurations
+- **Read User** - Access your user information
+
+All five scopes are required for full bktide functionality.
 
 ### Providing your token
 
@@ -347,6 +424,71 @@ To fix this:
   2. Run: bktide token --store
   3. Try your command again
 ```
+
+## Snapshot: Offline Build Analysis
+
+When you need to do deep debugging or feed build data into other tools, use `snapshot` to download complete build data locally.
+
+### Capture a Build Snapshot
+
+```bash
+# Capture failed steps from a build
+bktide snapshot https://buildkite.com/org/pipeline/builds/123
+bktide snapshot org/pipeline/123
+
+# Capture all steps (not just failures)
+bktide snapshot org/pipeline/123 --all
+
+# Force re-fetch (bypass incremental update)
+bktide snapshot org/pipeline/123 --force
+
+# Custom output location
+bktide snapshot org/pipeline/123 --output-dir ./investigation
+```
+
+Subsequent runs detect changes automatically. If the build hasn't changed, it shows "Snapshot already up to date" and skips re-fetching.
+
+### What Gets Captured
+
+Snapshots are saved to `./tmp/bktide/snapshots/org/pipeline/build/` (relative to cwd) with:
+
+- **manifest.json** - Build metadata and step index for quick filtering
+- **build.json** - Complete build data from Buildkite API
+- **annotations.json** - Test failures, warnings, and structured information from annotations
+- **steps/NN-name/log.txt** - Full logs for each step
+- **steps/NN-name/step.json** - Step metadata (state, exit code, timing)
+
+### Common Use Cases
+
+**Find what failed:**
+
+```bash
+cd ./tmp/bktide/snapshots/org/pipeline/123
+jq -r '.steps[] | select(.state == "failed") | "\(.id): \(.label)"' manifest.json
+```
+
+**View test failure summaries:**
+```bash
+jq -r '.annotations[] | select(.style == "error") | "\(.context): \(.body_html)"' annotations.json
+```
+
+**Search logs for errors:**
+```bash
+grep -r "Error\|Exception" steps/
+```
+
+**Feed to AI agents:**
+```bash
+bktide snapshot org/pipeline/123
+claude "analyze failures in ./tmp/bktide/snapshots/org/pipeline/123"
+```
+
+**Share with teammates:**
+```bash
+tar -czf build-123-investigation.tar.gz ./tmp/bktide/snapshots/org/pipeline/123
+```
+
+**Note:** Add `./tmp/` to your `.gitignore` if using the default location.
 
 ## Global Options
 

@@ -3,10 +3,16 @@ import { logger } from '../services/logger.js';
 import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { Progress } from '../ui/progress.js';
 import { FormatterFactory, FormatterType, SnapshotData } from '../formatters/index.js';
+import { getStateIcon, SEMANTIC_COLORS, BUILD_STATUS_THEME } from '../ui/theme.js';
 import { getStepDirName } from '../utils/stepUtils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
+import { BuildPoller, BuildRef, JobStateChange } from '../services/BuildPoller.js';
+import { getGitContext } from '../utils/gitContext.js';
+import { parseGitRemoteUrl, generateRepoCandidates } from '../utils/repoUrl.js';
+import { minimatch } from 'minimatch';
+import { BuildkiteArtifact, DOWNLOADABLE_ARTIFACT_STATES, ArtifactManifestItem } from '../types/buildkite.js';
 
 // Re-export for backward compatibility
 export { getStepDirName };
@@ -17,12 +23,24 @@ export interface SnapshotOptions extends BaseCommandOptions {
   json?: boolean;
   failed?: boolean;
   all?: boolean;
+  force?: boolean;
+  // Branch-aware options
+  branch?: string;
+  org?: string;
+  // Watch options
+  watch?: boolean;
+  timeout?: number;
+  pollInterval?: number;
+  // Artifact options
+  artifacts?: boolean;
+  artifactGlob?: string;
 }
 
 interface StepResult {
   id: string;
   jobId: string;
   status: 'success' | 'failed';
+  job: any;  // Full job object from Buildkite API
   error?: string;
   message?: string;
   retryable?: boolean;
@@ -33,12 +51,84 @@ interface Manifest {
   buildRef: string;
   url: string;
   fetchedAt: string;
-  complete: boolean;
+  fetchComplete: boolean;  // Renamed from 'complete'
   build: {
-    status: string;
+    state: string;
+    number: number;
+    message: string;
+    branch: string;
+    commit: string;
+    finishedAt: string | null;
   };
-  steps: StepResult[];
+  annotations?: {
+    fetchStatus: 'success' | 'none' | 'failed';
+    count: number;
+    items?: Array<{
+      uuid: string;
+      updatedAt: string | null;
+    }>;
+  };
+  artifacts?: {
+    fetchStatus: 'success' | 'none' | 'failed' | 'skipped';
+    count: number;
+    filter?: string;
+    items?: ArtifactManifestItem[];
+  };
+  steps: Array<{
+    // Our metadata
+    id: string;
+    fetchStatus: 'success' | 'failed';  // Renamed from 'status'
+
+    // Buildkite job metadata (flat)
+    jobId: string;
+    type: string;
+    name: string;
+    label: string;
+    state: string;
+    exit_status: number | null;
+    started_at: string | null;
+    finished_at: string | null;
+  }>;
+  fetchErrors?: Array<{
+    id: string;
+    jobId: string;
+    fetchStatus: 'failed';
+    error: string;
+    message: string;
+    retryable: boolean;
+  }>;
 }
+
+interface AnnotationResult {
+  fetchStatus: 'success' | 'none' | 'failed';
+  count: number;
+  items?: Array<{ uuid: string; updatedAt: string | null }>;
+  error?: string;
+  message?: string;
+}
+
+interface ArtifactResult {
+  fetchStatus: 'success' | 'none' | 'failed' | 'skipped';
+  count: number;
+  filter?: string;
+  items?: ArtifactManifestItem[];
+  error?: string;
+}
+
+interface AnnotationsFile {
+  fetchedAt: string;
+  count: number;
+  annotations: any[];  // Raw annotations from Buildkite API
+}
+
+interface BuildChangeResult {
+  hasChanges: boolean;
+  reason?: 'build_running' | 'build_finished_changed' | 'no_existing_manifest' | 'force_refresh';
+  jobsToRefetch?: string[];  // Job IDs that need re-fetching
+  annotationsChanged?: boolean;
+}
+
+const TERMINAL_BUILD_STATES = ['PASSED', 'FAILED', 'CANCELED', 'BLOCKED', 'NOT_RUN'];
 
 type ErrorCategory = 'rate_limited' | 'not_found' | 'permission_denied' | 'network_error' | 'unknown';
 
@@ -69,17 +159,64 @@ export function categorizeError(error: Error): StepError {
   return { error: 'unknown', message: error.message, retryable: true };
 }
 
+/**
+ * Convert absolute path to use tilde (~) for home directory
+ * Makes paths more readable and portable
+ */
+function pathWithTilde(absolutePath: string): string {
+  const homeDir = os.homedir();
+  if (absolutePath.startsWith(homeDir)) {
+    return absolutePath.replace(homeDir, '~');
+  }
+  return absolutePath;
+}
+
+/**
+ * Format path for display: use relative ./tmp/... for default location,
+ * tilde path for custom locations
+ */
+function pathForDisplay(absolutePath: string): string {
+  const cwd = process.cwd();
+  const defaultBase = path.join(cwd, 'tmp', 'bktide', 'snapshots');
+
+  // If path is under default location, show as relative
+  if (absolutePath.startsWith(defaultBase)) {
+    return './' + path.relative(cwd, absolutePath);
+  }
+
+  // Otherwise use tilde path
+  return pathWithTilde(absolutePath);
+}
 export class Snapshot extends BaseCommand {
   static requiresToken = true;
 
+  private displayJobEvent(change: JobStateChange): void {
+    const time = change.timestamp.toLocaleTimeString('en-US', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    const icon = getStateIcon(change.job.state);
+    const name = change.job.name || change.job.label || 'unknown';
+    const action = change.previousState === null ? 'started' : change.job.state;
+
+    logger.console(`${time}  ${icon} ${name} ${action}`);
+  }
+
   async execute(options: SnapshotOptions): Promise<number> {
+    // Handle watch mode
+    if (options.watch) {
+      return this.executeWatchMode(options);
+    }
+
     if (options.debug) {
       logger.debug('Starting Snapshot command execution', options);
     }
 
+    // If no build ref provided, try branch-aware inference
     if (!options.buildRef) {
-      logger.error('Build reference is required');
-      return 1;
+      return this.executeBranchAware(options);
     }
 
     const format = options.format || 'plain';
@@ -114,15 +251,64 @@ export class Snapshot extends BaseCommand {
       const build = buildData.build;
       const jobs = build.jobs?.edges || [];
 
-      // 4. Create directory structure
+      // 4. Check for existing snapshot and detect changes
+      const existingManifest = await this.loadExistingManifest(outputDir);
+      const changeResult = this.detectChanges(build, jobs, existingManifest, options.force === true);
+
+      if (!changeResult.hasChanges) {
+        spinner.stop();
+        logger.console(`Snapshot already up to date: ${pathForDisplay(outputDir)}`);
+
+        // Still show navigation tips (displayNavigationTips adds its own leading blank line)
+        const scriptJobs = jobs
+          .map((edge: any) => edge.node)
+          .filter((job: any) => job.__typename === 'JobTypeCommand' || !job.__typename);
+
+        if (this.options.tips !== false && existingManifest) {
+          const annotationResult: AnnotationResult = existingManifest.annotations || { fetchStatus: 'none', count: 0 };
+          this.displayNavigationTips(outputDir, build, scriptJobs, existingManifest.steps.length, annotationResult, 0);
+        }
+        return 0;
+      }
+
+      if (options.debug && changeResult.reason) {
+        logger.debug(`Change detected: ${changeResult.reason}`);
+        if (changeResult.jobsToRefetch) {
+          logger.debug(`Jobs to refetch: ${changeResult.jobsToRefetch.length}`);
+        }
+      }
+
+      // 5. Create directory structure
       spinner.update('Creating directories…');
       await this.createDirectories(outputDir);
 
-      // 5. Save build.json
+      // 6. Save build.json
       spinner.update('Saving build data…');
       await this.saveBuildJson(outputDir, build);
 
-      // 6. Filter and fetch jobs
+      // 7. Check and fetch annotations if changed
+      spinner.update('Checking annotations…');
+      let annotationResult: AnnotationResult;
+
+      const annotationsChanged = await this.checkAnnotationsChanged(buildSlug, existingManifest);
+      if (annotationsChanged || options.force) {
+        spinner.update('Fetching annotations…');
+        annotationResult = await this.fetchAndSaveAnnotations(
+          outputDir,
+          buildSlug,
+          options.debug
+        );
+      } else {
+        // Use existing annotation data
+        annotationResult = existingManifest?.annotations
+          ? { fetchStatus: existingManifest.annotations.fetchStatus, count: existingManifest.annotations.count, items: existingManifest.annotations.items }
+          : { fetchStatus: 'none', count: 0 };
+        if (options.debug) {
+          logger.debug('Annotations unchanged, using cached data');
+        }
+      }
+
+      // 8. Filter and fetch jobs
       // Filter to script jobs only (JobTypeCommand)
       const scriptJobs = jobs
         .map((edge: any) => edge.node)
@@ -171,21 +357,48 @@ export class Snapshot extends BaseCommand {
           stepResults.push(stepResult);
         }
 
-        progressBar.complete(`Fetched ${totalJobs} step${totalJobs > 1 ? 's' : ''}`);
+        progressBar.complete('');  // Silent completion, count shown in summary
+
+        // Force stderr flush to prevent output interleaving
+        if (process.stderr.write) {
+          process.stderr.write('');
+        }
       }
 
-      // 7. Write manifest
-      const manifest = this.buildManifest(buildRef.org, buildRef.pipeline, buildRef.number, build, stepResults);
+      // 9. Fetch and save artifacts if requested
+      let artifactResult: ArtifactResult | undefined;
+      if (options.artifacts) {
+        logger.console(SEMANTIC_COLORS.muted('Fetching artifacts…'));
+        artifactResult = await this.fetchAndSaveArtifacts(
+          outputDir,
+          buildRef.org,
+          buildRef.pipeline,
+          buildRef.number,
+          options.artifactGlob
+        );
+      }
+
+      // 10. Write manifest
+      const manifest = this.buildManifest(
+        buildRef.org,
+        buildRef.pipeline,
+        buildRef.number,
+        build,
+        stepResults,
+        annotationResult,
+        artifactResult
+      );
       await this.saveManifest(outputDir, manifest);
 
       // 8. Output using formatter
       const snapshotData: SnapshotData = {
-        manifest,
+        manifest: manifest as any,
         build,
         outputDir,
         scriptJobs,
         stepResults,
         fetchAll,
+        annotationResult,
       };
 
       const formatter = FormatterFactory.getFormatter(
@@ -197,7 +410,7 @@ export class Snapshot extends BaseCommand {
       });
       logger.console(output);
 
-      return manifest.complete ? 0 : 1;
+      return manifest.fetchComplete ? 0 : 1;
     } catch (error) {
       spinner.stop();
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -209,8 +422,189 @@ export class Snapshot extends BaseCommand {
     }
   }
 
+  private async executeWatchMode(options: SnapshotOptions): Promise<number> {
+    if (!options.buildRef) {
+      logger.error('Build reference is required');
+      return 1;
+    }
+
+    await this.ensureInitialized();
+
+    const buildRef = parseBuildRef(options.buildRef);
+    const ref: BuildRef = {
+      org: buildRef.org,
+      pipeline: buildRef.pipeline,
+      buildNumber: buildRef.number,
+    };
+
+    const timeoutMinutes = parseInt(String(options.timeout || '30'), 10);
+    const pollIntervalSeconds = parseInt(String(options.pollInterval || '5'), 10);
+
+    logger.console(`Watching build #${buildRef.number} (timeout: ${timeoutMinutes}m)`);
+    logger.console(SEMANTIC_COLORS.muted('Will capture snapshot when build completes'));
+    logger.console(SEMANTIC_COLORS.muted('Press Ctrl+C to stop\n'));
+
+    const poller = new BuildPoller(this.restClient, {
+      onJobStateChange: (change) => this.displayJobEvent(change),
+      onBuildComplete: () => {
+        logger.console(SEMANTIC_COLORS.muted('\nBuild complete. Capturing snapshot...\n'));
+      },
+      onError: (err, willRetry) => {
+        if (willRetry) {
+          logger.console(SEMANTIC_COLORS.warning(`⚠ ${err.message}, retrying...`));
+        } else {
+          logger.console(SEMANTIC_COLORS.error(`✗ ${err.message}`));
+        }
+      },
+      onTimeout: () => {
+        logger.console(SEMANTIC_COLORS.warning(`⏱ Timeout reached. Build still running.`));
+      },
+    }, {
+      initialInterval: pollIntervalSeconds * 1000,
+      timeout: timeoutMinutes * 60 * 1000,
+    });
+
+    const build = await poller.watch(ref);
+
+    // Only capture if build completed (not stopped/timed out)
+    if (build.state && ['passed', 'failed', 'canceled'].includes(build.state.toLowerCase())) {
+      // Run normal snapshot (without watch flag)
+      const snapshotOptions = { ...options, watch: false };
+      return this.execute(snapshotOptions);
+    }
+
+    return 1;
+  }
+
+  private async executeBranchAware(options: SnapshotOptions): Promise<number> {
+    const format = options.format || 'plain';
+
+    try {
+      await this.ensureInitialized();
+
+      // 1. Get git context (branch + remote URL)
+      let branch: string;
+      let remoteUrl: string;
+
+      if (options.branch) {
+        // Branch override provided, still need remote URL
+        branch = options.branch;
+        try {
+          const gitCtx = getGitContext();
+          remoteUrl = gitCtx.remoteUrl;
+        } catch (error) {
+          logger.error('Could not determine git remote URL. Provide a build ref instead.');
+          return 1;
+        }
+      } else {
+        try {
+          const gitCtx = getGitContext();
+          branch = gitCtx.branch;
+          remoteUrl = gitCtx.remoteUrl;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          logger.error(message);
+          return 1;
+        }
+      }
+
+      if (options.debug) {
+        logger.debug('Branch-aware snapshot:', { branch, remoteUrl });
+      }
+
+      // 2. Parse remote URL and generate candidates
+      const parsed = parseGitRemoteUrl(remoteUrl);
+      const candidates = generateRepoCandidates(parsed);
+
+      if (options.debug) {
+        logger.debug('Repo URL candidates:', candidates);
+      }
+
+      // 3. Resolve organization
+      let orgSlug: string;
+      if (options.org) {
+        orgSlug = options.org;
+      } else {
+        const orgSlugs = await this.client.getViewerOrganizationSlugs();
+        if (orgSlugs.length === 0) {
+          logger.error('No organizations found. Check your API token permissions.');
+          return 1;
+        }
+        if (orgSlugs.length > 1) {
+          logger.error(`Multiple organizations found: ${orgSlugs.join(', ')}. Use --org to specify which one.`);
+          return 1;
+        }
+        orgSlug = orgSlugs[0];
+      }
+
+      // 4. Query pipelines with builds for this branch
+      const spinner = Progress.spinner(`Searching for ${branch} builds...`, { format });
+      const pipelineBuilds = await this.client.getPipelineBuildsForRepo(orgSlug, candidates, branch);
+      spinner.stop();
+
+      if (pipelineBuilds.length === 0) {
+        logger.error(`No pipelines found matching ${parsed.org}/${parsed.repo}. Check your organization slug.`);
+        return 1;
+      }
+
+      // 5. Filter to pipelines that have builds on this branch
+      const withBuilds = pipelineBuilds.filter(p => p.build !== null);
+
+      if (withBuilds.length === 0) {
+        logger.console(`Found ${pipelineBuilds.length} pipeline(s) for ${parsed.org}/${parsed.repo}, but none have builds on branch ${SEMANTIC_COLORS.identifier(branch)}`);
+        logger.console('');
+        logger.console('Pipelines:');
+        for (const p of pipelineBuilds) {
+          logger.console(`  ${SEMANTIC_COLORS.muted('-')} ${p.name} ${SEMANTIC_COLORS.muted(`(${p.slug})`)}`);
+        }
+        return 0;
+      }
+
+      // 6. Display summary
+      logger.console(`Branch ${SEMANTIC_COLORS.identifier(branch)} in ${parsed.org}/${parsed.repo}`);
+      logger.console('');
+
+      for (const p of withBuilds) {
+        const build = p.build;
+        const state = build.state || 'unknown';
+        const icon = getStateIcon(state);
+        const theme = BUILD_STATUS_THEME[state.toUpperCase() as keyof typeof BUILD_STATUS_THEME];
+        const coloredIcon = theme ? theme.color(icon) : icon;
+        const message = build.message?.split('\n')[0] || '';
+        const number = build.number;
+        const buildRef = `${orgSlug}/${p.slug}/${number}`;
+
+        logger.console(`  ${coloredIcon} ${p.name} #${number} ${SEMANTIC_COLORS.muted(message)}`);
+        logger.console(`    ${SEMANTIC_COLORS.muted(buildRef)}`);
+      }
+
+      logger.console('');
+
+      // 7. Snapshot all builds (logs are only fetched for failed steps by default)
+      logger.console(`Snapshotting ${withBuilds.length} build(s)...`);
+      logger.console('');
+
+      let hasFailure = false;
+      for (const p of withBuilds) {
+        const buildRef = `${orgSlug}/${p.slug}/${p.build.number}`;
+        const exitCode = await this.execute({ ...options, buildRef });
+        if (exitCode !== 0) hasFailure = true;
+        logger.console('');
+      }
+
+      return hasFailure ? 1 : 0;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Branch-aware snapshot failed: ${errorMessage}`);
+      if (options.debug && error instanceof Error && error.stack) {
+        logger.debug(error.stack);
+      }
+      return 1;
+    }
+  }
+
   private getOutputDir(options: SnapshotOptions, org: string, pipeline: string, buildNumber: number): string {
-    const baseDir = options.outputDir || path.join(os.homedir(), '.bktide', 'snapshots');
+    const baseDir = options.outputDir || path.join(process.cwd(), 'tmp', 'bktide', 'snapshots');
     return path.join(baseDir, org, pipeline, String(buildNumber));
   }
 
@@ -253,6 +647,7 @@ export class Snapshot extends BaseCommand {
         id: stepDirName,
         jobId: job.id,
         status: 'success',
+        job: job,  // Add full job object
       };
     } catch (error) {
       if (debug) {
@@ -264,10 +659,114 @@ export class Snapshot extends BaseCommand {
         id: stepDirName,
         jobId: job.id,
         status: 'failed',
+        job: job,  // Add full job object
         error: errorInfo.error,
         message: errorInfo.message,
         retryable: errorInfo.retryable,
       };
+    }
+  }
+
+  private async fetchAndSaveAnnotations(
+    outputDir: string,
+    buildSlug: string,
+    debug?: boolean
+  ): Promise<AnnotationResult> {
+    try {
+      const annotations = await this.client.getAnnotationsFull(buildSlug);
+
+      if (debug) {
+        logger.debug(`Fetched ${annotations.length} annotation(s)`);
+      }
+
+      // Save annotations.json
+      const annotationsFile: AnnotationsFile = {
+        fetchedAt: new Date().toISOString(),
+        count: annotations.length,
+        annotations: annotations,
+      };
+
+      const annotationsPath = path.join(outputDir, 'annotations.json');
+      await fs.writeFile(annotationsPath, JSON.stringify(annotationsFile, null, 2), 'utf-8');
+
+      // Return result with items for change detection
+      const items = annotations.map((a: any) => ({ uuid: a.uuid, updatedAt: a.updatedAt || null }));
+
+      if (annotations.length === 0) {
+        return { fetchStatus: 'none', count: 0, items: [] };
+      }
+
+      return { fetchStatus: 'success', count: annotations.length, items };
+    } catch (error) {
+      if (debug) {
+        logger.debug(`Failed to fetch annotations:`, error);
+      }
+
+      const errorInfo = categorizeError(error instanceof Error ? error : new Error(String(error)));
+      return {
+        fetchStatus: 'failed',
+        count: 0,
+        error: errorInfo.error,
+        message: errorInfo.message,
+      };
+    }
+  }
+
+  private async fetchAndSaveArtifacts(
+    outputDir: string,
+    org: string,
+    pipeline: string,
+    buildNumber: number,
+    glob?: string
+  ): Promise<ArtifactResult> {
+    try {
+      const allArtifacts = await this.restClient.listBuildArtifacts(org, pipeline, buildNumber);
+
+      const targets = glob
+        ? allArtifacts.filter(a => DOWNLOADABLE_ARTIFACT_STATES.has(a.state) && minimatch(a.path, glob, { matchBase: true }))
+        : allArtifacts.filter(a => DOWNLOADABLE_ARTIFACT_STATES.has(a.state));
+
+      if (targets.length === 0) {
+        return { fetchStatus: 'none', count: 0, filter: glob };
+      }
+
+      const artifactsDir = path.join(outputDir, 'artifacts');
+      await fs.mkdir(artifactsDir, { recursive: true });
+
+      const downloaded: BuildkiteArtifact[] = [];
+      const failed: Array<{ path: string; error: string }> = [];
+
+      for (const artifact of targets) {
+        const safePath = path.normalize(artifact.path).replace(/^(\.\.(\/|\\|$))+/, '');
+        const destPath = path.join(artifactsDir, safePath);
+        try {
+          await this.restClient.downloadArtifact(artifact, destPath);
+          downloaded.push(artifact);
+          logger.debug(`Downloaded artifact: ${artifact.path}`);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          failed.push({ path: artifact.path, error: msg });
+          logger.debug(`Failed to download artifact ${artifact.path}: ${msg}`);
+        }
+      }
+
+      return {
+        fetchStatus: failed.length === 0 ? 'success' : (downloaded.length === 0 ? 'failed' : 'success'),
+        count: downloaded.length,
+        filter: glob,
+        items: downloaded.map(a => ({
+          id: a.id,
+          jobId: a.job_id,
+          path: a.path,
+          file_size: a.file_size,
+          sha1sum: a.sha1sum,
+          mime_type: a.mime_type,
+        })),
+      };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.debug(`Failed to fetch artifacts: ${msg}`);
+      return { fetchStatus: 'failed', count: 0, filter: glob, error: msg };
     }
   }
 
@@ -276,26 +775,219 @@ export class Snapshot extends BaseCommand {
     pipeline: string,
     buildNumber: number,
     build: any,
-    stepResults: StepResult[]
+    stepResults: StepResult[],
+    annotationResult: AnnotationResult,
+    artifactResult?: ArtifactResult
   ): Manifest {
-    const allSuccess = stepResults.every(s => s.status === 'success');
+    const allFetchesSucceeded = stepResults.every(s => s.status === 'success');
+    const fetchErrors = stepResults.filter(s => s.status === 'failed');
 
-    return {
-      version: 1,
+    const manifest: Manifest = {
+      version: 3,
       buildRef: `${org}/${pipeline}/${buildNumber}`,
       url: `https://buildkite.com/${org}/${pipeline}/builds/${buildNumber}`,
       fetchedAt: new Date().toISOString(),
-      complete: allSuccess,
+      fetchComplete: allFetchesSucceeded && annotationResult.fetchStatus !== 'failed',
       build: {
-        status: build.state || 'unknown',
+        state: build.state || 'unknown',
+        number: build.number,
+        message: build.message?.split('\n')[0] || '',
+        branch: build.branch || 'unknown',
+        commit: build.commit?.substring(0, 7) || 'unknown',
+        finishedAt: build.finishedAt || null,
       },
-      steps: stepResults,
+      annotations: {
+        fetchStatus: annotationResult.fetchStatus,
+        count: annotationResult.count,
+        items: annotationResult.items,
+      },
+      ...(artifactResult && artifactResult.fetchStatus !== 'skipped' && {
+        artifacts: {
+          fetchStatus: artifactResult.fetchStatus,
+          count: artifactResult.count,
+          filter: artifactResult.filter,
+          items: artifactResult.items,
+        },
+      }),
+      steps: stepResults.map(result => ({
+        // Our metadata
+        id: result.id,
+        fetchStatus: result.status,
+
+        // Buildkite job metadata (flat structure)
+        jobId: result.jobId,
+        type: result.job.type || 'script',
+        name: result.job.name || '',
+        label: result.job.label || '',
+        state: result.job.state || 'unknown',
+        exit_status: result.job.exitStatus ?? null,
+        started_at: result.job.startedAt || null,
+        finished_at: result.job.finishedAt || null,
+      })),
     };
+
+    // Only include fetchErrors if any exist
+    if (fetchErrors.length > 0) {
+      manifest.fetchErrors = fetchErrors.map(err => ({
+        id: err.id,
+        jobId: err.jobId,
+        fetchStatus: 'failed' as const,
+        error: err.error!,
+        message: err.message!,
+        retryable: err.retryable!,
+      }));
+    }
+
+    return manifest;
   }
 
   private async saveManifest(outputDir: string, manifest: Manifest): Promise<void> {
     const manifestPath = path.join(outputDir, 'manifest.json');
     await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+  }
+
+  /**
+   * Load existing manifest if present
+   * Returns null if no manifest exists or parsing fails
+   */
+  private async loadExistingManifest(outputDir: string): Promise<Manifest | null> {
+    const manifestPath = path.join(outputDir, 'manifest.json');
+    try {
+      const content = await fs.readFile(manifestPath, 'utf-8');
+      const manifest = JSON.parse(content) as Manifest;
+      // Accept v2 and v3 manifests (v3 adds optional artifacts section)
+      if (manifest.version !== 2 && manifest.version !== 3) {
+        return null;
+      }
+      return manifest;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Detect what has changed since last snapshot
+   * Compares current build state against stored manifest
+   */
+  private detectChanges(
+    currentBuild: any,
+    currentJobs: any[],
+    existingManifest: Manifest | null,
+    force: boolean
+  ): BuildChangeResult {
+    // Force refresh requested
+    if (force) {
+      return { hasChanges: true, reason: 'force_refresh' };
+    }
+
+    // No existing manifest - full fetch needed
+    if (!existingManifest) {
+      return { hasChanges: true, reason: 'no_existing_manifest' };
+    }
+
+    const currentState = currentBuild.state?.toUpperCase();
+
+    // Build still running - always re-fetch
+    if (!TERMINAL_BUILD_STATES.includes(currentState)) {
+      return { hasChanges: true, reason: 'build_running' };
+    }
+
+    // Check if build finished at different time (rebuild scenario)
+    const currentFinishedAt = currentBuild.finishedAt;
+    const storedFinishedAt = existingManifest.build.finishedAt;
+    if (currentFinishedAt !== storedFinishedAt) {
+      return { hasChanges: true, reason: 'build_finished_changed' };
+    }
+
+    // For terminal builds with matching finishedAt, the build can't have changed
+    // Skip job-level comparison since we may have only stored a subset (e.g., --failed mode)
+    if (existingManifest.fetchComplete) {
+      return { hasChanges: false };
+    }
+
+    // Compare job states (only for incomplete fetches)
+    const jobsToRefetch: string[] = [];
+    const storedJobMap = new Map(
+      existingManifest.steps.map(s => [s.jobId, s])
+    );
+
+    for (const jobEdge of currentJobs) {
+      const job = jobEdge.node;
+      if (job.__typename !== 'JobTypeCommand' && job.__typename) continue;
+
+      const storedJob = storedJobMap.get(job.id);
+
+      // New job - needs fetch
+      if (!storedJob) {
+        jobsToRefetch.push(job.id);
+        continue;
+      }
+
+      // Job state changed
+      if (job.state !== storedJob.state) {
+        jobsToRefetch.push(job.id);
+        continue;
+      }
+
+      // Job finished at different time
+      if (job.finishedAt !== storedJob.finished_at) {
+        jobsToRefetch.push(job.id);
+      }
+    }
+
+    // If any jobs need re-fetching, there are changes
+    if (jobsToRefetch.length > 0) {
+      return {
+        hasChanges: true,
+        reason: 'build_finished_changed',
+        jobsToRefetch,
+      };
+    }
+
+    // No changes detected
+    return { hasChanges: false };
+  }
+
+  /**
+   * Check if annotations have changed
+   * Returns true if any annotation is new or has been updated
+   */
+  private async checkAnnotationsChanged(
+    buildSlug: string,
+    existingManifest: Manifest | null
+  ): Promise<boolean> {
+    if (!existingManifest?.annotations?.items) {
+      return true;  // No stored annotations, need to fetch
+    }
+
+    try {
+      const currentTimestamps = await this.client.getAnnotationTimestamps(buildSlug);
+
+      // Create map of stored annotations
+      const storedMap = new Map(
+        existingManifest.annotations.items.map(a => [a.uuid, a.updatedAt])
+      );
+
+      // Check for new or updated annotations
+      for (const current of currentTimestamps) {
+        const storedUpdatedAt = storedMap.get(current.uuid);
+        if (storedUpdatedAt === undefined) {
+          return true;  // New annotation
+        }
+        if (current.updatedAt !== storedUpdatedAt) {
+          return true;  // Updated annotation
+        }
+      }
+
+      // Check count matches
+      if (currentTimestamps.length !== existingManifest.annotations.items.length) {
+        return true;  // Annotation count changed (deleted)
+      }
+
+      return false;
+    } catch {
+      return true;  // Error checking, re-fetch to be safe
+    }
   }
 
   /**
@@ -323,4 +1015,87 @@ export class Snapshot extends BaseCommand {
 
     return false;
   }
+  /**
+   * Get directory name of first failed step for concrete example in tips
+   */
+  private getFirstFailedStepDir(scriptJobs: any[]): string | null {
+    for (let i = 0; i < scriptJobs.length; i++) {
+      const job = scriptJobs[i];
+      if (this.isFailedJob(job)) {
+        return getStepDirName(i, job.name || job.label || 'step');
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Display contextual navigation tips based on build state
+   */
+  private displayNavigationTips(
+    outputDir: string,
+    build: any,
+    scriptJobs: any[],
+    capturedCount: number,
+    annotationResult: AnnotationResult,
+    skippedCount: number
+  ): void {
+    const buildState = build.state?.toLowerCase();
+    const isFailed = buildState === 'failed' || buildState === 'failing';
+
+    // Use relative paths for readability (string concat preserves ./ prefix)
+    const basePath = pathForDisplay(outputDir);
+    const manifestPath = `${basePath}/manifest.json`;
+    const stepsPath = `${basePath}/steps`;
+    const annotationsPath = `${basePath}/annotations.json`;
+
+    // Output tips using logger.console to maintain consistent output ordering
+    // (reporter.tips uses direct stdout which can race with pino's buffering)
+    logger.console(' ');  // Blank line before Next steps
+    logger.console('Next steps:');
+
+    if (isFailed) {
+      // Tips for failed builds
+      logger.console(`  → List failures:   jq -r '.steps[] | select(.state == "failed") | "\\(.id): \\(.label)"' ${manifestPath}`);
+
+      // Add annotation tip if annotations exist
+      if (annotationResult.count > 0) {
+        logger.console(`  → View annotations: jq -r '.annotations[] | {context, style}' ${annotationsPath}`);
+      }
+
+      logger.console(`  → Get exit codes:  jq -r '.steps[] | "\\(.id): exit \\(.exit_status)"' ${manifestPath}`);
+
+      // If we captured steps, show how to view first failed log
+      if (capturedCount > 0) {
+        const firstFailedDir = this.getFirstFailedStepDir(scriptJobs);
+        if (firstFailedDir) {
+          logger.console(`  → View a log:      cat ${stepsPath}/${firstFailedDir}/log.txt`);
+        }
+      }
+
+      logger.console(`  → Search errors:   grep -r "Error\\|Failed\\|Exception" ${stepsPath}/`);
+
+      // Show --all tip if steps were skipped
+      if (skippedCount > 0) {
+        logger.console(`  → Use --all to include all ${skippedCount} passing steps`);
+      }
+    } else {
+      // Tips for passed builds
+      logger.console(`  → List all steps:  jq -r '.steps[] | "\\(.id): \\(.label) (\\(.state))"' ${manifestPath}`);
+      logger.console(`  → Browse logs:     ls ${stepsPath}/`);
+
+      if (capturedCount > 0) {
+        logger.console(`  → View a log:      cat ${stepsPath}/01-*/log.txt`);
+      }
+
+      // Show --all tip if steps were skipped (for passed builds using default filter)
+      if (skippedCount > 0) {
+        logger.console(`  → Use --all to include all ${skippedCount} passing steps`);
+      }
+    }
+
+    logger.console(`  → Use --no-tips to hide these hints`);
+    logger.console(' ');
+    logger.console(SEMANTIC_COLORS.dim(`  → manifest.json has full build metadata and step index`));
+  }
+
 }

@@ -3,6 +3,9 @@ import { BuildkiteRestClient, BuildkiteRestClientOptions } from '../services/Bui
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { logger } from '../services/logger.js';
 import { CredentialManager } from '../services/CredentialManager.js';
+import { TokenSetupGuide } from '../services/TokenSetupGuide.js';
+import { GuidanceError } from '../errors/index.js';
+import { displayCLIError } from '../utils/cli-error-handler.js';
 
 export interface BaseCommandOptions {
   cacheTTL?: number;
@@ -14,21 +17,6 @@ export interface BaseCommandOptions {
   quiet?: boolean;
   tips?: boolean;
   token?: string;
-}
-
-// Extended Error interface for API and GraphQL errors
-interface ApiError extends Error {
-  response?: {
-    errors?: Array<{
-      message: string;
-      path?: string[];
-      locations?: Array<{line: number; column: number}>;
-    }>;
-  };
-  request?: {
-    url?: string;
-    method?: string;
-  };
 }
 
 export abstract class BaseCommand {
@@ -74,7 +62,7 @@ export abstract class BaseCommand {
       return this._restClient;
     } else {
       if (this.token) {
-        this._restClient = new BuildkiteRestClient(this.token, this.options);
+        this._restClient = new BuildkiteRestClient(this.token, this.restClientOptions);
         return this._restClient;
       } else {
         throw new Error('No token provided');
@@ -113,38 +101,8 @@ export abstract class BaseCommand {
   }
 
   protected handleError(error: any, debug: boolean = false): void {
-    // Only log the error message and stack trace
-    if (error instanceof Error) {
-      logger.error(error, 'Error occurred');
-      
-      // If it's a GraphQL error or API error, show more details
-      const apiError = error as ApiError;
-      if (apiError.response?.errors) {
-        apiError.response.errors.forEach((gqlError, index) => {
-          logger.error({ path: gqlError.path }, `GraphQL Error ${index + 1}: ${gqlError.message}`);
-        });
-      }
-      
-      // Show request details if available and in debug mode
-      if (debug && apiError.request) {
-        logger.debug({ 
-          url: apiError.request.url,
-          method: apiError.request.method 
-        }, 'Request Details');
-      }
-    } else if (typeof error === 'object') {
-      logger.error({ error }, 'Unknown error occurred');
-    } else {
-      logger.error({ error }, 'Unknown error occurred');
-    }
-    
-    if (debug) {
-      logger.debug({ 
-        timestamp: new Date().toISOString(),
-        nodeVersion: process.version,
-        platform: `${process.platform} (${process.arch})`
-      }, 'Debug Information');
-    }
+    // Use the CLI error display for user-friendly formatting
+    displayCLIError(error, debug);
   }
 
   // Static helper to get token from options, keyring, or environment
@@ -171,11 +129,11 @@ export abstract class BaseCommand {
       logger.debug('Error retrieving token from keychain', error);
     }
     
-    if (options.requiresToken) {
-      throw new Error('API token required. Set via --token, BUILDKITE_API_TOKEN/BK_TOKEN env vars, or store it using --save-token.');
-    } else {
-      return
-    }
+    // No token found anywhere. Throw a GuidanceError with environment-aware
+    // setup instructions. The error formatter shows the guidance directly
+    // without adding its own contextual hints/tips on top.
+    const guide = new TokenSetupGuide();
+    throw new GuidanceError(guide.getSetupGuidance());
   }
 
   /**

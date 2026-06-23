@@ -63,7 +63,7 @@ export const GET_PIPELINES = gql`
 export const GET_PIPELINE = gql`
   query GetPipeline($organizationSlug: ID!, $pipelineSlug: String!) {
     organization(slug: $organizationSlug) {
-      pipelines(first: 1, search: $pipelineSlug) {
+      pipelines(first: 50, search: $pipelineSlug) {
         edges {
           node {
             uuid
@@ -84,32 +84,49 @@ export const GET_PIPELINE = gql`
 `;
 
 export const GET_BUILDS = gql`
-  query GetBuilds($pipelineSlug: String!, $organizationSlug: ID!, $first: Int) {
-    organization(slug: $organizationSlug) {
-      pipelines(first: 1, search: $pipelineSlug) {
+  query GetBuilds(
+    $pipelineSlug: ID!
+    $first: Int
+    $createdAtFrom: DateTime
+    $createdAtTo: DateTime
+    $state: [BuildStates!]
+    $branch: [String!]
+  ) {
+    pipeline(slug: $pipelineSlug) {
+      slug
+      name
+      builds(
+        first: $first
+        createdAtFrom: $createdAtFrom
+        createdAtTo: $createdAtTo
+        state: $state
+        branch: $branch
+      ) {
         edges {
           node {
-            builds(first: $first) {
-              edges {
-                node {
-                  id
-                  number
-                  url
-                  state
-                  message
-                  commit
-                  branch
-                  createdAt
-                  startedAt
-                  finishedAt
-                }
-              }
-              pageInfo {
-                hasNextPage
-                endCursor
-              }
+            id
+            number
+            url
+            state
+            message
+            commit
+            branch
+            source {
+              name
+            }
+            createdAt
+            startedAt
+            finishedAt
+            createdBy {
+              __typename
+              ... on User { name email }
+              ... on UnregisteredUser { name email }
             }
           }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
         }
       }
     }
@@ -329,4 +346,42 @@ export const GET_BUILD_JOBS_PAGE = gql`
     }
   }
   ${JOB_SUMMARY_FIELDS}
+`;
+
+export const GET_BUILD_ANNOTATION_TIMESTAMPS = gql`
+  query GetBuildAnnotationTimestamps($slug: ID!) {
+    build(slug: $slug) {
+      annotations(first: 100) {
+        edges {
+          node {
+            uuid
+            updatedAt
+            createdAt
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const GET_BUILD_ANNOTATIONS_FULL = gql`
+  query GetBuildAnnotationsFull($slug: ID!) {
+    build(slug: $slug) {
+      annotations(first: 100) {
+        edges {
+          node {
+            uuid
+            context
+            style
+            body {
+              html
+              text
+            }
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    }
+  }
 `; 

@@ -42,7 +42,9 @@ export class JsonFormatter extends BaseFormatter {
         url: build.web_url || build.url || 'No URL',
         created_at: build.created_at || build.createdAt || null,
         started_at: build.started_at || build.startedAt || null,
-        finished_at: build.finished_at || build.finishedAt || null
+        finished_at: build.finished_at || build.finishedAt || null,
+        source: (build as any).source || null,
+        created_by: (build as any).createdBy || null
       }))
     };
     

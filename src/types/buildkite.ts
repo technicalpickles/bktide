@@ -39,6 +39,45 @@ export interface PageInfo {
   endCursor: string;
 }
 
+/** Artifact states that can be downloaded */
+export const DOWNLOADABLE_ARTIFACT_STATES = new Set<string>(['finished', 'new']);
+
+/** Slimmed-down artifact record stored in snapshot manifests */
+export interface ArtifactManifestItem {
+  id: string;
+  jobId: string;
+  path: string;
+  file_size: number;
+  sha1sum: string;
+  mime_type: string;
+}
+
+/**
+ * Artifact from Buildkite REST API (build-scoped list response)
+ */
+export interface BuildkiteArtifact {
+  id: string;
+  job_id: string;
+  url: string;
+  download_url: string;
+  state: 'finished' | 'new' | 'error' | 'deleted' | 'expired';
+  path: string;
+  dirname: string;
+  filename: string;
+  mime_type: string;
+  file_size: number;
+  sha1sum: string;
+}
+
+/**
+ * Buildkite access-token introspection response
+ * (GET /v2/access-token returns the token's uuid and granted scopes)
+ */
+export interface AccessTokenInfo {
+  uuid: string;
+  scopes: string[];
+}
+
 /**
  * Job log response from Buildkite REST API
  */
