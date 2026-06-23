@@ -1,10 +1,12 @@
 /**
  * Shared formatting utilities for formatters
- * 
+ *
  * These utilities provide consistent formatting for status, dates, durations,
  * sizes, and text truncation across all formatters.
  */
+import os from 'os';
 import { SEMANTIC_COLORS } from '../ui/theme.js';
+import { getStepDirName } from './stepUtils.js';
 
 /**
  * Format a build/job status with icon and color
@@ -92,4 +94,60 @@ export function truncate(str: string, length: number): string {
   const singleLine = str.replace(/\n+/g, ' ').trim();
   if (singleLine.length <= length) return singleLine;
   return singleLine.slice(0, length - 3) + '...';
+}
+
+/**
+ * Format duration from a build or job object's timestamps
+ * Returns empty string if not started
+ */
+export function formatBuildDuration(obj: {
+  startedAt?: string | null;
+  finishedAt?: string | null;
+}): string {
+  if (!obj.startedAt) return '';
+
+  const start = new Date(obj.startedAt).getTime();
+  const end = obj.finishedAt ? new Date(obj.finishedAt).getTime() : Date.now();
+  const seconds = Math.floor((end - start) / 1000);
+
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
+}
+
+/**
+ * Replace home directory with ~ for readable paths
+ */
+export function pathWithTilde(fullPath: string): string {
+  const home = os.homedir();
+  if (fullPath.startsWith(home)) {
+    return fullPath.replace(home, '~');
+  }
+  return fullPath;
+}
+
+/**
+ * Get the directory name of the first failed step
+ * Used to show example commands in navigation tips
+ */
+export function getFirstFailedStepDir(jobs: any[]): string | null {
+  for (let i = 0; i < jobs.length; i++) {
+    const job = jobs[i];
+    const exitCode =
+      job.exitStatus !== null && job.exitStatus !== undefined
+        ? parseInt(job.exitStatus, 10)
+        : null;
+
+    if (exitCode !== null && exitCode !== 0) {
+      return getStepDirName(i, job.name || job.label || 'step');
+    }
+    if (job.state === 'FAILED' || job.passed === false) {
+      return getStepDirName(i, job.name || job.label || 'step');
+    }
+  }
+  return null;
 }

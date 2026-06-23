@@ -243,3 +243,10 @@ bktide org/pipeline --format alfred
    bktide <url-with-sid> --save logs.txt
    less -R logs.txt  # View with colors
    ```
+
+## For Developers
+
+If you're contributing to bktide and want to understand the design principles behind input flexibility:
+
+- **Design system:** [`docs/developer/ui-design-system.md`](../developer/ui-design-system.md#input-affordances) - Guidelines for supporting multiple input formats
+- **Implementation:** [`docs/plans/2025-12-08-smart-reference-command-design.md`](../plans/2025-12-08-smart-reference-command-design.md) - Original design document

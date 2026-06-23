@@ -7,9 +7,9 @@ import { FormatterFactory, FormatterType } from './FormatterFactory.js';
 import { ErrorFormatter, ErrorFormatterOptions, getErrorFormatter } from './errors/index.js';
 import { AnnotationFormatter, getAnnotationFormatter } from './annotations/index.js';
 
-export { 
+export {
   FormatterOptions,
-  PipelineFormatter, 
+  PipelineFormatter,
   getPipelineFormatter,
   BuildFormatter,
   getBuildFormatter,
@@ -24,4 +24,6 @@ export {
   getAnnotationFormatter,
   FormatterFactory,
   FormatterType
-}; 
+};
+
+export * from './snapshot/index.js'; 

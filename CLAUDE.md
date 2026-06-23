@@ -62,6 +62,12 @@ All icons, colors, and visual elements go through `src/ui/theme.ts`:
 - Respect `NO_COLOR`, `BKTIDE_ASCII`, `BKTIDE_EMOJI` env vars
 - Color palette: blue (passed), orange (failed), yellow (warning)
 
+**When modifying CLI output**, consult `docs/developer/ui-design-system.md` for:
+- Semantic color conventions (`SEMANTIC_COLORS`)
+- Tip/hint formatting patterns (`formatTips`, `TipStyle`)
+- Icon system with accessibility fallbacks
+- Visual hierarchy guidelines
+
 ### GraphQL Fragments
 Reusable fragments in `src/graphql/fragments/`:
 - `JOB_SUMMARY_FIELDS` - minimal job info
