@@ -393,15 +393,17 @@ program
   .option('--filter <name>', 'Filter pipelines by name (case insensitive)')
   .action(createCommandHandler(ListPipelines));
 
-// Update the builds command to include REST API filtering options
 program
   .command('builds')
-  .description('List builds for the current user')
+  .description('List builds for the current user, or for a pipeline when one is given')
   .argument('[reference]', 'Pipeline reference (org/pipeline) - shorthand for --org and --pipeline')
   .option('-o, --org <org>', 'Organization slug (optional - will search all your orgs if not specified)')
   .option('-p, --pipeline <pipeline>', 'Filter by pipeline slug')
   .option('-b, --branch <branch>', 'Filter by branch name')
   .option('-s, --state <state>', 'Filter by build state (running, scheduled, passed, failing, failed, canceled, etc.)')
+  .option('--created-from <date>', 'Only builds created at/after this date (YYYY-MM-DD is UTC midnight, or ISO 8601); requires a pipeline')
+  .option('--created-to <date>', 'Only builds created before this date (YYYY-MM-DD is UTC midnight, or ISO 8601); requires a pipeline')
+  .option('--mine', 'Scope to your own builds even when a pipeline is given')
   .option('-n, --count <count>', 'Number of builds per page', '10')
   .option('--page <page>', 'Page number', '1')
   .option('--filter <filter>', 'Fuzzy filter builds by name or other properties')

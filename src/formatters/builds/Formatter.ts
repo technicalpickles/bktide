@@ -8,6 +8,9 @@ export interface BuildFormatterOptions extends FormatterOptions {
   errorMessage?: string;
   errorType?: 'access' | 'not_found' | 'api' | 'unknown';
   accessErrors?: string[];
+  // Pipeline scoping
+  pipelineScoped?: boolean;
+  pipelineName?: string;
 }
 
 export interface BuildFormatter extends BaseFormatterInterface {

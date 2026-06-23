@@ -84,32 +84,49 @@ export const GET_PIPELINE = gql`
 `;
 
 export const GET_BUILDS = gql`
-  query GetBuilds($pipelineSlug: String!, $organizationSlug: ID!, $first: Int) {
-    organization(slug: $organizationSlug) {
-      pipelines(first: 1, search: $pipelineSlug) {
+  query GetBuilds(
+    $pipelineSlug: ID!
+    $first: Int
+    $createdAtFrom: DateTime
+    $createdAtTo: DateTime
+    $state: [BuildStates!]
+    $branch: [String!]
+  ) {
+    pipeline(slug: $pipelineSlug) {
+      slug
+      name
+      builds(
+        first: $first
+        createdAtFrom: $createdAtFrom
+        createdAtTo: $createdAtTo
+        state: $state
+        branch: $branch
+      ) {
         edges {
           node {
-            builds(first: $first) {
-              edges {
-                node {
-                  id
-                  number
-                  url
-                  state
-                  message
-                  commit
-                  branch
-                  createdAt
-                  startedAt
-                  finishedAt
-                }
-              }
-              pageInfo {
-                hasNextPage
-                endCursor
-              }
+            id
+            number
+            url
+            state
+            message
+            commit
+            branch
+            source {
+              name
+            }
+            createdAt
+            startedAt
+            finishedAt
+            createdBy {
+              __typename
+              ... on User { name email }
+              ... on UnregisteredUser { name email }
             }
           }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
         }
       }
     }
