@@ -1,6 +1,24 @@
 {
   "enabledPlugins": {
     "superpowers@superpowers-marketplace": true,
-    "dev-tools@pickled-claude-plugins": true
+    "dev-tools@pickled-claude-plugins": true,
+    "elements-of-style@superpowers-marketplace": true,
+    "git@pickled-claude-plugins": true,
+    "ci-cd-tools@pickled-claude-plugins": true,
+    "working-in-monorepos@pickled-claude-plugins": true
+  },
+  "extraKnownMarketplaces": {
+    "pickled-claude-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "technicalpickles/pickled-claude-plugins"
+      }
+    },
+    "superpowers-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers-marketplace"
+      }
+    }
   }
 }
