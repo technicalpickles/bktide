@@ -32,3 +32,27 @@ export function getGitContext(options?: { remote?: string }): GitContext {
 
   return { branch, remoteUrl };
 }
+
+/**
+ * Get the HEAD commit SHA.
+ * Throws with actionable messages for common failure cases.
+ */
+export function getHeadCommit(): string {
+  try {
+    return execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+  } catch (error) {
+    throw new Error('Not a git repository or no commits yet. Pass --commit or provide a ref.');
+  }
+}
+
+/**
+ * Get the HEAD commit message subject line.
+ * Throws with actionable messages for common failure cases.
+ */
+export function getHeadCommitMessage(): string {
+  try {
+    return execSync('git log -1 --format=%s', { encoding: 'utf-8' }).trim();
+  } catch (error) {
+    throw new Error('Could not read git commit message. Pass --message or provide a ref.');
+  }
+}

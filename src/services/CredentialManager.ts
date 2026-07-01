@@ -157,7 +157,8 @@ export class CredentialManager {
       let scopes: { granted: string[]; missing: string[] } | undefined;
       try {
         const tokenInfo = await restClient.getAccessToken();
-        const required = Object.keys(REQUIRED_SCOPES);
+        const required = (Object.keys(REQUIRED_SCOPES) as Array<keyof typeof REQUIRED_SCOPES>)
+          .filter(s => !(REQUIRED_SCOPES[s] as { optional?: boolean }).optional);
         scopes = {
           granted: tokenInfo.scopes,
           missing: required.filter(s => !tokenInfo.scopes.includes(s)),
