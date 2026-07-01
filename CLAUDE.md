@@ -68,13 +68,21 @@ Reusable fragments in `src/graphql/fragments/`:
 - `JOB_DETAIL_FIELDS` - full job info
 - Run `npm run codegen` after modifying queries
 
+### Token Scopes
+Required Buildkite API scopes live in `src/services/RequiredScopes.ts` (single
+source of truth, keyed to `GET /v2/access-token`). Don't hardcode scope lists
+elsewhere - `TokenSetupGuide.ts` derives its guidance from there. Missing scopes
+are surfaced before a command fails.
+
 ## Development Workflow
 
 ```bash
 npm install          # Install dependencies
 npm run build        # Compile TypeScript
-npm run dev -- <cmd> # Run with ts-node
+npm run dev -- <cmd> # Compile (build-and-run.js) + run with source maps
 bin/bktide <cmd>     # Run compiled version
+
+npm run release:patch  # Cut a release (also :minor, :major) — builds, tags, pushes
 ```
 
 ### Adding a New Command
@@ -129,6 +137,8 @@ Tests use realistic patterns extracted from real Buildkite data:
 | `src/ui/theme.ts` | Icons, colors, visual elements |
 | `src/formatters/FormatterFactory.ts` | Format selection |
 | `src/graphql/fragments/jobs.ts` | Job field definitions |
+| `src/services/RequiredScopes.ts` | Source of truth for API token scopes |
+| `src/services/BuildPoller.ts` | Polling logic for snapshot/watch |
 
 ## Important Conventions
 

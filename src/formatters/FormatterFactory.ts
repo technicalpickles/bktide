@@ -8,6 +8,7 @@ import { getTokenFormatter } from './token/index.js';
 import { getAnnotationFormatter } from './annotations/index.js';
 import { getBuildDetailFormatter } from './build-detail/index.js';
 import { getArtifactFormatter } from './artifacts/index.js';
+import { getBuildCreateFormatter } from './build-create/index.js';
 
 export enum FormatterType {
   PIPELINE = 'pipeline',
@@ -19,6 +20,7 @@ export enum FormatterType {
   ANNOTATION = 'annotation',
   BUILD_DETAIL = 'build-detail',
   ARTIFACT = 'artifact',
+  BUILD_CREATE = 'build-create',
 }
 
 export class FormatterFactory {
@@ -51,6 +53,8 @@ export class FormatterFactory {
         return getBuildDetailFormatter(normalizedFormat) as any;
       case FormatterType.ARTIFACT:
         return getArtifactFormatter(normalizedFormat) as any;
+      case FormatterType.BUILD_CREATE:
+        return getBuildCreateFormatter(normalizedFormat) as any;
       default:
         throw new Error(`Unknown formatter type: ${type}`);
     }

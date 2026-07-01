@@ -194,6 +194,36 @@ bktide build org/pipeline/123 --annotations
 bktide build org/pipeline/123 --jobs --failed --annotations
 ```
 
+### Create a New Build
+
+Trigger a new build. Pipeline, commit, branch, and message auto-detect from the local git checkout when omitted.
+
+```bash
+# Inside a git checkout — everything auto-detected
+bktide build create
+
+# Explicit pipeline with overrides
+bktide build create org/pipeline --commit abc123 --branch main --message "hotfix"
+
+# Pass environment variables (repeatable)
+bktide build create org/pipeline --env DEBUG=1 --env NODE_ENV=production
+
+# Watch the new build until it finishes
+bktide build create org/pipeline --watch
+```
+
+### Rebuild an Existing Build
+
+Re-run a build with its original parameters. Accepts a slug or full URL.
+
+```bash
+bktide build rebuild org/pipeline/123
+bktide build rebuild https://buildkite.com/org/pipeline/builds/123
+
+# Watch the new build
+bktide build rebuild org/pipeline/123 --watch
+```
+
 ### Show Pipeline Details
 
 View pipeline metadata and recent builds.

@@ -24,6 +24,11 @@ export const REQUIRED_SCOPES = {
     displayName: 'Read Artifacts',
     commands: ['artifacts list', 'artifacts download', 'snapshot --artifacts'],
   },
+  write_builds: {
+    displayName: 'Write Builds',
+    commands: ['build create', 'build rebuild'],
+    optional: true,
+  },
   graphql: {
     displayName: 'GraphQL API Access',
     commands: ['most commands (viewer, listings)'],
