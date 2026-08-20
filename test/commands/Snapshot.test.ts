@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { getStepDirName, categorizeError, Snapshot } from '../../src/commands/Snapshot.js';
+import { categorizeError, Snapshot } from '../../src/commands/Snapshot.js';
+import { getStepDirName } from '../../src/utils/stepUtils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
@@ -269,6 +270,10 @@ describe('Snapshot Command', () => {
       expect(manifest.steps).toHaveLength(2); // Only script jobs
       expect(manifest.annotations.fetchStatus).toBe('none');
       expect(manifest.annotations.count).toBe(0);
+      expect(manifest.build.author).toEqual({ name: 'Test User', email: 'test@example.com' });
+      expect(manifest.build.createdAt).toBe(mockBuildData.build.createdAt);
+      expect(manifest.build.startedAt).toBe(mockBuildData.build.startedAt);
+      expect(manifest.jobStats).toMatchObject({ total: 2, passed: 2, failed: 0 });
 
       // Verify build.json exists
       const buildPath = path.join(buildDir, 'build.json');
@@ -412,6 +417,81 @@ describe('Snapshot Command', () => {
       const parsed = JSON.parse(output);
       expect(parsed.version).toBe(3);
       expect(parsed.buildRef).toBe('myorg/mypipeline/42');
+      expect(parsed.build.author).toEqual({ name: 'Test User', email: 'test@example.com' });
+      expect(parsed.jobStats).toMatchObject({ total: 1, passed: 1 });
+      expect(parsed.paths.outputDir).toBe(path.join(tempDir, 'myorg', 'mypipeline', '42'));
+      expect(parsed.paths.manifest).toBe(path.join(tempDir, 'myorg', 'mypipeline', '42', 'manifest.json'));
+    });
+
+    it('should refresh build info and job stats when reusing an up-to-date manifest', async () => {
+      const mockBuildData = {
+        build: {
+          id: 'build-123',
+          number: 42,
+          state: 'PASSED',
+          message: 'Test build',
+          branch: 'main',
+          commit: 'abc123',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          startedAt: '2026-01-01T00:00:00.000Z',
+          finishedAt: '2026-01-01T00:05:00.000Z',
+          createdBy: { name: 'Test User', email: 'test@example.com' },
+          jobs: {
+            edges: [
+              {
+                node: {
+                  __typename: 'JobTypeCommand',
+                  id: 'job-1',
+                  uuid: 'job-uuid-1',
+                  label: 'Build',
+                  state: 'PASSED',
+                  exitStatus: '0',
+                  passed: true,
+                  softFailed: false,
+                  startedAt: '2026-01-01T00:00:00.000Z',
+                  finishedAt: '2026-01-01T00:05:00.000Z',
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      const mockLog = { content: 'Build output', size: 12 };
+      vi.spyOn(snapshot['client'], 'getBuildSummaryWithAllJobs').mockResolvedValue(mockBuildData);
+      vi.spyOn(snapshot['restClient'], 'getJobLog').mockResolvedValue(mockLog);
+      vi.spyOn(snapshot['client'], 'getAnnotationTimestamps').mockResolvedValue([]);
+      vi.spyOn(snapshot['client'], 'getAnnotationsFull').mockResolvedValue([]);
+
+      // First run writes the manifest (a plain v3 manifest with no jobStats/author,
+      // simulating one written before those fields existed).
+      await snapshot.execute({ buildRef: 'myorg/mypipeline/42', outputDir: tempDir, all: true });
+
+      const manifestPath = path.join(tempDir, 'myorg', 'mypipeline', '42', 'manifest.json');
+      const onDiskManifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
+      delete onDiskManifest.jobStats;
+      onDiskManifest.build = { state: 'PASSED', number: 42, message: 'Test build', branch: 'main', commit: 'abc123', finishedAt: onDiskManifest.build.finishedAt };
+      await fs.writeFile(manifestPath, JSON.stringify(onDiskManifest, null, 2), 'utf-8');
+
+      const consoleSpy = vi.fn();
+      const loggerModule = await import('../../src/services/logger.js');
+      vi.spyOn(loggerModule.logger, 'console').mockImplementation(consoleSpy);
+
+      // Second run should detect no changes, reuse the manifest, but still
+      // refresh build/jobStats in the printed output rather than trusting
+      // the stale (pre-upgrade) on-disk copy.
+      const result = await snapshot.execute({
+        buildRef: 'myorg/mypipeline/42',
+        outputDir: tempDir,
+        json: true,
+        all: true,
+      });
+
+      expect(result).toBe(0);
+      const output = consoleSpy.mock.calls[0][0];
+      const parsed = JSON.parse(output);
+      expect(parsed.build.author).toEqual({ name: 'Test User', email: 'test@example.com' });
+      expect(parsed.jobStats).toMatchObject({ total: 1, passed: 1 });
     });
 
     it('should parse URL format build refs correctly', async () => {

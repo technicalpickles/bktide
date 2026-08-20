@@ -3,15 +3,26 @@ import { logger } from '../services/logger.js';
 import { parseBuildRef } from '../utils/parseBuildRef.js';
 import { Progress } from '../ui/progress.js';
 import { getStateIcon, SEMANTIC_COLORS, BUILD_STATUS_THEME } from '../ui/theme.js';
-import { formatDistanceToNow } from 'date-fns';
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
 import { BuildPoller, BuildRef, JobStateChange } from '../services/BuildPoller.js';
 import { getGitContext } from '../utils/gitContext.js';
 import { parseGitRemoteUrl, generateRepoCandidates } from '../utils/repoUrl.js';
 import { minimatch } from 'minimatch';
-import { BuildkiteArtifact, DOWNLOADABLE_ARTIFACT_STATES, ArtifactManifestItem } from '../types/buildkite.js';
+import { BuildkiteArtifact, DOWNLOADABLE_ARTIFACT_STATES } from '../types/buildkite.js';
+import {
+  Manifest,
+  AnnotationResult,
+  ArtifactResult,
+  AnnotationsFile,
+  BuildChangeResult,
+  StepResult,
+  StepError,
+} from '../types/snapshot.js';
+import { isFailedJob, calculateJobStats } from '../utils/jobStats.js';
+import { getStepDirName } from '../utils/stepUtils.js';
+import { FormatterFactory, FormatterType } from '../formatters/index.js';
+import { SnapshotFormatter } from '../formatters/snapshot/index.js';
 
 export interface SnapshotOptions extends BaseCommandOptions {
   buildRef?: string;
@@ -32,107 +43,7 @@ export interface SnapshotOptions extends BaseCommandOptions {
   artifactGlob?: string;
 }
 
-interface StepResult {
-  id: string;
-  jobId: string;
-  status: 'success' | 'failed';
-  job: any;  // Full job object from Buildkite API
-  error?: string;
-  message?: string;
-  retryable?: boolean;
-}
-
-interface Manifest {
-  version: number;
-  buildRef: string;
-  url: string;
-  fetchedAt: string;
-  fetchComplete: boolean;  // Renamed from 'complete'
-  build: {
-    state: string;
-    number: number;
-    message: string;
-    branch: string;
-    commit: string;
-    finishedAt: string | null;
-  };
-  annotations?: {
-    fetchStatus: 'success' | 'none' | 'failed';
-    count: number;
-    items?: Array<{
-      uuid: string;
-      updatedAt: string | null;
-    }>;
-  };
-  artifacts?: {
-    fetchStatus: 'success' | 'none' | 'failed' | 'skipped';
-    count: number;
-    filter?: string;
-    items?: ArtifactManifestItem[];
-  };
-  steps: Array<{
-    // Our metadata
-    id: string;
-    fetchStatus: 'success' | 'failed';  // Renamed from 'status'
-
-    // Buildkite job metadata (flat)
-    jobId: string;
-    type: string;
-    name: string;
-    label: string;
-    state: string;
-    exit_status: number | null;
-    started_at: string | null;
-    finished_at: string | null;
-  }>;
-  fetchErrors?: Array<{
-    id: string;
-    jobId: string;
-    fetchStatus: 'failed';
-    error: string;
-    message: string;
-    retryable: boolean;
-  }>;
-}
-
-interface AnnotationResult {
-  fetchStatus: 'success' | 'none' | 'failed';
-  count: number;
-  items?: Array<{ uuid: string; updatedAt: string | null }>;
-  error?: string;
-  message?: string;
-}
-
-interface ArtifactResult {
-  fetchStatus: 'success' | 'none' | 'failed' | 'skipped';
-  count: number;
-  filter?: string;
-  items?: ArtifactManifestItem[];
-  error?: string;
-}
-
-interface AnnotationsFile {
-  fetchedAt: string;
-  count: number;
-  annotations: any[];  // Raw annotations from Buildkite API
-}
-
-interface BuildChangeResult {
-  hasChanges: boolean;
-  reason?: 'build_running' | 'build_finished_changed' | 'no_existing_manifest' | 'force_refresh';
-  jobsToRefetch?: string[];  // Job IDs that need re-fetching
-  annotationsChanged?: boolean;
-}
-
 const TERMINAL_BUILD_STATES = ['PASSED', 'FAILED', 'CANCELED', 'BLOCKED', 'NOT_RUN'];
-
-type ErrorCategory = 'rate_limited' | 'not_found' | 'permission_denied' | 'network_error' | 'unknown';
-
-interface StepError {
-  error: ErrorCategory;
-  message: string;
-  retryable: boolean;
-}
 
 /**
  * Categorize an error into a known category
@@ -153,70 +64,6 @@ export function categorizeError(error: Error): StepError {
     return { error: 'network_error', message: error.message, retryable: true };
   }
   return { error: 'unknown', message: error.message, retryable: true };
-}
-
-
-/**
- * Format duration from milliseconds or date range
- */
-function formatDuration(startedAt: string | null, finishedAt: string | null): string {
-  if (!startedAt) return '';
-  const start = new Date(startedAt).getTime();
-  const end = finishedAt ? new Date(finishedAt).getTime() : Date.now();
-  const seconds = Math.floor((end - start) / 1000);
-
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return `${hours}h ${remainingMinutes}m`;
-}
-
-
-/**
- * Generate a sanitized directory name for a step
- */
-export function getStepDirName(index: number, label: string): string {
-  const num = String(index + 1).padStart(2, '0');
-  const sanitized = label
-    .replace(/:[^:]+:/g, '')           // Remove emoji shortcodes like :hammer:
-    .replace(/[^a-zA-Z0-9-]/g, '-')    // Replace non-alphanumeric with dashes
-    .replace(/-+/g, '-')               // Collapse multiple dashes
-    .replace(/^-|-$/g, '')             // Trim leading/trailing dashes
-    .toLowerCase()
-    .slice(0, 50);                     // Limit length
-  return `${num}-${sanitized || 'step'}`;
-}
-
-/**
- * Convert absolute path to use tilde (~) for home directory
- * Makes paths more readable and portable
- */
-function pathWithTilde(absolutePath: string): string {
-  const homeDir = os.homedir();
-  if (absolutePath.startsWith(homeDir)) {
-    return absolutePath.replace(homeDir, '~');
-  }
-  return absolutePath;
-}
-
-/**
- * Format path for display: use relative ./tmp/... for default location,
- * tilde path for custom locations
- */
-function pathForDisplay(absolutePath: string): string {
-  const cwd = process.cwd();
-  const defaultBase = path.join(cwd, 'tmp', 'bktide', 'snapshots');
-
-  // If path is under default location, show as relative
-  if (absolutePath.startsWith(defaultBase)) {
-    return './' + path.relative(cwd, absolutePath);
-  }
-
-  // Otherwise use tilde path
-  return pathWithTilde(absolutePath);
 }
 
 export class Snapshot extends BaseCommand {
@@ -251,7 +98,9 @@ export class Snapshot extends BaseCommand {
       return this.executeBranchAware(options);
     }
 
-    const format = options.format || 'plain';
+    // --json is a snapshot-specific alias for --format json, kept for
+    // existing scripts; --format is the CLI-wide way to select it.
+    const format = options.json ? 'json' : (options.format || 'plain');
     const spinner = Progress.spinner('Fetching build data…', { format });
 
     try {
@@ -289,17 +138,41 @@ export class Snapshot extends BaseCommand {
 
       if (!changeResult.hasChanges) {
         spinner.stop();
-        logger.console(`Snapshot already up to date: ${pathForDisplay(outputDir)}`);
 
-        // Still show navigation tips (displayNavigationTips adds its own leading blank line)
         const scriptJobs = jobs
           .map((edge: any) => edge.node)
           .filter((job: any) => job.__typename === 'JobTypeCommand' || !job.__typename);
 
-        if (this.options.tips !== false && existingManifest) {
-          const annotationResult: AnnotationResult = existingManifest.annotations || { fetchStatus: 'none', count: 0 };
-          this.displayNavigationTips(outputDir, build, scriptJobs, existingManifest.steps.length, annotationResult, 0);
-        }
+        const annotationResult: AnnotationResult = existingManifest!.annotations
+          ? existingManifest!.annotations
+          : { fetchStatus: 'none', count: 0 };
+
+        // Build/job-state facts are cheap to recompute from the live GraphQL
+        // response we already fetched above, even on this short-circuit path
+        // where we don't re-fetch step logs. That keeps `--format json`
+        // accurate without rewriting manifest.json on a no-op run.
+        const refreshedManifest: Manifest = {
+          ...existingManifest!,
+          build: this.buildManifestBuildSection(build),
+          jobStats: calculateJobStats(scriptJobs),
+        };
+
+        const formatter = FormatterFactory.getFormatter(FormatterType.SNAPSHOT, format) as unknown as SnapshotFormatter;
+        logger.console(formatter.format({
+          outputDir,
+          manifest: refreshedManifest,
+          build,
+          scriptJobs,
+          alreadyUpToDate: true,
+          capturedCount: existingManifest!.steps.length,
+          skippedCount: scriptJobs.length - existingManifest!.steps.length,
+          fetchErrorCount: 0,
+          annotationResult,
+          artifactResult: existingManifest!.artifacts,
+          showTips: this.options.tips !== false,
+          debug: options.debug,
+        }));
+
         return 0;
       }
 
@@ -355,7 +228,7 @@ export class Snapshot extends BaseCommand {
         jobsToFetch = scriptJobs;
       } else {
         // Filter to only failed jobs
-        jobsToFetch = scriptJobs.filter((job: any) => this.isFailedJob(job));
+        jobsToFetch = scriptJobs.filter((job: any) => isFailedJob(job));
       }
 
       const totalJobs = jobsToFetch.length;
@@ -416,64 +289,36 @@ export class Snapshot extends BaseCommand {
         buildRef.pipeline,
         buildRef.number,
         build,
+        scriptJobs,
         stepResults,
         annotationResult,
         artifactResult
       );
       await this.saveManifest(outputDir, manifest);
 
-      // 10. Output based on options
-      if (options.json) {
-        logger.console(JSON.stringify(manifest, null, 2));
-      } else {
-        // Show build summary first
-        this.displayBuildSummary(build, scriptJobs);
+      // 10. Output result
+      const fetchErrorCount = stepResults.filter(s => s.status === 'failed').length;
+      const skippedCount = !fetchAll ? scriptJobs.length - jobsToFetch.length : 0;
 
-        // Then show snapshot info
-        const fetchErrorCount = stepResults.filter(s => s.status === 'failed').length;
-
-        // Note: displayBuildSummary() already ends with a blank line
-        logger.console(`Snapshot saved to ${pathForDisplay(outputDir)}`);
-
-        if (stepResults.length > 0) {
-          logger.console(`  ${stepResults.length} step(s) captured`);
-        } else if (!fetchAll) {
-          logger.console(`  No failed steps to capture (build metadata saved)`);
-        } else {
-          logger.console(`  No steps to capture (build metadata saved)`);
-        }
-
-        if (annotationResult.count > 0) {
-          logger.console(`  ${annotationResult.count} annotation(s) captured`);
-        } else if (annotationResult.fetchStatus === 'none') {
-          if (options.debug) {
-            logger.console(`  No annotations present`);
-          }
-        } else if (annotationResult.fetchStatus === 'failed') {
-          logger.console(`  Warning: Failed to fetch annotations`);
-        }
-
-        if (fetchErrorCount > 0) {
-          logger.console(`  Warning: ${fetchErrorCount} step(s) had errors fetching logs`);
-        }
-
-        if (artifactResult?.fetchStatus === 'success' && artifactResult.count > 0) {
-          const filterNote = artifactResult.filter ? ` (filter: ${artifactResult.filter})` : '';
-          logger.console(`  ${artifactResult.count} artifact(s) downloaded${filterNote}`);
-        } else if (artifactResult?.fetchStatus === 'failed') {
-          logger.console(`  Warning: Failed to fetch artifacts${artifactResult.error ? ': ' + artifactResult.error : ''}`);
-        } else if (artifactResult?.fetchStatus === 'none') {
-          logger.debug(`No artifacts matched${artifactResult.filter ? ` '${artifactResult.filter}'` : ''}`);
-        }
-
-        // Track skipped count for tips section
-        const skippedCount = !fetchAll ? scriptJobs.length - jobsToFetch.length : 0;
-
-        // Show contextual navigation tips (check if tips are enabled)
-        if (this.options.tips !== false) {
-          this.displayNavigationTips(outputDir, build, scriptJobs, stepResults.length, annotationResult, skippedCount);
-        }
+      if (artifactResult?.fetchStatus === 'none') {
+        logger.debug(`No artifacts matched${artifactResult.filter ? ` '${artifactResult.filter}'` : ''}`);
       }
+
+      const formatter = FormatterFactory.getFormatter(FormatterType.SNAPSHOT, format) as unknown as SnapshotFormatter;
+      logger.console(formatter.format({
+        outputDir,
+        manifest,
+        build,
+        scriptJobs,
+        alreadyUpToDate: false,
+        capturedCount: stepResults.length,
+        skippedCount,
+        fetchErrorCount,
+        annotationResult,
+        artifactResult,
+        showTips: this.options.tips !== false,
+        debug: options.debug,
+      }));
 
       return manifest.fetchComplete ? 0 : 1;
     } catch (error) {
@@ -835,11 +680,34 @@ export class Snapshot extends BaseCommand {
     }
   }
 
+  /**
+   * The `build` sub-object shared by a freshly written manifest and a
+   * refreshed-in-memory reuse of an existing one. Build-level facts (author,
+   * timestamps) come straight off the live GraphQL response either way, so
+   * both paths stay accurate without needing a disk write.
+   */
+  private buildManifestBuildSection(build: any): Manifest['build'] {
+    return {
+      state: build.state || 'unknown',
+      number: build.number,
+      message: build.message?.split('\n')[0] || '',
+      branch: build.branch || 'unknown',
+      commit: build.commit?.substring(0, 7) || 'unknown',
+      finishedAt: build.finishedAt || null,
+      startedAt: build.startedAt || null,
+      createdAt: build.createdAt || null,
+      author: build.createdBy
+        ? { name: build.createdBy.name ?? null, email: build.createdBy.email ?? null }
+        : null,
+    };
+  }
+
   private buildManifest(
     org: string,
     pipeline: string,
     buildNumber: number,
     build: any,
+    scriptJobs: any[],
     stepResults: StepResult[],
     annotationResult: AnnotationResult,
     artifactResult?: ArtifactResult
@@ -853,14 +721,8 @@ export class Snapshot extends BaseCommand {
       url: `https://buildkite.com/${org}/${pipeline}/builds/${buildNumber}`,
       fetchedAt: new Date().toISOString(),
       fetchComplete: allFetchesSucceeded && annotationResult.fetchStatus !== 'failed',
-      build: {
-        state: build.state || 'unknown',
-        number: build.number,
-        message: build.message?.split('\n')[0] || '',
-        branch: build.branch || 'unknown',
-        commit: build.commit?.substring(0, 7) || 'unknown',
-        finishedAt: build.finishedAt || null,
-      },
+      build: this.buildManifestBuildSection(build),
+      jobStats: calculateJobStats(scriptJobs),
       annotations: {
         fetchStatus: annotationResult.fetchStatus,
         count: annotationResult.count,
@@ -872,6 +734,7 @@ export class Snapshot extends BaseCommand {
           count: artifactResult.count,
           filter: artifactResult.filter,
           items: artifactResult.items,
+          error: artifactResult.error,
         },
       }),
       steps: stepResults.map(result => ({
@@ -1055,177 +918,4 @@ export class Snapshot extends BaseCommand {
     }
   }
 
-  /**
-   * Check if a job is considered failed
-   * Failed states: failed, timed_out, or non-zero exit status
-   */
-  private isFailedJob(job: any): boolean {
-    const state = job.state?.toUpperCase();
-
-    // Check state-based failure
-    if (state === 'FAILED' || state === 'TIMED_OUT') {
-      return true;
-    }
-
-    // Check exit status (non-zero means failure, including soft failures)
-    if (job.exitStatus !== null && job.exitStatus !== undefined) {
-      const exitCode = parseInt(job.exitStatus, 10);
-      return exitCode !== 0;
-    }
-
-    // Check passed field
-    if (job.passed === false) {
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
-   * Get directory name of first failed step for concrete example in tips
-   */
-  private getFirstFailedStepDir(scriptJobs: any[]): string | null {
-    for (let i = 0; i < scriptJobs.length; i++) {
-      const job = scriptJobs[i];
-      if (this.isFailedJob(job)) {
-        return getStepDirName(i, job.name || job.label || 'step');
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Display contextual navigation tips based on build state
-   */
-  private displayNavigationTips(
-    outputDir: string,
-    build: any,
-    scriptJobs: any[],
-    capturedCount: number,
-    annotationResult: AnnotationResult,
-    skippedCount: number
-  ): void {
-    const buildState = build.state?.toLowerCase();
-    const isFailed = buildState === 'failed' || buildState === 'failing';
-
-    // Use relative paths for readability (string concat preserves ./ prefix)
-    const basePath = pathForDisplay(outputDir);
-    const manifestPath = `${basePath}/manifest.json`;
-    const stepsPath = `${basePath}/steps`;
-    const annotationsPath = `${basePath}/annotations.json`;
-
-    // Output tips using logger.console to maintain consistent output ordering
-    // (reporter.tips uses direct stdout which can race with pino's buffering)
-    logger.console(' ');  // Blank line before Next steps
-    logger.console('Next steps:');
-
-    if (isFailed) {
-      // Tips for failed builds
-      logger.console(`  → List failures:   jq -r '.steps[] | select(.state == "failed") | "\\(.id): \\(.label)"' ${manifestPath}`);
-
-      // Add annotation tip if annotations exist
-      if (annotationResult.count > 0) {
-        logger.console(`  → View annotations: jq -r '.annotations[] | {context, style}' ${annotationsPath}`);
-      }
-
-      logger.console(`  → Get exit codes:  jq -r '.steps[] | "\\(.id): exit \\(.exit_status)"' ${manifestPath}`);
-
-      // If we captured steps, show how to view first failed log
-      if (capturedCount > 0) {
-        const firstFailedDir = this.getFirstFailedStepDir(scriptJobs);
-        if (firstFailedDir) {
-          logger.console(`  → View a log:      cat ${stepsPath}/${firstFailedDir}/log.txt`);
-        }
-      }
-
-      logger.console(`  → Search errors:   grep -r "Error\\|Failed\\|Exception" ${stepsPath}/`);
-
-      // Show --all tip if steps were skipped
-      if (skippedCount > 0) {
-        logger.console(`  → Use --all to include all ${skippedCount} passing steps`);
-      }
-    } else {
-      // Tips for passed builds
-      logger.console(`  → List all steps:  jq -r '.steps[] | "\\(.id): \\(.label) (\\(.state))"' ${manifestPath}`);
-      logger.console(`  → Browse logs:     ls ${stepsPath}/`);
-
-      if (capturedCount > 0) {
-        logger.console(`  → View a log:      cat ${stepsPath}/01-*/log.txt`);
-      }
-
-      // Show --all tip if steps were skipped (for passed builds using default filter)
-      if (skippedCount > 0) {
-        logger.console(`  → Use --all to include all ${skippedCount} passing steps`);
-      }
-    }
-
-    logger.console(`  → Use --no-tips to hide these hints`);
-    logger.console(' ');
-    logger.console(SEMANTIC_COLORS.dim(`  → manifest.json has full build metadata and step index`));
-  }
-
-  /**
-   * Display build summary similar to `build` command
-   */
-  private displayBuildSummary(build: any, scriptJobs: any[]): void {
-    const state = build.state || 'unknown';
-    const icon = getStateIcon(state);
-    const theme = BUILD_STATUS_THEME[state.toUpperCase() as keyof typeof BUILD_STATUS_THEME];
-    const coloredIcon = theme ? theme.color(icon) : icon;
-    const message = build.message?.split('\n')[0] || 'No message';
-    const duration = formatDuration(build.startedAt, build.finishedAt);
-    const durationStr = duration ? ` ${SEMANTIC_COLORS.dim(duration)}` : '';
-
-    // First line: status + message + build number + duration
-    const coloredState = theme ? theme.color(state.toUpperCase()) : state.toUpperCase();
-    logger.console(`${coloredIcon} ${coloredState} ${message} ${SEMANTIC_COLORS.dim(`#${build.number}`)}${durationStr}`);
-
-    // Second line: author + branch + commit + time
-    const author = build.createdBy?.name || build.createdBy?.email || 'Unknown';
-    const branch = build.branch || 'unknown';
-    const commit = build.commit?.substring(0, 7) || 'unknown';
-    const created = build.createdAt ? formatDistanceToNow(new Date(build.createdAt), { addSuffix: true }) : '';
-    logger.console(`         ${author} • ${SEMANTIC_COLORS.identifier(branch)} • ${commit} • ${SEMANTIC_COLORS.dim(created)}`);
-
-    // Job statistics
-    const passed = scriptJobs.filter(j => {
-      if (j.exitStatus !== null && j.exitStatus !== undefined) {
-        return parseInt(j.exitStatus, 10) === 0;
-      }
-      return j.state === 'PASSED' || j.passed === true;
-    }).length;
-
-    const hardFailed = scriptJobs.filter(j => {
-      if (j.exitStatus !== null && j.exitStatus !== undefined) {
-        const exitCode = parseInt(j.exitStatus, 10);
-        return exitCode !== 0 && j.softFailed !== true;
-      }
-      return (j.state === 'FAILED' || j.passed === false) && j.softFailed !== true;
-    }).length;
-
-    const softFailed = scriptJobs.filter(j => {
-      if (j.exitStatus !== null && j.exitStatus !== undefined) {
-        const exitCode = parseInt(j.exitStatus, 10);
-        return exitCode !== 0 && j.softFailed === true;
-      }
-      return (j.state === 'FAILED' || j.passed === false) && j.softFailed === true;
-    }).length;
-
-    const running = scriptJobs.filter(j => j.state === 'RUNNING').length;
-    const other = scriptJobs.length - passed - hardFailed - softFailed - running;
-
-    let statsStr = `${scriptJobs.length} steps:`;
-    const parts: string[] = [];
-    if (passed > 0) parts.push(SEMANTIC_COLORS.success(`${passed} passed`));
-    if (hardFailed > 0) parts.push(SEMANTIC_COLORS.error(`${hardFailed} failed`));
-    if (softFailed > 0) parts.push(SEMANTIC_COLORS.warning(`▲ ${softFailed} soft failure${softFailed > 1 ? 's' : ''}`));
-    if (running > 0) parts.push(SEMANTIC_COLORS.info(`${running} running`));
-    if (other > 0) parts.push(SEMANTIC_COLORS.muted(`${other} other`));
-    statsStr += ' ' + parts.join(', ');
-
-    logger.console(' ');
-    logger.console(statsStr);
-
-    logger.console(' ');
-  }
 }

@@ -192,3 +192,13 @@ const errorOutput = formatError(error, {
 - **Implementation**: `src/ui/theme.ts` - Main theme system
 - **Symbols**: `src/ui/symbols.ts` - Icon and symbol definitions
 - **Usage**: Throughout `src/formatters/` - Applied in all output formatters
+
+## Case Study: `snapshot`
+
+`snapshot` was the last command still building its output with inline
+`logger.console()` calls in the command class instead of a formatter. It now
+has `src/formatters/snapshot/` (Plain/JSON/Alfred, matching every other
+entity) and honors `--format` like the rest of the CLI (`--json` remains as
+an alias). Its job-count logic moved to a shared `calculateJobStats()` in
+`src/utils/jobStats.ts`, which `build-detail`'s formatter also uses now -
+previously each had its own copy of the same soft-failure state machine.
