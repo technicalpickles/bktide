@@ -19,7 +19,7 @@ import {
   StepResult,
   StepError,
 } from '../types/snapshot.js';
-import { isFailedJob } from '../utils/jobStats.js';
+import { isFailedJob, calculateJobStats } from '../utils/jobStats.js';
 import { getStepDirName } from '../utils/stepUtils.js';
 import { FormatterFactory, FormatterType } from '../formatters/index.js';
 import { SnapshotFormatter } from '../formatters/snapshot/index.js';
@@ -147,15 +147,25 @@ export class Snapshot extends BaseCommand {
           ? existingManifest!.annotations
           : { fetchStatus: 'none', count: 0 };
 
+        // Build/job-state facts are cheap to recompute from the live GraphQL
+        // response we already fetched above, even on this short-circuit path
+        // where we don't re-fetch step logs. That keeps `--format json`
+        // accurate without rewriting manifest.json on a no-op run.
+        const refreshedManifest: Manifest = {
+          ...existingManifest!,
+          build: this.buildManifestBuildSection(build),
+          jobStats: calculateJobStats(scriptJobs),
+        };
+
         const formatter = FormatterFactory.getFormatter(FormatterType.SNAPSHOT, format) as unknown as SnapshotFormatter;
         logger.console(formatter.format({
           outputDir,
-          manifest: existingManifest!,
+          manifest: refreshedManifest,
           build,
           scriptJobs,
           alreadyUpToDate: true,
           capturedCount: existingManifest!.steps.length,
-          skippedCount: 0,
+          skippedCount: scriptJobs.length - existingManifest!.steps.length,
           fetchErrorCount: 0,
           annotationResult,
           artifactResult: existingManifest!.artifacts,
@@ -279,6 +289,7 @@ export class Snapshot extends BaseCommand {
         buildRef.pipeline,
         buildRef.number,
         build,
+        scriptJobs,
         stepResults,
         annotationResult,
         artifactResult
@@ -669,11 +680,34 @@ export class Snapshot extends BaseCommand {
     }
   }
 
+  /**
+   * The `build` sub-object shared by a freshly written manifest and a
+   * refreshed-in-memory reuse of an existing one. Build-level facts (author,
+   * timestamps) come straight off the live GraphQL response either way, so
+   * both paths stay accurate without needing a disk write.
+   */
+  private buildManifestBuildSection(build: any): Manifest['build'] {
+    return {
+      state: build.state || 'unknown',
+      number: build.number,
+      message: build.message?.split('\n')[0] || '',
+      branch: build.branch || 'unknown',
+      commit: build.commit?.substring(0, 7) || 'unknown',
+      finishedAt: build.finishedAt || null,
+      startedAt: build.startedAt || null,
+      createdAt: build.createdAt || null,
+      author: build.createdBy
+        ? { name: build.createdBy.name ?? null, email: build.createdBy.email ?? null }
+        : null,
+    };
+  }
+
   private buildManifest(
     org: string,
     pipeline: string,
     buildNumber: number,
     build: any,
+    scriptJobs: any[],
     stepResults: StepResult[],
     annotationResult: AnnotationResult,
     artifactResult?: ArtifactResult
@@ -687,14 +721,8 @@ export class Snapshot extends BaseCommand {
       url: `https://buildkite.com/${org}/${pipeline}/builds/${buildNumber}`,
       fetchedAt: new Date().toISOString(),
       fetchComplete: allFetchesSucceeded && annotationResult.fetchStatus !== 'failed',
-      build: {
-        state: build.state || 'unknown',
-        number: build.number,
-        message: build.message?.split('\n')[0] || '',
-        branch: build.branch || 'unknown',
-        commit: build.commit?.substring(0, 7) || 'unknown',
-        finishedAt: build.finishedAt || null,
-      },
+      build: this.buildManifestBuildSection(build),
+      jobStats: calculateJobStats(scriptJobs),
       annotations: {
         fetchStatus: annotationResult.fetchStatus,
         count: annotationResult.count,
@@ -706,6 +734,7 @@ export class Snapshot extends BaseCommand {
           count: artifactResult.count,
           filter: artifactResult.filter,
           items: artifactResult.items,
+          error: artifactResult.error,
         },
       }),
       steps: stepResults.map(result => ({

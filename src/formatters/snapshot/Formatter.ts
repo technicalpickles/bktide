@@ -15,6 +15,30 @@ export interface SnapshotFormatterInput {
   debug?: boolean;
 }
 
+export interface SnapshotPaths {
+  outputDir: string;
+  manifest: string;
+  steps: string;
+  annotations: string;
+  artifacts?: string;
+}
+
+/**
+ * Where a snapshot's files live on disk, relative to a given base dir. Used
+ * both for the plain-text tips (base = the human-display path) and the JSON
+ * output (base = the raw outputDir) so both formats point at the same
+ * layout without duplicating the join logic.
+ */
+export function computeSnapshotPaths(baseDir: string, includeArtifacts: boolean): SnapshotPaths {
+  return {
+    outputDir: baseDir,
+    manifest: `${baseDir}/manifest.json`,
+    steps: `${baseDir}/steps`,
+    annotations: `${baseDir}/annotations.json`,
+    ...(includeArtifacts ? { artifacts: `${baseDir}/artifacts` } : {}),
+  };
+}
+
 export interface SnapshotFormatter {
   format(input: SnapshotFormatterInput): string;
 }

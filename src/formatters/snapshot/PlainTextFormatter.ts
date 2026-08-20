@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
-import { BaseSnapshotFormatter, SnapshotFormatterInput } from './Formatter.js';
+import { BaseSnapshotFormatter, SnapshotFormatterInput, computeSnapshotPaths } from './Formatter.js';
 import { getStateIcon, SEMANTIC_COLORS, BUILD_STATUS_THEME } from '../../ui/theme.js';
 import { calculateJobStats } from '../../utils/jobStats.js';
 import { getFirstFailedStepDir } from '../../utils/stepUtils.js';
@@ -143,9 +143,10 @@ export class PlainTextFormatter extends BaseSnapshotFormatter {
     const buildState = build.state?.toLowerCase();
     const isFailed = buildState === 'failed' || buildState === 'failing';
 
-    const manifestPath = `${basePath}/manifest.json`;
-    const stepsPath = `${basePath}/steps`;
-    const annotationsPath = `${basePath}/annotations.json`;
+    const paths = computeSnapshotPaths(basePath, false);
+    const manifestPath = paths.manifest;
+    const stepsPath = paths.steps;
+    const annotationsPath = paths.annotations;
 
     lines.push(' ');
     lines.push('Next steps:');

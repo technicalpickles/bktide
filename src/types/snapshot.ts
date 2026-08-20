@@ -2,6 +2,7 @@
 // Shared between the command (which builds them) and the snapshot
 // formatters (which render them).
 import { ArtifactManifestItem } from './buildkite.js';
+import { JobStats } from '../utils/jobStats.js';
 
 export interface StepResult {
   id: string;
@@ -26,7 +27,12 @@ export interface Manifest {
     branch: string;
     commit: string;
     finishedAt: string | null;
+    startedAt: string | null;
+    createdAt: string | null;
+    author: { name: string | null; email: string | null } | null;
   };
+  /** Aggregate counts across every script job in the build, not just the ones in `steps` (which by default only covers failed jobs). */
+  jobStats: JobStats;
   annotations?: {
     fetchStatus: 'success' | 'none' | 'failed';
     count: number;
@@ -40,6 +46,7 @@ export interface Manifest {
     count: number;
     filter?: string;
     items?: ArtifactManifestItem[];
+    error?: string;
   };
   steps: Array<{
     id: string;

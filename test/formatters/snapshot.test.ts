@@ -32,6 +32,13 @@ const manifest: SnapshotFormatterInput['manifest'] = {
     branch: 'main',
     commit: 'abcdef1',
     finishedAt: '2026-01-01T00:05:00.000Z',
+    startedAt: '2026-01-01T00:00:00.000Z',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    author: { name: 'Josh', email: null },
+  },
+  jobStats: {
+    total: 2, passed: 1, failed: 1, softFailed: 0, running: 0,
+    blocked: 0, skipped: 0, canceled: 0, queued: 0, completed: 2,
   },
   steps: [],
 };
@@ -73,14 +80,28 @@ describe('snapshot formatters', () => {
     expect(out).not.toContain('Next steps:');
   });
 
-  it('json returns the manifest verbatim', () => {
+  it('json returns the manifest plus where its files live on disk', () => {
     const out = getSnapshotFormatter('json').format(baseInput());
-    expect(JSON.parse(out)).toEqual(manifest);
+    const parsed = JSON.parse(out);
+    expect(parsed).toMatchObject(manifest);
+    expect(parsed.paths).toEqual({
+      outputDir: '/tmp/bktide/snapshots/org/pipeline/42',
+      manifest: '/tmp/bktide/snapshots/org/pipeline/42/manifest.json',
+      steps: '/tmp/bktide/snapshots/org/pipeline/42/steps',
+      annotations: '/tmp/bktide/snapshots/org/pipeline/42/annotations.json',
+    });
+  });
+
+  it('json includes an artifacts path when artifacts were fetched', () => {
+    const out = getSnapshotFormatter('json').format(baseInput({
+      artifactResult: { fetchStatus: 'success', count: 2 },
+    }));
+    expect(JSON.parse(out).paths.artifacts).toBe('/tmp/bktide/snapshots/org/pipeline/42/artifacts');
   });
 
   it('json returns the manifest even when already up to date', () => {
     const out = getSnapshotFormatter('json').format(baseInput({ alreadyUpToDate: true }));
-    expect(JSON.parse(out)).toEqual(manifest);
+    expect(JSON.parse(out)).toMatchObject(manifest);
   });
 
   it('alfred returns a single-item payload pointing at the output directory', () => {

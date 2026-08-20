@@ -1,9 +1,12 @@
-import { BaseSnapshotFormatter, SnapshotFormatterInput } from './Formatter.js';
+import { BaseSnapshotFormatter, SnapshotFormatterInput, computeSnapshotPaths } from './Formatter.js';
 
 export class JsonFormatter extends BaseSnapshotFormatter {
   name = 'json';
 
   format(input: SnapshotFormatterInput): string {
-    return JSON.stringify(input.manifest, null, 2);
+    const hasArtifacts = !!input.artifactResult && input.artifactResult.fetchStatus !== 'skipped';
+    const paths = computeSnapshotPaths(input.outputDir, hasArtifacts);
+
+    return JSON.stringify({ ...input.manifest, paths }, null, 2);
   }
 }
