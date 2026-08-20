@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { getStepDirName, categorizeError, Snapshot } from '../../src/commands/Snapshot.js';
+import { categorizeError, Snapshot } from '../../src/commands/Snapshot.js';
+import { getStepDirName } from '../../src/utils/stepUtils.js';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
