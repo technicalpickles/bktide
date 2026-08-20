@@ -1,10 +1,12 @@
 /**
  * Shared formatting utilities for formatters
- * 
+ *
  * These utilities provide consistent formatting for status, dates, durations,
  * sizes, and text truncation across all formatters.
  */
 import { SEMANTIC_COLORS } from '../ui/theme.js';
+import os from 'os';
+import path from 'path';
 
 /**
  * Format a build/job status with icon and color
@@ -92,4 +94,29 @@ export function truncate(str: string, length: number): string {
   const singleLine = str.replace(/\n+/g, ' ').trim();
   if (singleLine.length <= length) return singleLine;
   return singleLine.slice(0, length - 3) + '...';
+}
+
+/**
+ * Convert absolute path to use tilde (~) for home directory
+ * Makes paths more readable and portable
+ */
+export function pathWithTilde(absolutePath: string): string {
+  const homeDir = os.homedir();
+  if (absolutePath.startsWith(homeDir)) {
+    return absolutePath.replace(homeDir, '~');
+  }
+  return absolutePath;
+}
+
+/**
+ * Format a path relative to a known default base directory as `./...`,
+ * otherwise fall back to a tilde path. Used for snapshot output-directory
+ * navigation tips, where paths under the default location read better as
+ * relative paths but custom `--output-dir` locations still need to be legible.
+ */
+export function pathRelativeToDefault(absolutePath: string, defaultBase: string, cwd: string = process.cwd()): string {
+  if (absolutePath.startsWith(defaultBase)) {
+    return './' + path.relative(cwd, absolutePath);
+  }
+  return pathWithTilde(absolutePath);
 }

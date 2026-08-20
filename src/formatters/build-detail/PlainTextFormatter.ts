@@ -15,6 +15,7 @@ import {
 } from '../../ui/theme.js';
 import { useAscii } from '../../ui/symbols.js';
 import { termWidth } from '../../ui/width.js';
+import { calculateJobStats } from '../../utils/jobStats.js';
 
 // Standard emoji mappings only
 // Only map universally recognized emoji codes, not Buildkite-specific ones
@@ -997,80 +998,7 @@ export class PlainTextFormatter extends BaseBuildDetailFormatter {
   }
   
   private getJobStats(jobs: any[]): any {
-    const stats = {
-      total: jobs?.length || 0,
-      passed: 0,
-      failed: 0,
-      softFailed: 0,
-      running: 0,
-      blocked: 0,
-      skipped: 0,
-      canceled: 0,
-      queued: 0,
-      completed: 0
-    };
-
-    if (!jobs) return stats;
-
-    for (const job of jobs) {
-      const state = job.node.state?.toUpperCase() || '';
-
-      // If we have an exit status, use that as the source of truth
-      if (job.node.exitStatus !== null && job.node.exitStatus !== undefined) {
-        const exitCode = parseInt(job.node.exitStatus, 10);
-        if (exitCode === 0) {
-          stats.passed++;
-          stats.completed++;
-        } else {
-          // Non-zero exit: check if soft failure
-          if (job.node.softFailed === true) {
-            stats.softFailed++;
-          } else {
-            stats.failed++;
-          }
-          stats.completed++;
-        }
-      } else if (state === 'RUNNING') {
-        stats.running++;
-      } else if (state === 'BLOCKED') {
-        stats.blocked++;
-      } else if (state === 'CANCELED' || state === 'CANCELLED') {
-        stats.canceled++;
-        stats.completed++;
-      } else if (state === 'SKIPPED' || state === 'BROKEN') {
-        stats.skipped++;
-        stats.completed++;
-      } else if (state === 'SCHEDULED' || state === 'ASSIGNED') {
-        stats.queued++;
-      } else if (state === 'FINISHED' || state === 'COMPLETED') {
-        // For finished jobs without exit status, check passed field
-        if (job.node.passed === true) {
-          stats.passed++;
-          stats.completed++;
-        } else if (job.node.passed === false) {
-          // Check softFailed for finished jobs too
-          if (job.node.softFailed === true) {
-            stats.softFailed++;
-          } else {
-            stats.failed++;
-          }
-          stats.completed++;
-        }
-      } else if (state === 'PASSED' || job.node.passed === true) {
-        stats.passed++;
-        stats.completed++;
-      } else if (state === 'FAILED' || job.node.passed === false) {
-        // Check softFailed for explicitly failed jobs
-        if (job.node.softFailed === true) {
-          stats.softFailed++;
-        } else {
-          stats.failed++;
-        }
-        stats.completed++;
-      }
-    }
-
-    return stats;
+    return calculateJobStats((jobs || []).map(job => job.node));
   }
   
   private getFailedJobs(jobs: any[]): any[] {
