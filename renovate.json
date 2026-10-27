@@ -1,0 +1,8 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>technicalpickles/renovate-config",
+    "github>technicalpickles/renovate-config:mise",
+    "github>technicalpickles/renovate-config:automerge"
+  ]
+}

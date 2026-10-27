@@ -1,4 +1,4 @@
 [tools]
 # use whatever is the latest LTS version: https://github.com/nodejs/Release
 node = "22"
-"github:rhysd/actionlint" = "latest"
+"github:rhysd/actionlint" = "1.7.12"
