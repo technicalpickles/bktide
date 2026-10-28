@@ -119,8 +119,6 @@ Tests use realistic patterns extracted from real Buildkite data:
 - ES module imports (`import`), never `require`
 
 ### Error Handling
-- Specific, actionable error messages
-- Include context and suggestions
 - Debug info available with `--debug` flag
 
 ### Output
@@ -176,18 +174,8 @@ Before implementing major features, check `docs/plans/` for existing designs:
 - `snapshot-command-design.md` - Build snapshot feature
 - `soft-failure-support-design.md` - Soft failure handling
 
-These documents contain architectural decisions, implementation details, and testing strategies.
-
-## Learnings from Real Usage
-
-From `docs/retrospective/`:
-- **Discoverability matters**: Document commands prominently, include in `--help`
-- **Output structure**: Document snapshot/output formats for programmatic use
-- **AI agents**: Benefit from explicit patterns and examples in docs
-
 ## Git Workflow
 
-- Main branch: `main`
 - Feature branches: `feature/description`
 - Run tests before committing
 - Update relevant docs when adding features

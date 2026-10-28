@@ -26,8 +26,7 @@ npm install
 npm run build   # tsc -> dist/index.js
 ```
 
-Both ran clean in this session (`npm install`: 776 packages; `npm run build`:
-no output = success).
+`npm run build` prints nothing on success.
 
 ## Run (agent path)
 
@@ -75,20 +74,18 @@ requires `npm run build` to have already produced `dist/index.js`.
 
 ## Auth (for authenticated commands)
 
-12 of bktide's 15 commands (`viewer`, `orgs`, `pipelines`, `builds`, `build`,
-`annotations`, `pipeline`, `logs`, `snapshot`, `artifacts`, plus the
-SmartShow router) set `requiresToken = true` and will refuse to run without
-a Buildkite API token. Token resolution order: `--token <t>` flag →
+Every command except `prime`, `completions`, `token`, and the `boom` test
+command has `requiresToken = true` (the `BaseCommand` default; `grep -rn
+requiresToken src/commands` for the list) and will refuse to run without a
+Buildkite API token. Token resolution order: `--token <t>` flag →
 `BUILDKITE_API_TOKEN`/`BK_TOKEN` env var → macOS keychain (via
 `bktide token --store`, interactive).
 
-**This skill was authored and verified without a real token** (by user
-choice) — only the token-free surface above was actually driven. To extend
+**This skill has only driven the token-free surface above.** To extend
 coverage to authenticated commands, get a token at
-https://buildkite.com/user/api-access-tokens/new (scopes: Read Builds, Read
-Build Logs, Read Organizations, Read Pipelines, Read Artifacts, GraphQL API
-Access) and either export `BUILDKITE_API_TOKEN=...` or pass `--token`. Good
-first commands to verify with a real token: `bktide viewer`,
+https://buildkite.com/user/api-access-tokens/new with the scopes listed in
+`src/services/RequiredScopes.ts` and either export `BUILDKITE_API_TOKEN=...`
+or pass `--token`. Good first commands to verify with a real token: `bktide viewer`,
 `bktide orgs`, `bktide --format json orgs`.
 
 ## Test
@@ -97,7 +94,6 @@ first commands to verify with a real token: `bktide viewer`,
 npm test
 ```
 
-Verified in this session: 34 test files, 367 tests, all passing (~2.3s).
 Pure vitest unit tests with pattern-based/MSW mocking — does not exercise
 the built `dist/index.js` binary (that's what `smoke.sh` is for).
 
