@@ -172,3 +172,35 @@ describe('rebuildBuild', () => {
     await expect(client.rebuildBuild('o', 'p', 999)).rejects.toThrow(/Not Found/);
   });
 });
+
+describe('BuildkiteRestClient.retryJob', () => {
+  let client: BuildkiteRestClient;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    client = new BuildkiteRestClient('test-token', { caching: false });
+  });
+
+  it('PUTs to the org-scoped job retry endpoint and returns the new job', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ id: 'new-job', state: 'scheduled', type: 'script' }));
+
+    const job = await client.retryJob('acme', 'old-job');
+
+    expect(job.id).toBe('new-job');
+    const [url, init] = mockFetch.mock.calls[0] as [string, any];
+    expect(String(url)).toContain('/organizations/acme/jobs/old-job/retry');
+    expect(init.method).toBe('PUT');
+  });
+
+  it('throws an ApiError carrying the HTTP status', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      headers: { get: () => null },
+      text: async () => '{"message":"Forbidden"}',
+      json: async () => ({ message: 'Forbidden' }),
+    } as any);
+
+    await expect(client.retryJob('acme', 'old-job')).rejects.toMatchObject({ name: 'ApiError', status: 403 });
+  });
+});

@@ -22,6 +22,20 @@ export interface BuildkiteBuildResponse {
   pipeline: { slug: string };
 }
 
+export interface BuildkiteJobResponse {
+  id: string;
+  type: string;
+  name?: string | null;
+  label?: string | null;
+  state: string;
+  build_url?: string;
+  web_url?: string;
+  soft_failed?: boolean;
+  retried?: boolean;
+  retried_in_job_id?: string | null;
+  retries_count?: number | null;
+}
+
 export interface BuildkiteRestClientOptions {
   baseUrl?: string;
   caching?: boolean;
@@ -399,6 +413,18 @@ export class BuildkiteRestClient {
       logger.debug(`${getProgressIcon('STARTING')} Rebuilding ${org}/${pipeline}/${buildNumber}`);
     }
     return this.put<BuildkiteBuildResponse>(endpoint);
+  }
+
+  /**
+   * Retry a failed or timed-out job. Returns the new job; the original job
+   * is marked retried and cannot be retried again.
+   */
+  public async retryJob(org: string, jobId: string): Promise<BuildkiteJobResponse> {
+    const endpoint = `/organizations/${org}/jobs/${jobId}/retry`;
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('STARTING')} Retrying job ${jobId} in ${org}`);
+    }
+    return this.put<BuildkiteJobResponse>(endpoint);
   }
 
   /**

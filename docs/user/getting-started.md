@@ -129,6 +129,10 @@ bktide build create your-org/your-pipeline --commit HEAD --branch main
 # Rebuild an existing build with its original parameters
 bktide build rebuild your-org/your-pipeline/123
 
+# Retry only the failed jobs, or a single job from its link
+bktide build retry-failed your-org/your-pipeline/123
+bktide job retry https://buildkite.com/your-org/your-pipeline/builds/123#<job-uuid>
+
 # Watch the new build until it finishes
 bktide build create your-org/your-pipeline --watch
 ```

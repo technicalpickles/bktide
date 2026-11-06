@@ -10,6 +10,7 @@ import { getBuildDetailFormatter } from './build-detail/index.js';
 import { getArtifactFormatter } from './artifacts/index.js';
 import { getBuildCreateFormatter } from './build-create/index.js';
 import { getSnapshotFormatter } from './snapshot/index.js';
+import { getJobRetryFormatter } from './job-retry/index.js';
 
 export enum FormatterType {
   PIPELINE = 'pipeline',
@@ -23,6 +24,7 @@ export enum FormatterType {
   ARTIFACT = 'artifact',
   BUILD_CREATE = 'build-create',
   SNAPSHOT = 'snapshot',
+  JOB_RETRY = 'job-retry',
 }
 
 export class FormatterFactory {
@@ -59,6 +61,8 @@ export class FormatterFactory {
         return getBuildCreateFormatter(normalizedFormat) as any;
       case FormatterType.SNAPSHOT:
         return getSnapshotFormatter(normalizedFormat) as any;
+      case FormatterType.JOB_RETRY:
+        return getJobRetryFormatter(normalizedFormat) as any;
       default:
         throw new Error(`Unknown formatter type: ${type}`);
     }
