@@ -6,6 +6,7 @@ import { createHash } from 'crypto';
 import { logger } from './logger.js';
 import { getProgressIcon } from '../ui/theme.js';
 import { JobLog, BuildkiteArtifact, AccessTokenInfo } from '../types/buildkite.js';
+import { ApiError } from '../errors/ApiError.js';
 
 export interface CreateBuildPayload {
   commit: string;
@@ -190,7 +191,7 @@ export class BuildkiteRestClient {
           logger.debug('Authentication error detected, not caching result');
         }
         
-        throw new Error(errorMessage);
+        throw new ApiError(errorMessage, response.status);
       }
       
       const data = await response.json() as T;
@@ -276,7 +277,7 @@ export class BuildkiteRestClient {
         logger.debug('Authentication error detected on write request');
       }
 
-      throw new Error(errorMessage);
+      throw new ApiError(errorMessage, response.status);
     }
 
     const data = await response.json() as T;
