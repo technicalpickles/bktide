@@ -224,6 +224,28 @@ bktide build rebuild https://buildkite.com/org/pipeline/builds/123
 bktide build rebuild org/pipeline/123 --watch
 ```
 
+### Retry Failed Jobs
+
+Retry one job without re-running the whole build. Pass the job link, which is the URL GitHub check runs point at.
+
+```bash
+bktide job retry https://buildkite.com/org/pipeline/builds/123#<job-uuid>
+bktide job retry org/pipeline/123#<job-uuid>
+bktide job retry <job-uuid> --org org
+
+# Watch the new job until it finishes
+bktide job retry org/pipeline/123#<job-uuid> --watch
+```
+
+Or retry every failed and timed-out job in a build. Soft failures and jobs that were already retried are skipped.
+
+```bash
+bktide build retry-failed org/pipeline/123 --dry-run
+bktide build retry-failed org/pipeline/123 --watch
+```
+
+Retrying needs a token with the Write Builds scope, and a Buildkite role that lets you retry on that pipeline. When Buildkite refuses because of your role, bktide reports a permission error, because a new token won't fix that.
+
 ### Show Pipeline Details
 
 View pipeline metadata and recent builds.

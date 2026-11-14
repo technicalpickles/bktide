@@ -30,6 +30,20 @@ describe('parseBuildRef', () => {
       });
     });
 
+    it('should parse URL with a #<job-uuid> fragment (GitHub check run links)', () => {
+      const result = parseBuildRef('https://buildkite.com/acme/infra/builds/4242#0190046e-e199-453b-a302-a21a4d649d31');
+      expect(result).toEqual({ org: 'acme', pipeline: 'infra', number: 4242 });
+    });
+
+    it('should parse URL with a query string', () => {
+      const result = parseBuildRef('https://buildkite.com/acme/infra/builds/4242?sid=abc');
+      expect(result).toEqual({ org: 'acme', pipeline: 'infra', number: 4242 });
+    });
+
+    it('should not treat extra digits as part of the build number', () => {
+      expect(() => parseBuildRef('https://buildkite.com/acme/infra/builds/4242abc')).toThrow('Invalid build reference format');
+    });
+
     it('should parse URL with /steps/canvas suffix', () => {
       const result = parseBuildRef('https://buildkite.com/gusto/zenpayroll/builds/1404486/steps/canvas');
       expect(result).toEqual({

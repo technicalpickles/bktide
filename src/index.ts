@@ -24,6 +24,8 @@ import {
   ArtifactsDownload,
   CreateBuild,
   RebuildBuild,
+  RetryJob,
+  RetryFailedJobs,
 } from './commands/index.js';
 import { initializeErrorHandling } from './utils/errorUtils.js';
 import { displayCLIError, setErrorFormat } from './utils/cli-error-handler.js';
@@ -429,7 +431,7 @@ program
 // Add build command group
 const buildCmd = program
   .command('build')
-  .description('Build operations: show, create, rebuild');
+  .description('Build operations: show, create, rebuild, retry-failed');
 
 buildCmd
   .command('show <build>', { isDefault: true })
@@ -515,6 +517,76 @@ buildCmd
       const cacheOptions = { enabled: options.cache !== false, ttl: options.cacheTtl, clear: options.clearCache };
       const token = await BaseCommand.getToken(options);
       const handler = new RebuildBuild({
+        ...cacheOptions,
+        token,
+        debug: options.debug,
+        format: options.format,
+        quiet: options.quiet,
+        tips: options.tips,
+      });
+      process.exitCode = await handler.execute(options);
+    } catch (error) {
+      displayCLIError(error, !!options.debug);
+      process.exitCode = 1;
+    }
+  });
+
+buildCmd
+  .command('retry-failed <build-ref>')
+  .description('Retry every failed or timed-out job in a build (soft failures excluded)')
+  .option('--dry-run', 'List the jobs that would be retried without retrying them')
+  .option('-w, --watch', 'Watch the build until it finishes again')
+  .option('--timeout <minutes>', 'Max watch time in minutes (default: 30)', '30')
+  .option('--poll-interval <seconds>', 'Initial poll interval in seconds (default: 5)', '5')
+  .action(async function(this: ExtendedCommand, buildArg: string) {
+    const options = this.mergedOptions || this.opts();
+    options.buildArg = buildArg;
+    options.timeout = options.timeout ? parseInt(options.timeout) : undefined;
+    options.pollInterval = options.pollInterval ? parseInt(options.pollInterval) : undefined;
+    try {
+      const cacheOptions = { enabled: options.cache !== false, ttl: options.cacheTtl, clear: options.clearCache };
+      const token = await BaseCommand.getToken(options);
+      const handler = new RetryFailedJobs({
+        ...cacheOptions,
+        token,
+        debug: options.debug,
+        format: options.format,
+        quiet: options.quiet,
+        tips: options.tips,
+      });
+      process.exitCode = await handler.execute(options);
+    } catch (error) {
+      displayCLIError(error, !!options.debug);
+      process.exitCode = 1;
+    }
+  });
+
+// Add job command group
+const jobCmd = program
+  .command('job')
+  .description('Job operations: retry');
+
+jobCmd
+  .command('retry <job-ref>')
+  .description('Retry a single failed or timed-out job')
+  .addHelpText('after', `
+Job reference formats:
+  https://buildkite.com/org/pipeline/builds/123#<job-uuid>   (job links, GitHub check runs)
+  org/pipeline/123#<job-uuid>
+  <job-uuid>                                                  (needs --org with multiple orgs)`)
+  .option('-o, --org <org>', 'Organization slug (for a bare job UUID)')
+  .option('-w, --watch', 'Watch the new job until it finishes')
+  .option('--timeout <minutes>', 'Max watch time in minutes (default: 30)', '30')
+  .option('--poll-interval <seconds>', 'Initial poll interval in seconds (default: 5)', '5')
+  .action(async function(this: ExtendedCommand, jobArg: string) {
+    const options = this.mergedOptions || this.opts();
+    options.jobArg = jobArg;
+    options.timeout = options.timeout ? parseInt(options.timeout) : undefined;
+    options.pollInterval = options.pollInterval ? parseInt(options.pollInterval) : undefined;
+    try {
+      const cacheOptions = { enabled: options.cache !== false, ttl: options.cacheTtl, clear: options.clearCache };
+      const token = await BaseCommand.getToken(options);
+      const handler = new RetryJob({
         ...cacheOptions,
         token,
         debug: options.debug,

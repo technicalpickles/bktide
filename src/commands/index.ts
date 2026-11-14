@@ -16,3 +16,5 @@ export * from './ArtifactsList.js';
 export * from './ArtifactsDownload.js';
 export * from './CreateBuild.js';
 export * from './RebuildBuild.js';
+export * from './RetryJob.js';
+export * from './RetryFailedJobs.js';

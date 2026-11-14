@@ -6,6 +6,7 @@ import { createHash } from 'crypto';
 import { logger } from './logger.js';
 import { getProgressIcon } from '../ui/theme.js';
 import { JobLog, BuildkiteArtifact, AccessTokenInfo } from '../types/buildkite.js';
+import { ApiError } from '../errors/ApiError.js';
 
 export interface CreateBuildPayload {
   commit: string;
@@ -19,6 +20,20 @@ export interface BuildkiteBuildResponse {
   state: string;
   web_url: string;
   pipeline: { slug: string };
+}
+
+export interface BuildkiteJobResponse {
+  id: string;
+  type: string;
+  name?: string | null;
+  label?: string | null;
+  state: string;
+  build_url?: string;
+  web_url?: string;
+  soft_failed?: boolean;
+  retried?: boolean;
+  retried_in_job_id?: string | null;
+  retries_count?: number | null;
 }
 
 export interface BuildkiteRestClientOptions {
@@ -190,7 +205,7 @@ export class BuildkiteRestClient {
           logger.debug('Authentication error detected, not caching result');
         }
         
-        throw new Error(errorMessage);
+        throw new ApiError(errorMessage, response.status);
       }
       
       const data = await response.json() as T;
@@ -276,7 +291,7 @@ export class BuildkiteRestClient {
         logger.debug('Authentication error detected on write request');
       }
 
-      throw new Error(errorMessage);
+      throw new ApiError(errorMessage, response.status);
     }
 
     const data = await response.json() as T;
@@ -398,6 +413,18 @@ export class BuildkiteRestClient {
       logger.debug(`${getProgressIcon('STARTING')} Rebuilding ${org}/${pipeline}/${buildNumber}`);
     }
     return this.put<BuildkiteBuildResponse>(endpoint);
+  }
+
+  /**
+   * Retry a failed or timed-out job. Returns the new job; the original job
+   * is marked retried and cannot be retried again.
+   */
+  public async retryJob(org: string, jobId: string): Promise<BuildkiteJobResponse> {
+    const endpoint = `/organizations/${org}/jobs/${jobId}/retry`;
+    if (this.debug) {
+      logger.debug(`${getProgressIcon('STARTING')} Retrying job ${jobId} in ${org}`);
+    }
+    return this.put<BuildkiteJobResponse>(endpoint);
   }
 
   /**

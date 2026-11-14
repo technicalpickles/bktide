@@ -26,7 +26,7 @@ export const REQUIRED_SCOPES = {
   },
   write_builds: {
     displayName: 'Write Builds',
-    commands: ['build create', 'build rebuild'],
+    commands: ['build create', 'build rebuild', 'build retry-failed', 'job retry'],
     optional: true,
   },
   graphql: {
